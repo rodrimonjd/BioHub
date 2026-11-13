@@ -1,0 +1,13 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: registro-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/registro_db
+    username: registro_user
+    password: registro_pass
+  jpa:
+    hibernate:
+      ddl-auto: validate   # el esquema lo manejará Flyway, no Hibernate
