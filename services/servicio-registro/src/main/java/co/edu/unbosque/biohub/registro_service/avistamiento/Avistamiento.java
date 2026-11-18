@@ -9,7 +9,6 @@ import org.hibernate.type.SqlTypes;
 import co.edu.unbosque.biohub.registro_service.especie.Especie;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -27,7 +26,7 @@ public class Avistamiento {
     @Column(name = "investigador_id", nullable = false, length = 36)
     private String investigadorId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "especie_id")
     private Especie especie;
 
