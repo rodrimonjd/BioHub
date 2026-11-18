@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: registro-service
+    name: registro_service
   datasource:
     url: jdbc:mysql://localhost:3306/registro_db
     username: registro_user
