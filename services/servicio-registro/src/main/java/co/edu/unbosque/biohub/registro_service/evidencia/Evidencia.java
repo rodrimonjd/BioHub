@@ -1,10 +1,11 @@
-package co.edu.unbosque.biohub.registro_service.hallazgo;
+package co.edu.unbosque.biohub.registro_service.evidencia;
 
 import java.util.UUID;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import co.edu.unbosque.biohub.registro_service.hallazgo.Hallazgo;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -46,7 +47,6 @@ public class Evidencia {
 
     protected Evidencia() { }
 
-    // Sin "public": solo la Factory del mismo paquete la creara (paso 4b)
     Evidencia(TipoEvidencia tipo, String valor, String unidad,
               String urlArchivo, String atributoTaxonomico) {
         this.id = UUID.randomUUID();
@@ -57,7 +57,7 @@ public class Evidencia {
         this.atributoTaxonomico = atributoTaxonomico;
     }
 
-    void asignarHallazgo(Hallazgo hallazgo) {
+    public void asignarHallazgo(Hallazgo hallazgo) {
         this.hallazgo = hallazgo;
     }
 

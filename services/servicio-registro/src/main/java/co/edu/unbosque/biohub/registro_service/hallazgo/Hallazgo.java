@@ -1,14 +1,24 @@
 package co.edu.unbosque.biohub.registro_service.hallazgo;
 
-import co.edu.unbosque.biohub.registro_service.especie.Especie;
-import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import co.edu.unbosque.biohub.registro_service.especie.Especie;
+import co.edu.unbosque.biohub.registro_service.evidencia.Evidencia;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "hallazgo")
