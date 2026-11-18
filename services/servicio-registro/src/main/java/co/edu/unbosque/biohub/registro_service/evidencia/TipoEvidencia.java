@@ -1,4 +1,4 @@
-package co.edu.unbosque.biohub.registro_service.hallazgo;
+package co.edu.unbosque.biohub.registro_service.evidencia;
 
 public enum TipoEvidencia {
     TEMPERATURA,
