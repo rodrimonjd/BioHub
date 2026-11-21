@@ -4,10 +4,13 @@ server:
 spring:
   application:
     name: registro-service
+  web:
+    error:
+      include-message: always
   datasource:
     url: jdbc:mysql://localhost:3306/registro_db
     username: registro_user
     password: registro_pass
   jpa:
     hibernate:
-      ddl-auto: validate   # el esquema lo manejará Flyway, no Hibernate
+      ddl-auto: validate
