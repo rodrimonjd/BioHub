@@ -23,7 +23,7 @@ public class Especie {
     @Column(name = "estado_conservacion", nullable = false, length = 30)
     private String estadoConservacion;
 
-    protected Especie() { }   // lo exige JPA
+    protected Especie() { }
 
     public Especie(String nombreCientifico, String nombreComun, String estadoConservacion) {
         this.id = UUID.randomUUID();
