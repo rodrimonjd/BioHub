@@ -19,6 +19,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.util.Objects;
+import co.edu.unbosque.biohub.registro_service.evidencia.DatosInvalidosException;
 
 @Entity
 @Table(name = "hallazgo")
@@ -96,6 +98,58 @@ public class Hallazgo {
         }
         return region != null ? departamento + " - " + region : departamento;
     }
+
+    public CambioHallazgo modificar(String campo, String valor, String autor) {
+        String anterior = valorActual(campo);
+        if (Objects.equals(anterior, valor)) {
+            throw new DatosInvalidosException("El nuevo valor es igual al actual");
+        }
+        switch (campo) {
+            case "descripcion" -> {
+                exigirMaximo(valor, 1000, campo);
+                this.descripcion = valor;
+            }
+            case "departamento" -> {
+                exigirMaximo(valor, 80, campo);
+                this.departamento = valor;
+            }
+            case "region" -> {
+                exigirMaximo(valor, 80, campo);
+                this.region = valor;
+            }
+        }
+        this.versionActual++;
+        return new CambioHallazgo(campo, anterior, valor, autor, null, null);
+    }
+
+    public CambioHallazgo reclasificar(Especie nueva, String motivo, String autor, String autorizador) {
+        if (nueva.getId().equals(this.especie.getId())) {
+            throw new DatosInvalidosException("El hallazgo ya esta clasificado como esa especie");
+        }
+        String anterior = this.especie.getNombreCientifico();
+        this.especie = nueva;
+        this.versionActual++;
+        return new CambioHallazgo("especie", anterior, nueva.getNombreCientifico(),
+                autor, autorizador, motivo);
+    }
+
+    private String valorActual(String campo) {
+        return switch (campo) {
+            case "descripcion" -> descripcion;
+            case "departamento" -> departamento;
+            case "region" -> region;
+            default -> throw new DatosInvalidosException(
+                    "Campo no modificable: " + campo + " (permitidos: descripcion, departamento, region)");
+        };
+    }
+
+    private static void exigirMaximo(String valor, int maximo, String campo) {
+        if (valor.length() > maximo) {
+            throw new DatosInvalidosException(
+                    "El campo " + campo + " admite maximo " + maximo + " caracteres");
+        }
+    }
+    
 
     public UUID getId() {
         return id;

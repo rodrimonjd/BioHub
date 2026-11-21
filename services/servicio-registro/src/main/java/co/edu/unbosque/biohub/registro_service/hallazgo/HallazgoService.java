@@ -53,4 +53,21 @@ public class HallazgoService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Hallazgo no encontrado: " + id));
     }
+
+    @Transactional
+    public Hallazgo modificar(UUID id, ModificarHallazgoRequest r) {
+        Hallazgo hallazgo = obtener(id);
+        hallazgo.modificar(r.campo().trim(), r.valor().trim(), r.autor());
+        return hallazgo;
+    }
+
+    @Transactional
+    public Hallazgo reclasificar(UUID id, ReclasificarHallazgoRequest r) {
+        Hallazgo hallazgo = obtener(id);
+        Especie nueva = especies.findById(r.nuevaEspecieId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Especie no encontrada: " + r.nuevaEspecieId()));
+        hallazgo.reclasificar(nueva, r.motivo().trim(), r.autor(), r.autorizador()); 
+        return hallazgo;
+    }
 }
