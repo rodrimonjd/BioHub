@@ -21,6 +21,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.util.Objects;
 import co.edu.unbosque.biohub.registro_service.evidencia.DatosInvalidosException;
+import co.edu.unbosque.biohub.registro_service.expedicion.Expedicion;
 
 @Entity
 @Table(name = "hallazgo")
@@ -37,6 +38,10 @@ public class Hallazgo {
     @ManyToOne(optional = false)
     @JoinColumn(name = "especie_id")
     private Especie especie;
+
+    @ManyToOne
+    @JoinColumn(name = "expedicion_id")
+    private Expedicion expedicion;
 
     @Column(name = "ficha_id", length = 36)
     private String fichaId;
@@ -85,8 +90,16 @@ public class Hallazgo {
     }
 
     public void agregarEvidencia(Evidencia evidencia) {
+        if (!evidencia.validarFormato()) {
+            throw new DatosInvalidosException(
+                    "La evidencia de tipo " + evidencia.getTipo() + " no tiene un formato valido");
+        }
         evidencia.asignarHallazgo(this);
         this.evidencias.add(evidencia);
+    }
+
+    void asignarExpedicion(Expedicion expedicion) {
+        this.expedicion = expedicion;
     }
 
     public String obtenerUbicacion(boolean exacta) {
@@ -173,6 +186,10 @@ public class Hallazgo {
 
     public void setEspecie(Especie especie) {
         this.especie = especie;
+    }
+
+    public Expedicion getExpedicion() {
+        return expedicion;
     }
 
     public String getFichaId() {

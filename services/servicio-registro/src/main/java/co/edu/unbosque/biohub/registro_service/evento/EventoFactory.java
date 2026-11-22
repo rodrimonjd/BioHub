@@ -1,6 +1,8 @@
 package co.edu.unbosque.biohub.registro_service.evento;
 
 import co.edu.unbosque.biohub.registro_service.avistamiento.Avistamiento;
+import co.edu.unbosque.biohub.registro_service.equipo.EquipoCampo;
+import co.edu.unbosque.biohub.registro_service.expedicion.Expedicion;
 import co.edu.unbosque.biohub.registro_service.hallazgo.CambioHallazgo;
 import co.edu.unbosque.biohub.registro_service.hallazgo.Hallazgo;
 
@@ -28,6 +30,9 @@ public final class EventoFactory {
         datos.put("region", h.getRegion());
         datos.put("version", h.getVersionActual());
         datos.put("totalEvidencias", h.getEvidencias().size());
+        if (h.getExpedicion() != null) {
+            datos.put("expedicionId", h.getExpedicion().getId());
+        }
         return crear(EventoDominio.HALLAZGO_REGISTRADO, h.getId().toString(),
                 h.getInvestigadorId(), null, datos);
     }
@@ -55,6 +60,16 @@ public final class EventoFactory {
         datos.put("region", a.getRegion());
         return crear(EventoDominio.AVISTAMIENTO_REGISTRADO, a.getId().toString(),
                 a.getInvestigadorId(), null, datos);
+    }
+
+    public static EventoDominio equipoAsignado(Expedicion e, EquipoCampo equipo) {
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("equipoId", equipo.getId());
+        datos.put("numeroSerie", equipo.getNumeroSerie());
+        datos.put("tipoEquipo", equipo.getTipo());
+        datos.put("responsableId", equipo.getResponsableId());
+        return crear(EventoDominio.EQUIPO_ASIGNADO, e.getId().toString(),
+                e.getLiderId(), null, datos);
     }
 
     private static EventoDominio crear(String tipo, String idAgregado, String autor,

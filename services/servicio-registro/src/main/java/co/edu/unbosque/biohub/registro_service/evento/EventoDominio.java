@@ -17,4 +17,5 @@ public record EventoDominio(
     public static final String HALLAZGO_REGISTRADO = "HALLAZGO_REGISTRADO";
     public static final String HALLAZGO_MODIFICADO = "HALLAZGO_MODIFICADO";
     public static final String AVISTAMIENTO_REGISTRADO = "AVISTAMIENTO_REGISTRADO";
+    public static final String EQUIPO_ASIGNADO = "EQUIPO_ASIGNADO";
 }
