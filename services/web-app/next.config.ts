@@ -1,7 +1,10 @@
 import type { NextConfig } from 'next';
 
 // URL de servicio-registro. Por defecto el registro local (mvnw o docker compose en :8081).
-const REGISTRO_URL = process.env.REGISTRO_URL ?? 'http://localhost:8081';
+const REGISTRO_URL =
+  process.env.REGISTRO_URL ??
+  process.env.REGISTRO_SERVICE_URL ??
+  'http://localhost:8081';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

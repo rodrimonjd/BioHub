@@ -6,8 +6,6 @@ export interface ApiUsagePanelProps {
   endpointUrl: string;
   requestsPerMinute: number;
   limitPerMinute?: number;
-  onSimulateRequest?: (delta: number) => void;
-  onResetCounter?: () => void;
 }
 
 export function ApiUsagePanel({
@@ -15,8 +13,6 @@ export function ApiUsagePanel({
   endpointUrl,
   requestsPerMinute,
   limitPerMinute = 60,
-  onSimulateRequest,
-  onResetCounter,
 }: ApiUsagePanelProps) {
   const ratio = requestsPerMinute / limitPerMinute;
   const percentage = Math.min(100, Math.round(ratio * 100));
@@ -32,9 +28,9 @@ export function ApiUsagePanel({
     : 'bg-moss-500';
 
   const statusLabel = isExceeded
-    ? 'Límite excedido (HTTP 429 Too Many Requests)'
+    ? 'Límite por minuto excedido'
     : isNearLimit
-    ? 'Cerca del límite por minuto (>80%)'
+    ? 'Consumo cercano al límite por minuto (>80%)'
     : 'Tráfico dentro del umbral permitido';
 
   return (
@@ -49,13 +45,13 @@ export function ApiUsagePanel({
           </h3>
         </div>
         <span className="font-mono text-xs text-ink-muted">
-          Máx. {limitPerMinute} req/min
+          Tope: {limitPerMinute} req/min
         </span>
       </div>
 
       <div className="space-y-1 text-xs">
         <p className="text-ink font-medium">{consumerName}</p>
-        <p className="font-mono text-ink-muted">Endpoint estable: {endpointUrl}</p>
+        <p className="font-mono text-ink-muted">Acceso público estable: {endpointUrl}</p>
       </div>
 
       <div className="space-y-2">
@@ -80,32 +76,6 @@ export function ApiUsagePanel({
           />
         </div>
       </div>
-
-      {onSimulateRequest && onResetCounter && (
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-line">
-          <button
-            type="button"
-            onClick={() => onSimulateRequest(10)}
-            className="rounded-md border border-line bg-paper px-3 py-1.5 font-mono text-xs text-ink hover:border-forest-700 transition-colors duration-150 cursor-pointer"
-          >
-            +10 peticiones
-          </button>
-          <button
-            type="button"
-            onClick={() => onSimulateRequest(25)}
-            className="rounded-md border border-line bg-paper px-3 py-1.5 font-mono text-xs text-ink hover:border-forest-700 transition-colors duration-150 cursor-pointer"
-          >
-            Simular ráfaga (+25)
-          </button>
-          <button
-            type="button"
-            onClick={onResetCounter}
-            className="rounded-md border border-line bg-surface px-3 py-1.5 font-mono text-xs text-ink-muted hover:text-ink transition-colors duration-150 cursor-pointer"
-          >
-            Reiniciar ventana
-          </button>
-        </div>
-      )}
     </Card>
   );
 }

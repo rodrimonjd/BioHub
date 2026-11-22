@@ -8,10 +8,10 @@ export interface SeedSpecies {
 }
 
 /**
- * Especies exactas de V3__semilla__especies.sql en servicio-registro:
- * - 11111111-1111-1111-1111-111111111111 -> Crocodylus intermedius (CR)
- * - 22222222-2222-2222-2222-222222222222 -> Panthera onca (NT)
- * - 33333333-3333-3333-3333-333333333333 -> Ara macao (LC)
+ * Fuente única de verdad para las categorías UICN de las especies del catálogo.
+ * - Crocodylus intermedius -> CR (En peligro crítico)
+ * - Panthera onca -> NT (Casi amenazada)
+ * - Ara macao -> LC (Preocupación menor)
  */
 export const BACKEND_SEED_SPECIES: SeedSpecies[] = [
   {
@@ -34,7 +34,14 @@ export const BACKEND_SEED_SPECIES: SeedSpecies[] = [
   },
 ];
 
-// DTOs exactos de co.edu.unbosque.biohub.registro_service.avistamiento.*
+export function getSpeciesByScientificName(
+  scientificName: string
+): SeedSpecies | undefined {
+  return BACKEND_SEED_SPECIES.find(
+    (s) => s.scientificName.toLowerCase() === scientificName.toLowerCase()
+  );
+}
+
 export interface AvistamientoRequest {
   investigadorId: string;
   especieId: string;
@@ -57,9 +64,10 @@ export interface AvistamientoResponse {
   departamento: string;
   region: string | null;
   creadoEn: string;
+  pendingSync?: boolean;
+  originalPayload?: AvistamientoRequest;
 }
 
-// DTOs exactos de co.edu.unbosque.biohub.registro_service.evidencia.*
 export type TipoEvidencia = 'TEMPERATURA' | 'ADN' | 'AUDIO';
 
 export interface EvidenciaRequest {
@@ -79,7 +87,6 @@ export interface EvidenciaResponse {
   atributoTaxonomico: string | null;
 }
 
-// DTOs exactos de co.edu.unbosque.biohub.registro_service.hallazgo.*
 export interface HallazgoRequest {
   investigadorId: string;
   especieId: string;
@@ -108,6 +115,7 @@ export interface HallazgoResponse {
   versionActual: number;
   creadoEn: string;
   evidencias: EvidenciaResponse[];
+  pendingSync?: boolean;
 }
 
 export interface ModificarHallazgoRequest {
@@ -129,14 +137,13 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
   try {
     const body = await res.json();
     if (body?.message) return body.message;
-    if (body?.error) return `${body.error} (HTTP ${res.status})`;
+    if (body?.error) return `${body.error}`;
   } catch {
     // ignore JSON parse error
   }
-  return `${fallback} (HTTP ${res.status})`;
+  return fallback;
 }
 
-// HU-13: GET /avistamientos
 export async function listarAvistamientos(): Promise<{
   data: AvistamientoResponse[] | null;
   online: boolean;
@@ -151,7 +158,6 @@ export async function listarAvistamientos(): Promise<{
   }
 }
 
-// HU-13: GET /avistamientos/{id}
 export async function obtenerAvistamientoPorId(id: string): Promise<AvistamientoResponse> {
   const res = await fetch(`${API_BASE}/avistamientos/${id}`, { cache: 'no-store' });
   if (!res.ok) {
@@ -160,7 +166,6 @@ export async function obtenerAvistamientoPorId(id: string): Promise<Avistamiento
   return res.json();
 }
 
-// HU-13: POST /avistamientos
 export async function registrarAvistamiento(
   payload: AvistamientoRequest
 ): Promise<AvistamientoResponse> {
@@ -170,12 +175,11 @@ export async function registrarAvistamiento(
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'No se pudo registrar el avistamiento'));
+    throw new Error(await parseErrorMessage(res, 'Servicio de registro no disponible'));
   }
   return res.json();
 }
 
-// HU-01 & HU-03: POST /hallazgos (Devuelve 201 Created con header Location: /hallazgos/{uuid})
 export async function registrarHallazgo(
   payload: HallazgoRequest
 ): Promise<{ id: string | null; hallazgo: HallazgoResponse | null }> {
@@ -185,7 +189,7 @@ export async function registrarHallazgo(
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'Error de validación al registrar el hallazgo'));
+    throw new Error(await parseErrorMessage(res, 'Servicio de registro no disponible'));
   }
   const location = res.headers.get('Location');
   const extractedId = location ? location.split('/').pop() || null : null;
@@ -196,16 +200,14 @@ export async function registrarHallazgo(
   return { id: null, hallazgo: null };
 }
 
-// HU-01 / HU-05: GET /hallazgos/{id}
 export async function obtenerHallazgoPorId(id: string): Promise<HallazgoResponse> {
   const res = await fetch(`${API_BASE}/hallazgos/${id}`, { cache: 'no-store' });
   if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'Hallazgo no encontrado'));
+    throw new Error(await parseErrorMessage(res, 'Hallazgo no encontrado en el servidor'));
   }
   return res.json();
 }
 
-// HU-19.1 & HU-10: PATCH /hallazgos/{id}
 export async function modificarHallazgo(
   id: string,
   payload: ModificarHallazgoRequest
@@ -216,12 +218,11 @@ export async function modificarHallazgo(
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'No se pudo modificar el hallazgo'));
+    throw new Error(await parseErrorMessage(res, 'No se pudo sincronizar la modificación'));
   }
   return res.json();
 }
 
-// HU-19.1 & HU-10: POST /hallazgos/{id}/reclasificacion
 export async function reclasificarHallazgo(
   id: string,
   payload: ReclasificarHallazgoRequest
@@ -232,8 +233,7 @@ export async function reclasificarHallazgo(
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'No se pudo reclasificar el hallazgo'));
+    throw new Error(await parseErrorMessage(res, 'No se pudo sincronizar la reclasificación'));
   }
   return res.json();
 }
-
