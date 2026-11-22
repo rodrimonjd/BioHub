@@ -9,8 +9,8 @@ import co.edu.unbosque.biohub.autorizacion.permiso.Permiso;
 import co.edu.unbosque.biohub.autorizacion.permiso.PermisoRepositorio;
 import co.edu.unbosque.biohub.autorizacion.usuario.UsuarioRol;
 import co.edu.unbosque.biohub.autorizacion.usuario.UsuarioRolRepositorio;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +29,11 @@ public class RolServicio {
     private final UsuarioRolRepositorio usuarioRoles;
     private final EventoOutboxRepositorio outbox;
     private final ServicioAutorizacion autorizacion;
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
 
     public RolServicio(RolRepositorio roles, PermisoRepositorio permisos,
                        UsuarioRolRepositorio usuarioRoles, EventoOutboxRepositorio outbox,
-                       ServicioAutorizacion autorizacion, ObjectMapper mapper) {
+                       ServicioAutorizacion autorizacion, JsonMapper mapper) {
         this.roles = roles;
         this.permisos = permisos;
         this.usuarioRoles = usuarioRoles;
@@ -110,7 +110,7 @@ public class RolServicio {
     private void emitir(String idAgregado, String tipo, Map<String, Object> cargaUtil) {
         try {
             outbox.save(new EventoOutbox(idAgregado, tipo, mapper.writeValueAsString(cargaUtil)));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("No se pudo serializar el evento " + tipo, e);
         }
     }

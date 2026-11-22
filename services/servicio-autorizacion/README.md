@@ -7,7 +7,7 @@ Roles y permisos centralizados; decide si se muestran coordenadas exactas o solo
 **Eventos que consume:** ninguno por ahora
 
 ## Tecnología
-Java 17 · Spring Boot 3.3 · Spring Data JPA · MySQL 8 · Flyway
+Java 17 · Spring Boot 4.1 · Spring Data JPA · MySQL 8 · Flyway
 
 ## Estructura
 ```
