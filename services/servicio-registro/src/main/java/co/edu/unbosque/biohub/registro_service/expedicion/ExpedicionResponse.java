@@ -14,6 +14,7 @@ public record ExpedicionResponse(
         String zona,
         LocalDate fechaInicio,
         LocalDate fechaFin,
+        String liderId,
         List<EquipoResponse> equipos) {
 
     public static ExpedicionResponse de(Expedicion e) {
@@ -28,6 +29,7 @@ public record ExpedicionResponse(
                     e.getZona(),
                     e.getFechaInicio(),
                     e.getFechaFin(),
+                    e.getLiderId(),
                     equipos);
             }
 }

@@ -43,6 +43,9 @@ public class Expedicion {
     @Column(name = "fecha_fin")
     private LocalDate fechaFin;
 
+    @Column(name = "lider_id", nullable = false, length = 36)
+    private String liderId;
+
     @Column(name = "creado_en", nullable = false)
     private Instant creadoEn;
 
@@ -54,12 +57,16 @@ public class Expedicion {
 
     protected Expedicion() { }
 
-    public Expedicion(String nombre, String zona, LocalDate fechaInicio, LocalDate fechaFin) {
+    public Expedicion(String nombre, String zona, LocalDate fechaInicio, LocalDate fechaFin,
+                      String liderId) {
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("nombre es obligatorio");
         }
         if (zona == null || zona.isBlank()) {
             throw new IllegalArgumentException("zona es obligatoria");
+        }
+        if (liderId == null || liderId.isBlank()) {
+            throw new IllegalArgumentException("liderId es obligatorio");
         }
         if (fechaInicio == null) {
             throw new IllegalArgumentException("fechaInicio es obligatoria");
@@ -72,6 +79,7 @@ public class Expedicion {
         this.zona = zona;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
+        this.liderId = liderId;
         this.creadoEn = Instant.now();
     }
 
@@ -80,6 +88,7 @@ public class Expedicion {
             throw new IllegalArgumentException(
                     "El equipo " + equipo.getNumeroSerie() + " esta en mantenimiento");
         }
+        equipo.asignarResponsable(liderId);
         equipos.add(equipo);
     }
 
@@ -92,5 +101,6 @@ public class Expedicion {
     public String getZona() { return zona; }
     public LocalDate getFechaInicio() { return fechaInicio; }
     public LocalDate getFechaFin() { return fechaFin; }
+    public String getLiderId() { return liderId; }
     public Instant getCreadoEn() { return creadoEn; }
 }

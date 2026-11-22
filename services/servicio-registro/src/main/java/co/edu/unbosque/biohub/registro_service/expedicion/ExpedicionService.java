@@ -10,23 +10,28 @@ import org.springframework.web.server.ResponseStatusException;
 
 import co.edu.unbosque.biohub.registro_service.equipo.EquipoCampo;
 import co.edu.unbosque.biohub.registro_service.equipo.EquipoService;
+import co.edu.unbosque.biohub.registro_service.evento.EventoFactory;
+import co.edu.unbosque.biohub.registro_service.evento.OutboxService;
 
 @Service
 public class ExpedicionService {
 
     private final ExpedicionRepository expediciones;
     private final EquipoService equipoService;
+    private final OutboxService outbox;
 
-    public ExpedicionService(ExpedicionRepository expediciones, EquipoService equipoService) {
+    public ExpedicionService(ExpedicionRepository expediciones, EquipoService equipoService,
+                             OutboxService outbox) {
         this.expediciones = expediciones;
         this.equipoService = equipoService;
+        this.outbox = outbox;
     }
 
     @Transactional
     public Expedicion crear(ExpedicionRequest r) {
         try {
             return expediciones.save(
-                    new Expedicion(r.nombre(), r.zona(), r.fechaInicio(), r.fechaFin()));
+                    new Expedicion(r.nombre(), r.zona(), r.fechaInicio(), r.fechaFin(), r.liderId()));
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
@@ -39,8 +44,11 @@ public class ExpedicionService {
     }
 
     @Transactional(readOnly = true)
-    public List<Expedicion> listar() {
-        return expediciones.findAll();
+    public List<Expedicion> listar(String liderId) {
+        if (liderId == null || liderId.isBlank()) {
+            return expediciones.findAll();
+        }
+        return expediciones.findByLiderId(liderId);
     }
 
     @Transactional
@@ -52,6 +60,7 @@ public class ExpedicionService {
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
+        outbox.guardar(EventoFactory.equipoAsignado(expedicion, equipo));
         return expedicion;
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -33,9 +34,9 @@ public class ExpedicionController {
     }
 
     @GetMapping
-public List<ExpedicionResponse> listar() {
+public List<ExpedicionResponse> listar(@RequestParam(required = false) String liderId) {
     List<ExpedicionResponse> respuesta = new ArrayList<>();
-    for (Expedicion e : servicio.listar()) {
+    for (Expedicion e : servicio.listar(liderId)) {
         respuesta.add(ExpedicionResponse.de(e));
     }
     return respuesta;
