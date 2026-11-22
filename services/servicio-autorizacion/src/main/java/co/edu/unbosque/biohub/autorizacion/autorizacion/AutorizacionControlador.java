@@ -26,6 +26,12 @@ public class AutorizacionControlador {
         return new RespuestaAccesoUsuario(usuarioId, autorizacion.rolesDe(usuarioId), autorizacion.permisosDe(usuarioId));
     }
 
+    @PostMapping("/consumidores/validar")
+    public RespuestaConsumidor validarConsumidor(@Valid @RequestBody SolicitudConsumidor solicitud) {
+        boolean valido = autorizacion.validarConsumidor(solicitud.consumidorId());
+        return new RespuestaConsumidor(solicitud.consumidorId(), valido);
+    }
+
     @PostMapping("/visibilidad-ubicacion")
     public RespuestaVisibilidad visibilidad(@RequestBody SolicitudVisibilidad solicitud) {
         NivelVisibilidad nivel = autorizacion.visibilidadUbicacion(solicitud.usuarioId(), solicitud.categoriaConservacion());

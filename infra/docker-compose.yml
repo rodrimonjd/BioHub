@@ -135,6 +135,21 @@ services:
     ports:
       - "8084:8084"
 
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+    container_name: biohub-api-gateway
+    restart: unless-stopped
+    depends_on:
+      - servicio-autorizacion
+      - servicio-consulta-publica
+    environment:
+      AUTORIZACION_URL: http://servicio-autorizacion:8082
+      CONSULTA_URL: http://servicio-consulta-publica:8083
+      TZ: America/Bogota
+    ports:
+      - "8080:8080"
+
 volumes:
   mysql_data:
   mongo_data:
