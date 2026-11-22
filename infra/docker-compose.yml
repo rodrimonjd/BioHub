@@ -28,6 +28,67 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: biohub-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-biohub}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-biohub}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  servicio-autorizacion:
+    build:
+      context: ../services/servicio-autorizacion
+    container_name: biohub-servicio-autorizacion
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: auth_db
+      BD_USUARIO: auth_user
+      BD_CLAVE: auth_pass
+      TZ: America/Bogota
+    ports:
+      - "8082:8082"
+
+  servicio-registro:
+    build:
+      context: ../services/servicio-registro
+    container_name: biohub-servicio-registro
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: registro_db
+      BD_USUARIO: registro_user
+      BD_CLAVE: registro_pass
+      RABBIT_HOST: rabbitmq
+      RABBIT_PUERTO: 5672
+      RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
+      RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      TZ: America/Bogota
+    ports:
+      - "8081:8081"
+
 volumes:
   mysql_data:
   mongo_data:
+  rabbitmq_data:

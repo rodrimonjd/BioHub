@@ -2,8 +2,12 @@ package co.edu.unbosque.biohub.registro_service.hallazgo;
 
 import co.edu.unbosque.biohub.registro_service.especie.Especie;
 import co.edu.unbosque.biohub.registro_service.especie.EspecieRepository;
+import co.edu.unbosque.biohub.registro_service.evento.EventoFactory;
+import co.edu.unbosque.biohub.registro_service.evento.OutboxService;
 import co.edu.unbosque.biohub.registro_service.evidencia.EvidenciaFactory;
 import co.edu.unbosque.biohub.registro_service.evidencia.EvidenciaRequest;
+import co.edu.unbosque.biohub.registro_service.expedicion.Expedicion;
+import co.edu.unbosque.biohub.registro_service.expedicion.ExpedicionRepository;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,10 +21,15 @@ public class HallazgoService {
 
     private final HallazgoRepository hallazgos;
     private final EspecieRepository especies;
+    private final ExpedicionRepository expediciones;
+    private final OutboxService outbox;
 
-    public HallazgoService(HallazgoRepository hallazgos, EspecieRepository especies) {
+    public HallazgoService(HallazgoRepository hallazgos, EspecieRepository especies,
+                        ExpedicionRepository expediciones, OutboxService outbox) {
         this.hallazgos = hallazgos;
         this.especies = especies;
+        this.expediciones = expediciones;
+        this.outbox = outbox;
     }
 
     @Transactional
@@ -30,12 +39,19 @@ public class HallazgoService {
                         HttpStatus.NOT_FOUND, "Especie no encontrada: " + r.especieId()));
 
         HallazgoBuilder builder = new HallazgoBuilder()
-                .investigador(r.investigadorId())   // TODO: tomarlo del token
+                .investigador(r.investigadorId())
                 .especie(especie)
                 .ficha(r.fichaId())
                 .fecha(r.fecha())
                 .descripcion(r.descripcion())
                 .ubicacion(r.latitud(), r.longitud(), r.departamento(), r.region());
+
+        if (r.expedicionId() != null) {
+            Expedicion expedicion = expediciones.findById(r.expedicionId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Expedicion no encontrada"));
+            builder.expedicion(expedicion);
+        }
 
         if (r.evidencias() != null) {
             for (EvidenciaRequest e : r.evidencias()) {
@@ -44,7 +60,9 @@ public class HallazgoService {
             }
         }
 
-        return hallazgos.save(builder.build());
+        Hallazgo guardado = hallazgos.save(builder.build());
+        outbox.guardar(EventoFactory.hallazgoRegistrado(guardado));
+        return guardado;
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +75,8 @@ public class HallazgoService {
     @Transactional
     public Hallazgo modificar(UUID id, ModificarHallazgoRequest r) {
         Hallazgo hallazgo = obtener(id);
-        hallazgo.modificar(r.campo().trim(), r.valor().trim(), r.autor());
+        CambioHallazgo cambio = hallazgo.modificar(r.campo().trim(), r.valor().trim(), r.autor());
+        outbox.guardar(EventoFactory.hallazgoModificado(hallazgo, cambio));
         return hallazgo;
     }
 
@@ -67,7 +86,9 @@ public class HallazgoService {
         Especie nueva = especies.findById(r.nuevaEspecieId())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Especie no encontrada: " + r.nuevaEspecieId()));
-        hallazgo.reclasificar(nueva, r.motivo().trim(), r.autor(), r.autorizador()); 
+        CambioHallazgo cambio = hallazgo.reclasificar(nueva, r.motivo().trim(),
+                r.autor(), r.autorizador());
+        outbox.guardar(EventoFactory.hallazgoModificado(hallazgo, cambio));
         return hallazgo;
     }
 }

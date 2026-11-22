@@ -65,6 +65,38 @@ public class Avistamiento {
         this.region = region;
     }
 
+    /**
+     * Revisa los datos minimos de un avistamiento: investigador, especie,
+     * fecha no futura, cantidad mayor a cero, departamento, y latitud y
+     * longitud juntas (o ninguna) dentro de su rango.
+     */
+    public boolean validarDatos() {
+        if (investigadorId == null || investigadorId.isBlank()) {
+            return false;
+        }
+        if (especie == null) {
+            return false;
+        }
+        if (fechaHora == null || fechaHora.isAfter(Instant.now())) {
+            return false;
+        }
+        if (cantidad < 1) {
+            return false;
+        }
+        if (departamento == null || departamento.isBlank()) {
+            return false;
+        }
+        if ((latitud == null) != (longitud == null)) {
+            return false;
+        }
+        if (latitud != null) {
+            if (latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public UUID getId() {
         return id;
     }

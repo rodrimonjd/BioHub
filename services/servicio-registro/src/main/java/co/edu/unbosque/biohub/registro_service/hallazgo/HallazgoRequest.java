@@ -19,4 +19,5 @@ public record HallazgoRequest(
         @DecimalMin("-180") @DecimalMax("180") Double longitud,
         @NotBlank String departamento,
         String region,
+        UUID expedicionId,
         @Valid List<EvidenciaRequest> evidencias) { }
