@@ -14,10 +14,6 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Cliente HTTP de POST /api/v1/autorizacion/visibilidad-ubicacion con caché por (usuario, categoría).
- * Si autorización no responde se aplica el nivel más restrictivo (DEPARTAMENTO) y no se guarda en caché.
- */
 @Component
 public class ClienteAutorizacionHttp implements ClienteAutorizacion {
 

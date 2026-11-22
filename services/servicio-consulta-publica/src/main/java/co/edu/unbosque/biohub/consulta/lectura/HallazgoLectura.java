@@ -7,7 +7,6 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** Copia de lectura de un hallazgo, construida a partir de los eventos de servicio-registro. */
 @Entity
 @Table(name = "hallazgo_lectura")
 public class HallazgoLectura {
@@ -40,7 +39,6 @@ public class HallazgoLectura {
         this.id = id;
     }
 
-    /** Reemplaza todos los datos (evento de registro). */
     public void registrar(String especieId, String especie, Instant fecha, String descripcion,
                           Double latitud, Double longitud, String departamento, String region, int version) {
         this.especieId = especieId;

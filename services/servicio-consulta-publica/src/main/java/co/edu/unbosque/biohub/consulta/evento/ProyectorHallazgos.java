@@ -14,11 +14,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Aplica los eventos de servicio-registro al modelo de lectura.
- * Es idempotente: un evento con versión menor o igual a la guardada se ignora,
- * así que recibir el mismo evento dos veces no cambia nada.
- */
 @Service
 public class ProyectorHallazgos {
 
@@ -32,12 +27,8 @@ public class ProyectorHallazgos {
         this.catalogo = catalogo;
     }
 
-    /** Qué pasó con el evento, para dejarlo claro en el log. */
     public enum Resultado { APLICADO, IGNORADO }
 
-    /**
-     * @throws EventoInvalidoException si al evento le faltan datos o vienen mal formados
-     */
     @Transactional
     public Resultado aplicar(EventoEntrante evento) {
         if (evento.idAgregado() == null || evento.idAgregado().isBlank()) {
@@ -83,7 +74,6 @@ public class ProyectorHallazgos {
             case "descripcion" -> h.cambiarDescripcion(valor);
             case "departamento" -> h.cambiarDepartamento(valor);
             case "region" -> h.cambiarRegion(valor);
-            // registro envía el nombre científico de la nueva especie; el id se busca en el catálogo
             case "especie" -> h.reclasificar(
                     catalogo.porNombreCientifico(valor).map(e -> e.id()).orElse(null), valor);
             default -> log.warn("Campo modificado desconocido '{}' en el hallazgo {}", campo, h.getId());
@@ -91,8 +81,6 @@ public class ProyectorHallazgos {
         h.marcarVersion(version);
         return Resultado.APLICADO;
     }
-
-    // ---- conversión de los valores del JSON (cualquier valor mal formado = evento inválido) ----
 
     private static String texto(Object valor) {
         return valor == null ? null : valor.toString();
@@ -126,7 +114,6 @@ public class ProyectorHallazgos {
         }
     }
 
-    /** Acepta fecha ISO-8601 ("2026-11-21T10:00:00Z") o segundos desde 1970 (con decimales). */
     private static Instant instante(Object valor) {
         if (valor == null) throw new EventoInvalidoException("Evento sin el campo obligatorio 'fecha'");
         try {

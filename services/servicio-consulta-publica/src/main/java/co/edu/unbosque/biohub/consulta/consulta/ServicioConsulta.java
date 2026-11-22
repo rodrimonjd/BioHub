@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/** Consultas públicas de hallazgos (HU-05, HU-06, HU-07). */
 @Service
 @Transactional(readOnly = true)
 public class ServicioConsulta {
@@ -56,7 +55,6 @@ public class ServicioConsulta {
         EspecieInfo especie = catalogo.porId(h.getEspecieId())
                 .or(() -> catalogo.porNombreCientifico(h.getEspecie()))
                 .orElse(null);
-        // sin categoría conocida, autorización aplica su criterio conservador
         String categoria = especie == null ? null : especie.estadoConservacion();
         NivelVisibilidad nivel = autorizacion.visibilidad(usuarioId, categoria);
         return PresentadorUbicacion.presentar(h, especie, nivel);

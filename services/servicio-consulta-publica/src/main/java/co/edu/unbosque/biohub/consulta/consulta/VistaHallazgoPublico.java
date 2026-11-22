@@ -4,11 +4,6 @@ import co.edu.unbosque.biohub.consulta.visibilidad.NivelVisibilidad;
 
 import java.time.Instant;
 
-/**
- * Hallazgo tal como se muestra al consumidor. Según {@code nivelUbicacion}:
- * EXACTA trae coordenadas; REGION trae departamento y región; DEPARTAMENTO solo el departamento.
- * Los campos ocultos van en null.
- */
 public record VistaHallazgoPublico(
         String id,
         String especieId,

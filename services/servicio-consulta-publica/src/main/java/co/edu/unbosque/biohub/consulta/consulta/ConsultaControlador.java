@@ -7,10 +7,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Consultas públicas. El API Gateway reenvía el id del usuario autenticado en X-Usuario-Id;
- * sin esa cabecera la consulta se trata como anónima (público general).
- */
 @RestController
 @RequestMapping("/api/v1/consulta")
 public class ConsultaControlador {

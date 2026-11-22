@@ -4,7 +4,6 @@ import co.edu.unbosque.biohub.consulta.especie.EspecieInfo;
 import co.edu.unbosque.biohub.consulta.lectura.HallazgoLectura;
 import co.edu.unbosque.biohub.consulta.visibilidad.NivelVisibilidad;
 
-/** Construye la vista pública ocultando la parte de la ubicación que el nivel no permite ver. */
 public final class PresentadorUbicacion {
 
     private PresentadorUbicacion() {}

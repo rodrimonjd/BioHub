@@ -7,8 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface HallazgoLecturaRepositorio extends JpaRepository<HallazgoLectura, String> {
-
-    /** Filtros opcionales: si un parámetro es null no se aplica. */
     @Query("""
             select h from HallazgoLectura h
             where (:especieId is null or h.especieId = :especieId)
