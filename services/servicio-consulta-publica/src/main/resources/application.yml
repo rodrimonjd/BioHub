@@ -21,7 +21,7 @@ spring:
     password: ${RABBIT_CLAVE:biohub}
     listener:
       simple:
-        # 3 intentos por mensaje; si sigue fallando se descarta (y queda en el log) para no bloquear la cola
+        # 3 intentos por mensaje; si sigue fallando se rechaza y va a la cola de errores (dead-letter)
         retry:
           enabled: true
           max-attempts: 3
@@ -32,6 +32,7 @@ consulta:
   eventos:
     exchange: biohub.eventos      # mismo exchange que declara servicio-registro
     cola: consulta-publica.hallazgos
+    cola-errores: consulta-publica.hallazgos.dlq   # mensajes que no se pudieron procesar
   registro-url: ${REGISTRO_URL:http://localhost:8081}
   autorizacion-url: ${AUTORIZACION_URL:http://localhost:8082}
   cache:
