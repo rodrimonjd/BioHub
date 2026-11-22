@@ -39,9 +39,9 @@ services:
     environment:
       BD_HOST: mysql
       BD_PUERTO: 3306
-      BD_NOMBRE: biohub_autorizacion
-      BD_USUARIO: root
-      BD_CLAVE: ${MYSQL_ROOT_PASSWORD:-root}
+      BD_NOMBRE: auth_db
+      BD_USUARIO: auth_user
+      BD_CLAVE: auth_pass
       TZ: America/Bogota
     ports:
       - "8082:8082"

@@ -5,9 +5,9 @@ spring:
   application:
     name: servicio-autorizacion
   datasource:
-    url: jdbc:mysql://${BD_HOST:localhost}:${BD_PUERTO:3306}/${BD_NOMBRE:biohub_autorizacion}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
-    username: ${BD_USUARIO:root}
-    password: ${BD_CLAVE:root}
+    url: jdbc:mysql://${BD_HOST:localhost}:${BD_PUERTO:3306}/${BD_NOMBRE:auth_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    username: ${BD_USUARIO:auth_user}
+    password: ${BD_CLAVE:auth_pass}
   jpa:
     hibernate:
       ddl-auto: validate      # el esquema lo maneja Flyway

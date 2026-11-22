@@ -29,7 +29,8 @@ src/main/resources/db/migration/   V1 (esquema), V2 (datos iniciales)
 mvn spring-boot:run          # puerto 8082
 mvn test
 ```
-Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE` (`biohub_autorizacion`), `BD_USUARIO`, `BD_CLAVE`, `PUERTO_SERVIDOR`.
+Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE` (`auth_db`), `BD_USUARIO` (`auth_user`), `BD_CLAVE` (`auth_pass`), `PUERTO_SERVIDOR`.
+La base `auth_db` y el usuario `auth_user` los crea `infra/mysql/init.sql` al iniciar el contenedor de MySQL.
 
 Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL, INVESTIGADOR, CIUDADANO; usuario `admin` con rol ADMIN).
 
