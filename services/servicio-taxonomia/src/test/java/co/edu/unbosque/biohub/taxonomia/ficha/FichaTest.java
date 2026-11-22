@@ -8,7 +8,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import co.edu.unbosque.biohub.taxonomia.atributo.AtributoFactory;
+import co.edu.unbosque.biohub.taxonomia.atributo.FabricaAtributo;
 import co.edu.unbosque.biohub.taxonomia.atributo.AtributoTaxonomico;
 import co.edu.unbosque.biohub.taxonomia.atributo.TipoDato;
 import co.edu.unbosque.biohub.taxonomia.compartido.DatosInvalidosException;
@@ -17,14 +17,14 @@ class FichaTest {
 
     private final UUID especieId = UUID.randomUUID();
     private final AtributoTaxonomico temperatura =
-            AtributoFactory.crear("temperatura del agua", TipoDato.NUMERICO, "C", null, true);
+            FabricaAtributo.crear("temperatura del agua", TipoDato.NUMERICO, "C", null, true);
     private final AtributoTaxonomico habitat =
-            AtributoFactory.crear("habitat", TipoDato.TEXTO, null, null, false);
+            FabricaAtributo.crear("habitat", TipoDato.TEXTO, null, null, false);
     private final AtributoTaxonomico dieta =
-            AtributoFactory.crear("dieta", TipoDato.LISTA, null, List.of("Insectivora", "Frugivora"), false);
+            FabricaAtributo.crear("dieta", TipoDato.LISTA, null, List.of("Insectivora", "Frugivora"), false);
 
     private FichaTaxonomica fichaValida() {
-        return new FichaBuilder()
+        return new ConstructorFicha()
                 .especie(especieId)
                 .autor("inv-1")
                 .atributo(temperatura, "18.5")
@@ -46,23 +46,23 @@ class FichaTest {
 
     @Test
     void elBuilderExigeEspecieAutorYAlMenosUnAtributo() {
-        assertThatThrownBy(() -> new FichaBuilder().autor("inv-1").atributo(habitat, null).build())
+        assertThatThrownBy(() -> new ConstructorFicha().autor("inv-1").atributo(habitat, null).build())
                 .isInstanceOf(DatosInvalidosException.class).hasMessageContaining("especie");
-        assertThatThrownBy(() -> new FichaBuilder().especie(especieId).atributo(habitat, null).build())
+        assertThatThrownBy(() -> new ConstructorFicha().especie(especieId).atributo(habitat, null).build())
                 .isInstanceOf(DatosInvalidosException.class).hasMessageContaining("autor");
-        assertThatThrownBy(() -> new FichaBuilder().especie(especieId).autor("inv-1").build())
+        assertThatThrownBy(() -> new ConstructorFicha().especie(especieId).autor("inv-1").build())
                 .isInstanceOf(DatosInvalidosException.class).hasMessageContaining("al menos un atributo");
     }
 
     @Test
     void elBuilderRechazaValoresInvalidosObligatoriosVaciosYAtributosRepetidos() {
-        assertThatThrownBy(() -> new FichaBuilder().especie(especieId).autor("inv-1")
+        assertThatThrownBy(() -> new ConstructorFicha().especie(especieId).autor("inv-1")
                 .atributo(temperatura, "caliente").build())
                 .isInstanceOf(DatosInvalidosException.class).hasMessageContaining("Valor invalido");
-        assertThatThrownBy(() -> new FichaBuilder().especie(especieId).autor("inv-1")
+        assertThatThrownBy(() -> new ConstructorFicha().especie(especieId).autor("inv-1")
                 .atributo(temperatura, " ").build())
                 .isInstanceOf(DatosInvalidosException.class).hasMessageContaining("obligatorio");
-        assertThatThrownBy(() -> new FichaBuilder().especie(especieId).autor("inv-1")
+        assertThatThrownBy(() -> new ConstructorFicha().especie(especieId).autor("inv-1")
                 .atributo(habitat, null).atributo(habitat, "x").build())
                 .isInstanceOf(DatosInvalidosException.class).hasMessageContaining("ya tiene");
     }

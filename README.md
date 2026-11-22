@@ -13,12 +13,13 @@ Microservicios + arquitectura orientada a eventos (EDA) + API Gateway. Cada serv
 |---|---|---|
 | Aplicación web | `services/web-app` | — |
 | API Gateway (autenticación, rate limiting 60 req/min, enrutamiento) | `services/api-gateway` | — |
-| Servicio de autorización (roles y permisos centralizados) | `services/servicio-autorizacion` | — |
-| Servicio de registro (hallazgos, fichas flexibles, evidencias, equipos, avistamientos) | `services/servicio-registro` | MongoDB |
+| Servicio de autorización (roles y permisos centralizados) | `services/servicio-autorizacion` | MySQL (`auth_db`) |
+| Servicio de registro (hallazgos, evidencias, expediciones, equipos de campo, avistamientos) | `services/servicio-registro` | MySQL (`registro_db`) |
+| Servicio de taxonomía (fichas taxonómicas flexibles y sus atributos) | `services/servicio-taxonomia` (por crear) | MongoDB |
 | Servicio de consulta pública (modelo de lectura con caché) | `services/servicio-consulta-publica` | BD de lectura (réplica + caché) |
 | Servicio de historial (versiones inmutables) | `services/servicio-historial` | Almacenamiento de eventos |
 | Servicio de reportes (índices de presión, segundo plano) | `services/servicio-reportes` | BD analítica |
-| Message broker | `infra/` | — |
+| Message broker (RabbitMQ, AMQP) | `infra/` | — |
 
 Patrones: Singleton, Factory, Builder, Adapter, Decorator, Strategy, Observer, Outbox.
 
