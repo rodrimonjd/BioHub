@@ -1,0 +1,35 @@
+server:
+  port: ${PUERTO_SERVIDOR:8080}
+
+spring:
+  application:
+    name: api-gateway
+
+biohub:
+  gateway:
+    # URL estable que se publica a universidades y ONG (RNF-11).
+    url-publica: ${URL_PUBLICA:http://localhost:8080}
+    # Limite unico para todos los consumidores (ASR-03).
+    limite-por-minuto: 60
+    autorizacion-url: ${AUTORIZACION_URL:http://localhost:8082}
+    # Ruta publica -> servicio interno. Cambiar un destino no afecta a los consumidores.
+    rutas:
+      "[/api/v1/inventario]": ${CONSULTA_URL:http://localhost:8083}/api/v1/consulta/hallazgos
+    # Consumidores externos. Se guarda el SHA-256 de la API key, nunca la key.
+    # Las keys de demostracion estan en el README.
+    consumidores:
+      - id: consumidor-unal
+        organizacion: Universidad Nacional de Colombia
+        hash-api-key: aa23a4719c4a333a560209f3ef3ed2ca88d2c4f22f627d72b834b30a2becab03
+      - id: consumidor-humboldt
+        organizacion: Instituto Humboldt
+        hash-api-key: e1929c100eb984707ce3b4b2269a8ab5dcb9b8cda9911d86e1506f542fe0a90d
+      - id: consumidor-ong-suspendida
+        organizacion: ONG con acceso suspendido
+        hash-api-key: 156984eef3a667229759e5d3138dc2c1c7955e153ae9d2ef69af7607bde62538
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
