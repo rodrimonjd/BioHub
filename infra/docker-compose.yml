@@ -46,6 +46,24 @@ services:
       timeout: 5s
       retries: 10
 
+  servicio-autorizacion:
+    build:
+      context: ../services/servicio-autorizacion
+    container_name: biohub-servicio-autorizacion
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: auth_db
+      BD_USUARIO: auth_user
+      BD_CLAVE: auth_pass
+      TZ: America/Bogota
+    ports:
+      - "8082:8082"
+
 volumes:
   mysql_data:
   mongo_data:
