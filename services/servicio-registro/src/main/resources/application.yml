@@ -14,3 +14,14 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: biohub
+    password: biohub
+
+biohub:
+  eventos:
+    exchange: biohub.eventos
+    intervalo-ms: 5000
+    lote: 50

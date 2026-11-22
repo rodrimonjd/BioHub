@@ -50,6 +50,15 @@ public class OutboxEvento {
         this.intentos = 0;
     }
 
+    public void marcarPublicado() {
+        this.publicado = true;
+        this.publicadoEn = Instant.now();
+    }
+
+    public void registrarFallo() {
+        this.intentos++;
+    }
+
     public UUID getId() {
         return id;
     }
