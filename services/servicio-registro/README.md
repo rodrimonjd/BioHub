@@ -13,3 +13,11 @@ Hallazgos, fichas taxonómicas flexibles, evidencias, equipos y avistamientos. B
 Cada servicio consumidor declara su propia cola y la enlaza al exchange con las routing keys que necesite (por ejemplo `HALLAZGO_*`).
 
 **Eventos que consume:** ninguno.
+
+## Como ejecutarlo
+
+**Local (desarrollo):** con MySQL y RabbitMQ arriba (`docker compose up -d mysql rabbitmq` desde `infra/`), ejecutar `.\mvnw.cmd spring-boot:run` en esta carpeta.
+
+**Docker:** desde `infra/`, `docker compose up -d --build servicio-registro`. Queda en http://localhost:8081 (Swagger en `/swagger-ui/index.html`).
+
+Variables de entorno (por defecto apuntan a `localhost`): `PUERTO_SERVIDOR`, `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE`, `BD_USUARIO`, `BD_CLAVE`, `RABBIT_HOST`, `RABBIT_PUERTO`, `RABBIT_USUARIO`, `RABBIT_CLAVE`.
