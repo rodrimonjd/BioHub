@@ -8,7 +8,6 @@ export interface ReportStatusProps {
   reportId: string;
   recordsProcessed: string;
   state: BackgroundReportState;
-  onChangeState?: (nextState: BackgroundReportState) => void;
 }
 
 const STATE_DETAILS: Record<
@@ -18,13 +17,13 @@ const STATE_DETAILS: Record<
   en_cola: {
     badgeText: 'En cola',
     description:
-      'El reporte mensual fue agendado en el bróker de eventos. El registro diario de avistamientos opera sin bloqueos.',
+      'El reporte mensual fue programado para ejecución asíncrona. El registro diario de avistamientos opera sin bloqueos.',
     dotColor: 'bg-sun-500',
   },
   generando: {
     badgeText: 'Generando en segundo plano',
     description:
-      'Cruzando millones de registros históricos para calcular índices de presión sobre ecosistemas y zonas de deforestación.',
+      'Cruzando registros históricos para calcular índices de presión sobre ecosistemas y zonas de deforestación sin degradar la operación de campo.',
     dotColor: 'bg-water-600',
   },
   listo: {
@@ -40,7 +39,6 @@ export function ReportStatus({
   reportId,
   recordsProcessed,
   state,
-  onChangeState,
 }: ReportStatusProps) {
   const info = STATE_DETAILS[state];
 
@@ -98,35 +96,6 @@ export function ReportStatus({
       </div>
 
       <p className="text-xs text-ink-muted leading-relaxed">{info.description}</p>
-
-      {onChangeState && (
-        <div
-          className="flex flex-wrap items-center gap-2 pt-2 border-t border-line"
-          role="group"
-          aria-label="Cambiar estado del reporte en segundo plano"
-        >
-          {(['en_cola', 'generando', 'listo'] as BackgroundReportState[]).map((itemState) => {
-            const active = state === itemState;
-            return (
-              <button
-                key={itemState}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onChangeState(itemState)}
-                className={`rounded-md px-3 py-1.5 font-mono text-xs transition-colors duration-150 cursor-pointer border ${
-                  active
-                    ? 'bg-forest-900 text-white border-forest-900'
-                    : 'bg-paper text-ink border-line hover:border-forest-700'
-                }`}
-              >
-                {itemState === 'en_cola' && '1. En cola'}
-                {itemState === 'generando' && '2. Generando'}
-                {itemState === 'listo' && '3. Listo'}
-              </button>
-            );
-          })}
-        </div>
-      )}
     </Card>
   );
 }

@@ -15,7 +15,7 @@ export interface ProtectedLocationProps {
 
 const ROLE_LABELS: Record<UserRole, string> = {
   public: 'Visitante común',
-  researcher: 'Investigador de campo (sin acceso a coordenadas CR/EN)',
+  researcher: 'Investigador de campo',
   senior: 'Personal científico de alto rango',
   auditor: 'Auditor científico',
   director: 'Director científico',
@@ -37,7 +37,7 @@ export function ProtectedLocation({
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-line pb-4">
         <div>
           <span className="font-mono text-xs uppercase tracking-wider text-ink-muted">
-            Vigilancia del corredor biológico · Protección anticaza (HU-06 / HU-07)
+            Vigilancia del corredor biológico · Protección anticaza
           </span>
           <h3 id="location-heading" className="mt-1 font-serif text-xl font-semibold text-ink">
             Ubicación geográfica de especie sensible
@@ -49,80 +49,104 @@ export function ProtectedLocation({
         <ConservationBadge status={status} />
       </div>
 
-      {/* Lienzo cartográfico con curvas de nivel */}
-      <div className="relative h-56 w-full overflow-hidden rounded-lg border border-line bg-paper">
+      {/* Mapa real con contorno cartográfico de departamentos de la Orinoquía/Meta, ríos y polígono regional */}
+      <div className="relative h-64 w-full overflow-hidden rounded-lg border border-line bg-paper">
         <svg
-          className={`h-full w-full text-ink transition-all duration-200 ${
-            isAuthorized ? 'opacity-30' : 'opacity-20 blur-[3px]'
-          }`}
-          viewBox="0 0 400 220"
+          className="h-full w-full text-ink"
+          viewBox="0 0 420 240"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+          role="img"
+          aria-label={
+            isAuthorized
+              ? `Mapa cartográfico del corredor del Meta con punto exacto en ${exactCoordinates}`
+              : `Mapa regional difuminado mostrando únicamente ${regionLabel}`
+          }
         >
+          {/* Retícula de coordenadas cartográficas */}
+          <g stroke="currentColor" strokeOpacity="0.14" strokeWidth="0.6" strokeDasharray="3 3">
+            <line x1="70" y1="0" x2="70" y2="240" />
+            <line x1="140" y1="0" x2="140" y2="240" />
+            <line x1="210" y1="0" x2="210" y2="240" />
+            <line x1="280" y1="0" x2="280" y2="240" />
+            <line x1="350" y1="0" x2="350" y2="240" />
+            <line x1="0" y1="60" x2="420" y2="60" />
+            <line x1="0" y1="120" x2="420" y2="120" />
+            <line x1="0" y1="180" x2="420" y2="180" />
+          </g>
+
+          {/* Curvas de nivel de la Cordillera Oriental y Serranía de la Macarena */}
+          <g stroke="currentColor" strokeOpacity="0.22" strokeWidth="1">
+            <path d="M10 210 C55 150, 80 90, 125 20" />
+            <path d="M32 225 C78 160, 105 95, 148 25" />
+            <path d="M60 235 C105 170, 130 110, 175 30" />
+          </g>
+
+          {/* Cuencas hidrográficas: Río Guaviare, Río Ariari y Río Meta */}
+          <g stroke="#2A7F8E" strokeOpacity="0.55" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M85 95 C145 102, 210 78, 310 58 C355 48, 385 40, 415 32" />
+            <path d="M95 168 C165 162, 225 182, 315 165 C360 156, 390 148, 415 142" />
+            <path d="M142 128 C185 135, 222 152, 255 172" strokeWidth="1.1" />
+          </g>
+
+          {/* Polígono cartográfico del Departamento del Meta / Corredor Macarena */}
           <path
-            d="M-20 40 C60 20, 140 80, 220 50 C300 20, 360 70, 420 40"
+            d="M115 72 L195 62 L278 78 L312 118 L288 172 L205 184 L132 166 L104 122 Z"
+            fill="#6B9A5B"
+            fillOpacity={isAuthorized ? '0.16' : '0.24'}
             stroke="currentColor"
-            strokeWidth="1"
+            strokeOpacity="0.55"
+            strokeWidth="1.3"
           />
-          <path
-            d="M-20 85 C70 65, 130 120, 230 90 C320 60, 350 110, 420 85"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <path
-            d="M-20 130 C80 110, 150 165, 240 135 C330 105, 370 150, 420 130"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <path
-            d="M-20 175 C90 155, 160 200, 250 175 C340 150, 380 190, 420 175"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <line
-            x1="100"
-            y1="0"
-            x2="100"
-            y2="220"
-            stroke="currentColor"
-            strokeWidth="0.5"
-            strokeDasharray="3 3"
-          />
-          <line
-            x1="200"
-            y1="0"
-            x2="200"
-            y2="220"
-            stroke="currentColor"
-            strokeWidth="0.5"
-            strokeDasharray="3 3"
-          />
-          <line
-            x1="300"
-            y1="0"
-            x2="300"
-            y2="220"
-            stroke="currentColor"
-            strokeWidth="0.5"
-            strokeDasharray="3 3"
-          />
-          <line
-            x1="0"
-            y1="110"
-            x2="400"
-            y2="110"
-            stroke="currentColor"
-            strokeWidth="0.5"
-            strokeDasharray="3 3"
-          />
+
+          {/* Etiquetas cartográficas de referencia regional */}
+          <text x="18" y="22" fill="currentColor" fillOpacity="0.55" fontSize="8" fontFamily="monospace">
+            CUENCA ORINOQUÍA · COLOMBIA
+          </text>
+          <text x="315" y="52" fill="#2A7F8E" fontSize="8" fontFamily="monospace">
+            Río Meta
+          </text>
+          <text x="295" y="182" fill="#2A7F8E" fontSize="8" fontFamily="monospace">
+            Río Guaviare
+          </text>
+
+          {/* Si está autorizado muestra el marcador exacto; si es público muestra zona de amortiguación difuminada */}
+          {isAuthorized ? (
+            <g>
+              <circle
+                cx="188"
+                cy="132"
+                r="18"
+                fill="#C23B2E"
+                fillOpacity="0.18"
+                stroke="#C23B2E"
+                strokeWidth="1"
+                strokeDasharray="2 2"
+              />
+              <circle cx="188" cy="132" r="4.5" fill="#C23B2E" />
+              <circle cx="188" cy="132" r="2" fill="#FFFFFF" />
+            </g>
+          ) : (
+            <g>
+              <circle
+                cx="205"
+                cy="124"
+                r="46"
+                fill="#D9A441"
+                fillOpacity="0.22"
+                stroke="#D9A441"
+                strokeWidth="1.2"
+                strokeDasharray="4 3"
+              />
+            </g>
+          )}
         </svg>
 
-        {/* Capa superpuesta según rol validado por lib/permissions.ts */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+        {/* Tarjeta informativa superpuesta en la esquina inferior */}
+        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-lg border border-line bg-surface/95 px-4 py-3 backdrop-blur-[2px]">
           {!isAuthorized ? (
-            <div className="rounded-lg border border-line bg-surface/95 px-5 py-4 max-w-sm space-y-2">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-line bg-paper text-ink">
+            <div className="flex items-center gap-3 text-left">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-paper text-ink">
                 <svg
                   className="h-4 w-4"
                   viewBox="0 0 24 24"
@@ -137,20 +161,24 @@ export function ProtectedLocation({
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
               </div>
-              <p className="font-serif text-base font-semibold text-ink">{regionLabel}</p>
-              <p className="text-xs text-ink-muted">
-                Coordenadas exactas restringidas al público general para proteger a la especie de la caza ilegal.
-              </p>
+              <div>
+                <p className="font-serif text-sm font-semibold text-ink">
+                  {regionLabel} (Polígono regional difuminado)
+                </p>
+                <p className="text-xs text-ink-muted">
+                  Coordenadas exactas ocultas al público general para proteger a la especie de la caza ilegal.
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-moss-500 bg-surface/95 px-5 py-4 max-w-sm space-y-1.5">
+            <div className="space-y-0.5 text-left">
               <div className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-moss-500 font-semibold">
                 <span className="h-2 w-2 rounded-full bg-moss-500" aria-hidden="true" />
-                Acceso científico autorizado (HU-07)
+                Coordenadas exactas verificadas
               </div>
               <p className="font-mono text-sm font-bold text-ink">{exactCoordinates}</p>
               <p className="font-mono text-xs text-ink-muted">
-                {regionLabel} · Altitud: {altitude}
+                {regionLabel} · Serranía de la Macarena · Altitud: {altitude}
               </p>
             </div>
           )}
@@ -158,10 +186,8 @@ export function ProtectedLocation({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
-        <span>
-          Autoridad de validación: <code className="font-mono text-ink">lib/permissions.ts</code>
-        </span>
-        <span className="font-mono">Rol activo: {ROLE_LABELS[role]}</span>
+        <span>Nivel de visibilidad activo en esta vista:</span>
+        <span className="font-mono font-medium text-ink">{ROLE_LABELS[role]}</span>
       </div>
     </Card>
   );

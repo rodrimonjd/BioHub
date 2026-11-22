@@ -3,93 +3,103 @@ export type UserRole = 'public' | 'researcher' | 'senior' | 'auditor' | 'directo
 export interface BioHubUser {
   id: string;
   name: string;
+  initials: string;
   email: string;
-  passwordHint: string;
   role: UserRole;
   roleLabel: string;
   institution: string;
   station: string;
-  permissions: string[];
 }
 
 export const DEMO_USERS: BioHubUser[] = [
   {
     id: 'inv-garcia-01',
-    name: 'Inv. Sebastián García',
-    email: 'sgarcia@biohub.gov.co',
-    passwordHint: 'biohub2026',
+    name: 'Sebastián García',
+    initials: 'SG',
+    email: 'investigador@biohub.gov.co',
     role: 'researcher',
-    roleLabel: 'Investigador de Campo',
+    roleLabel: 'Investigador de campo',
     institution: 'Instituto Nacional de Biodiversidad',
     station: 'Estación Base Río Tomo — Orinoquía',
-    permissions: [
-      'REGISTRAR_AVISTAMIENTO',
-      'REGISTRAR_HALLAZGO',
-      'ADJUNTAR_EVIDENCIA',
-      'MODIFICAR_HALLAZGO',
-      'GESTIONAR_FICHAS',
-    ],
   },
   {
     id: 'alt-escobar-02',
     name: 'Dra. Elena Escobar',
-    email: 'eescobar@biohub.gov.co',
-    passwordHint: 'biohub2026',
+    initials: 'EE',
+    email: 'altorango@biohub.gov.co',
     role: 'senior',
-    roleLabel: 'Personal Científico de Alto Rango',
+    roleLabel: 'Personal científico de alto rango',
     institution: 'Comité Científico Nacional BioHub',
     station: 'Dirección de Corredores Biológicos',
-    permissions: [
-      'VER_COORDENADAS_EXACTAS',
-      'AUTORIZAR_RECLASIFICACION',
-      'REGISTRAR_HALLAZGO',
-      'MODIFICAR_HALLAZGO',
-      'CONSULTAR_HISTORIAL',
-    ],
   },
   {
     id: 'aud-bonilla-03',
     name: 'Sebastián Bonilla',
-    email: 'sbonilla@biohub.gov.co',
-    passwordHint: 'biohub2026',
+    initials: 'SB',
+    email: 'auditor@biohub.gov.co',
     role: 'auditor',
-    roleLabel: 'Auditor Científico',
+    roleLabel: 'Auditor científico',
     institution: 'Unidad de Trazabilidad Taxonómica',
     station: 'Archivo Central Bogotá',
-    permissions: ['CONSULTAR_HISTORIAL', 'VER_COORDENADAS_EXACTAS'],
   },
   {
     id: 'dir-rodriguez-04',
-    name: 'Dr. Juan David Rodríguez',
-    email: 'jdrodriguez@biohub.gov.co',
-    passwordHint: 'biohub2026',
+    name: 'Dr. Juan D. Rodríguez',
+    initials: 'JR',
+    email: 'director@biohub.gov.co',
     role: 'director',
-    roleLabel: 'Director Científico',
+    roleLabel: 'Director científico',
     institution: 'Dirección General BioHub',
     station: 'Sede Central',
-    permissions: [
-      'VER_COORDENADAS_EXACTAS',
-      'AUTORIZAR_RECLASIFICACION',
-      'CONSULTAR_HISTORIAL',
-      'GENERAR_REPORTES',
-    ],
   },
   {
     id: 'vis-publico-00',
-    name: 'Visitante Público (Sin sesión científica)',
-    email: 'visitante@publico.co',
-    passwordHint: '',
+    name: 'Visitante público',
+    initials: 'VP',
+    email: 'consulta@biohub.gov.co',
     role: 'public',
-    roleLabel: 'Visitante Común',
+    roleLabel: 'Visitante común',
     institution: 'Consulta Abierta Ciudadana',
     station: 'Ventana Pública',
-    permissions: ['CONSULTAR_INVENTARIO'],
   },
 ];
 
+const SESSION_STORAGE_KEY = 'biohub_active_session_v1';
+
+export function getStoredSession(): BioHubUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as BioHubUser;
+    const found = DEMO_USERS.find((u) => u.id === parsed.id);
+    return found || parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredSession(user: BioHubUser): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function clearStoredSession(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 /**
  * Validación centralizada de permisos para acceso a coordenadas exactas
- * de especies en peligro (ASR-04 / ASR-05 — El corredor biológico).
+ * de especies sensibles.
  */
 export function canViewExactCoordinates(role: UserRole): boolean {
   return role === 'senior' || role === 'director' || role === 'auditor';
