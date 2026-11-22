@@ -8,9 +8,9 @@ import java.util.UUID;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaTaxonomica;
 import co.edu.unbosque.biohub.taxonomia.ficha.ValorAtributo;
 
-public final class EventoFactory {
+public final class FabricaEventos {
 
-    private EventoFactory() { }
+    private FabricaEventos() { }
 
     public static EventoDominio fichaCreada(FichaTaxonomica f) {
         Map<String, Object> valores = new LinkedHashMap<>();

@@ -9,18 +9,18 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-public final class FichaRequests {
+public final class SolicitudesFicha {
 
-    private FichaRequests() { }
+    private SolicitudesFicha() { }
 
-    public record ValorRequest(
+    public record SolicitudValor(
             @NotBlank String nombre,
             String valor) { }
 
     public record CrearFicha(
             @NotNull UUID especieId,
             @NotBlank String autor,
-            @NotEmpty List<@Valid ValorRequest> atributos) { }
+            @NotEmpty List<@Valid SolicitudValor> atributos) { }
 
     public record ModificarValor(
             String valor,

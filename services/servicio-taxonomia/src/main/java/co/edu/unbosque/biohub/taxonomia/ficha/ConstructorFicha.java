@@ -7,24 +7,24 @@ import java.util.UUID;
 import co.edu.unbosque.biohub.taxonomia.atributo.AtributoTaxonomico;
 import co.edu.unbosque.biohub.taxonomia.compartido.DatosInvalidosException;
 
-public class FichaBuilder {
+public class ConstructorFicha {
 
     private UUID especieId;
     private String autor;
     private final List<AtributoTaxonomico> atributos = new ArrayList<>();
     private final List<String> valores = new ArrayList<>();
 
-    public FichaBuilder especie(UUID especieId) {
+    public ConstructorFicha especie(UUID especieId) {
         this.especieId = especieId;
         return this;
     }
 
-    public FichaBuilder autor(String autor) {
+    public ConstructorFicha autor(String autor) {
         this.autor = autor;
         return this;
     }
 
-    public FichaBuilder atributo(AtributoTaxonomico atributo, String valor) {
+    public ConstructorFicha atributo(AtributoTaxonomico atributo, String valor) {
         atributos.add(atributo);
         valores.add(valor);
         return this;

@@ -7,17 +7,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class AtributoService {
+public class AtributoServicio {
 
-    private final AtributoRepository atributos;
+    private final AtributoRepositorio atributos;
 
-    public AtributoService(AtributoRepository atributos) {
+    public AtributoServicio(AtributoRepositorio atributos) {
         this.atributos = atributos;
     }
 
-    public AtributoTaxonomico crear(AtributoRequest r) {
+    public AtributoTaxonomico crear(SolicitudAtributo r) {
         boolean obligatorio = Boolean.TRUE.equals(r.obligatorio());
-        AtributoTaxonomico nuevo = AtributoFactory.crear(r.nombre(), r.tipoDato(), r.unidad(), r.opciones(), obligatorio);
+        AtributoTaxonomico nuevo = FabricaAtributo.crear(r.nombre(), r.tipoDato(), r.unidad(), r.opciones(), obligatorio);
 
         if (atributos.findByNombreIgnoreCase(nuevo.getNombre()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un atributo con el nombre: " + nuevo.getNombre());

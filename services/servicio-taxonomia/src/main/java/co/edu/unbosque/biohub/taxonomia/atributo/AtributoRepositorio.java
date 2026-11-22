@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface AtributoRepository extends MongoRepository<AtributoTaxonomico, String> {
+public interface AtributoRepositorio extends MongoRepository<AtributoTaxonomico, String> {
 
     Optional<AtributoTaxonomico> findByNombreIgnoreCase(String nombre);
 }

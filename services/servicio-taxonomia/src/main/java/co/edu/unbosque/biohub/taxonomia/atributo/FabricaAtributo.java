@@ -5,9 +5,9 @@ import java.util.List;
 
 import co.edu.unbosque.biohub.taxonomia.compartido.DatosInvalidosException;
 
-public final class AtributoFactory {
+public final class FabricaAtributo {
 
-    private AtributoFactory() { }
+    private FabricaAtributo() { }
 
     public static AtributoTaxonomico crear(String nombre, TipoDato tipoDato, String unidad, List<String> opciones, boolean obligatorio) {
 

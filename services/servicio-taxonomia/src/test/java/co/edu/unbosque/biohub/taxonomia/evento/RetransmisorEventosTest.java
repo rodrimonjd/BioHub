@@ -12,23 +12,23 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import co.edu.unbosque.biohub.taxonomia.atributo.AtributoFactory;
+import co.edu.unbosque.biohub.taxonomia.atributo.FabricaAtributo;
 import co.edu.unbosque.biohub.taxonomia.atributo.TipoDato;
-import co.edu.unbosque.biohub.taxonomia.ficha.FichaBuilder;
-import co.edu.unbosque.biohub.taxonomia.ficha.FichaRepository;
+import co.edu.unbosque.biohub.taxonomia.ficha.ConstructorFicha;
+import co.edu.unbosque.biohub.taxonomia.ficha.FichaRepositorio;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaTaxonomica;
 
-class RelayEventosTest {
+class RetransmisorEventosTest {
 
-    private final FichaRepository fichas = mock(FichaRepository.class);
+    private final FichaRepositorio fichas = mock(FichaRepositorio.class);
     private final PublicadorEventos publicador = mock(PublicadorEventos.class);
-    private final RelayEventos relay = new RelayEventos(fichas, publicador);
+    private final RetransmisorEventos relay = new RetransmisorEventos(fichas, publicador);
 
     private FichaTaxonomica fichaConEventos(String... tipos) {
-        FichaTaxonomica ficha = new FichaBuilder()
+        FichaTaxonomica ficha = new ConstructorFicha()
                 .especie(UUID.randomUUID())
                 .autor("inv-1")
-                .atributo(AtributoFactory.crear("habitat", TipoDato.TEXTO, null, null, false), null)
+                .atributo(FabricaAtributo.crear("habitat", TipoDato.TEXTO, null, null, false), null)
                 .build();
         for (String tipo : tipos) {
             ficha.agregarEvento(new EventoPendiente(tipo, "{\"tipo\":\"" + tipo + "\"}"));

@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
-public interface FichaRepository extends MongoRepository<FichaTaxonomica, String> {
+public interface FichaRepositorio extends MongoRepository<FichaTaxonomica, String> {
 
     List<FichaTaxonomica> findByEspecieId(String especieId);
 

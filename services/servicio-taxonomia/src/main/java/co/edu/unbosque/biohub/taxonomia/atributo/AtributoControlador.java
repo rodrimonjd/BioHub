@@ -14,17 +14,17 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/atributos")
-public class AtributoController {
+public class AtributoControlador {
 
-    private final AtributoService servicio;
+    private final AtributoServicio servicio;
 
-    public AtributoController(AtributoService servicio) {
+    public AtributoControlador(AtributoServicio servicio) {
         this.servicio = servicio;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public AtributoTaxonomico crear(@Valid @RequestBody AtributoRequest request) {
+    public AtributoTaxonomico crear(@Valid @RequestBody SolicitudAtributo request) {
         return servicio.crear(request);
     }
 

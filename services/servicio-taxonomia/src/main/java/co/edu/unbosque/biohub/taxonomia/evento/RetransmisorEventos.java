@@ -6,19 +6,19 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import co.edu.unbosque.biohub.taxonomia.ficha.FichaRepository;
+import co.edu.unbosque.biohub.taxonomia.ficha.FichaRepositorio;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaTaxonomica;
 
 
 @Component
-public class RelayEventos {
+public class RetransmisorEventos {
 
-    private static final Logger log = LoggerFactory.getLogger(RelayEventos.class);
+    private static final Logger log = LoggerFactory.getLogger(RetransmisorEventos.class);
 
-    private final FichaRepository fichas;
+    private final FichaRepositorio fichas;
     private final PublicadorEventos publicador;
 
-    public RelayEventos(FichaRepository fichas, PublicadorEventos publicador) {
+    public RetransmisorEventos(FichaRepositorio fichas, PublicadorEventos publicador) {
         this.fichas = fichas;
         this.publicador = publicador;
     }

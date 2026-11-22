@@ -18,17 +18,17 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/fichas")
-public class FichaController {
+public class FichaControlador {
 
-    private final FichaService servicio;
+    private final FichaServicio servicio;
 
-    public FichaController(FichaService servicio) {
+    public FichaControlador(FichaServicio servicio) {
         this.servicio = servicio;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public FichaTaxonomica crear(@Valid @RequestBody FichaRequests.CrearFicha request) {
+    public FichaTaxonomica crear(@Valid @RequestBody SolicitudesFicha.CrearFicha request) {
         return servicio.crear(request);
     }
 
@@ -43,17 +43,17 @@ public class FichaController {
     }
 
     @PutMapping("/{id}/atributos/{nombre}")
-    public FichaTaxonomica modificarValor(@PathVariable String id, @PathVariable String nombre, @Valid @RequestBody FichaRequests.ModificarValor request) {
+    public FichaTaxonomica modificarValor(@PathVariable String id, @PathVariable String nombre, @Valid @RequestBody SolicitudesFicha.ModificarValor request) {
         return servicio.modificarValor(id, nombre, request);
     }
 
     @PostMapping("/{id}/atributos")
-    public FichaTaxonomica incorporarAtributo(@PathVariable String id, @Valid @RequestBody FichaRequests.IncorporarAtributo request) {
+    public FichaTaxonomica incorporarAtributo(@PathVariable String id, @Valid @RequestBody SolicitudesFicha.IncorporarAtributo request) {
         return servicio.incorporarAtributo(id, request);
     }
 
     @PostMapping("/{id}/desactivacion")
-    public FichaTaxonomica desactivar(@PathVariable String id, @Valid @RequestBody FichaRequests.DesactivarFicha request) {
+    public FichaTaxonomica desactivar(@PathVariable String id, @Valid @RequestBody SolicitudesFicha.DesactivarFicha request) {
         return servicio.desactivar(id, request);
     }
 }
