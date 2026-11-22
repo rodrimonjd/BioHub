@@ -2,10 +2,6 @@ package co.edu.unbosque.biohub.taxonomia.atributo;
 
 import java.util.List;
 
-/**
- * Tipos de dato de un atributo. Patron Strategy: cada tipo valida los valores a su manera.
- * Para agregar un tipo nuevo basta con agregar una constante con su regla.
- */
 public enum TipoDato {
 
     TEXTO {
@@ -42,9 +38,5 @@ public enum TipoDato {
         }
     };
 
-    /**
-     * @param valor    valor ya recortado y no vacio
-     * @param opciones opciones permitidas (solo las usa LISTA)
-     */
     public abstract boolean esValido(String valor, List<String> opciones);
 }

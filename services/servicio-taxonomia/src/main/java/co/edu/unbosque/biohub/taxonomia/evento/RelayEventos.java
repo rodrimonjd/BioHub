@@ -9,10 +9,7 @@ import org.springframework.stereotype.Component;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaRepository;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaTaxonomica;
 
-/**
- * Cada 5 segundos busca fichas con eventos pendientes, los publica en orden
- * y los quita de la ficha. Si RabbitMQ no responde, lo intenta en la siguiente vuelta.
- */
+
 @Component
 public class RelayEventos {
 
@@ -48,7 +45,6 @@ public class RelayEventos {
                 try {
                     fichas.save(ficha);
                 } catch (OptimisticLockingFailureException e) {
-                    // Alguien edito la ficha al mismo tiempo; se revisa en la siguiente vuelta.
                     log.warn("La ficha {} cambio mientras se publicaban sus eventos", ficha.getId());
                 }
             }

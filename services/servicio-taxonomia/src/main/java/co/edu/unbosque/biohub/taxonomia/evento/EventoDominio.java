@@ -4,10 +4,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Misma estructura de evento que usa servicio-registro, para que los consumidores
- * procesen todos los eventos de BioHub de la misma forma.
- */
 public record EventoDominio(
         UUID idEvento,
         String tipo,

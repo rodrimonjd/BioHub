@@ -14,8 +14,7 @@ public class TaxonomiaServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(TaxonomiaServiceApplication.class, args);
     }
-
-    /** Exchange compartido de eventos de BioHub (el mismo que usa servicio-registro). */
+    
     @Bean
     public TopicExchange exchangeEventos(@Value("${biohub.eventos.exchange}") String nombre) {
         return new TopicExchange(nombre, true, false);

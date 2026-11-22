@@ -8,9 +8,6 @@ import java.util.UUID;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaTaxonomica;
 import co.edu.unbosque.biohub.taxonomia.ficha.ValorAtributo;
 
-/**
- * Patron Factory: crea los eventos de las fichas, todos con la misma estructura.
- */
 public final class EventoFactory {
 
     private EventoFactory() { }
@@ -27,8 +24,7 @@ public final class EventoFactory {
         return crear(EventoDominio.FICHA_CREADA, f, f.getCreadoPor(), datos);
     }
 
-    public static EventoDominio fichaModificada(FichaTaxonomica f, String campo,
-                                                String valorAnterior, String valorNuevo, String autor) {
+    public static EventoDominio fichaModificada(FichaTaxonomica f, String campo, String valorAnterior, String valorNuevo, String autor) {
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("especieId", f.getEspecieId());
         datos.put("campo", campo);
@@ -46,8 +42,7 @@ public final class EventoFactory {
         return crear(EventoDominio.FICHA_DESACTIVADA, f, autor, datos);
     }
 
-    private static EventoDominio crear(String tipo, FichaTaxonomica f, String autor,
-                                       Map<String, Object> datos) {
+    private static EventoDominio crear(String tipo, FichaTaxonomica f, String autor, Map<String, Object> datos) {
         return new EventoDominio(UUID.randomUUID(), tipo, 1, f.getId(), Instant.now(),
                 autor, null, datos);
     }

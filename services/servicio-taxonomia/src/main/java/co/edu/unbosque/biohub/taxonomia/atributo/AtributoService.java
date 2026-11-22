@@ -17,11 +17,10 @@ public class AtributoService {
 
     public AtributoTaxonomico crear(AtributoRequest r) {
         boolean obligatorio = Boolean.TRUE.equals(r.obligatorio());
-        AtributoTaxonomico nuevo = AtributoFactory.crear(r.nombre(), r.tipoDato(), r.unidad(),
-                r.opciones(), obligatorio);
+        AtributoTaxonomico nuevo = AtributoFactory.crear(r.nombre(), r.tipoDato(), r.unidad(), r.opciones(), obligatorio);
+
         if (atributos.findByNombreIgnoreCase(nuevo.getNombre()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe un atributo con el nombre: " + nuevo.getNombre());
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un atributo con el nombre: " + nuevo.getNombre());
         }
         return atributos.save(nuevo);
     }
@@ -31,7 +30,6 @@ public class AtributoService {
     }
 
     public AtributoTaxonomico buscarPorNombre(String nombre) {
-        return atributos.findByNombreIgnoreCase(nombre.trim()).orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Atributo no encontrado en el catalogo: " + nombre));
+        return atributos.findByNombreIgnoreCase(nombre.trim()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Atributo no encontrado en el catalogo: " + nombre));
     }
 }

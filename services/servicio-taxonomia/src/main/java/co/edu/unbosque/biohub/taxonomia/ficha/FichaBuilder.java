@@ -7,10 +7,6 @@ import java.util.UUID;
 import co.edu.unbosque.biohub.taxonomia.atributo.AtributoTaxonomico;
 import co.edu.unbosque.biohub.taxonomia.compartido.DatosInvalidosException;
 
-/**
- * Patron Builder: arma la ficha de una especie agregando sus atributos uno a uno
- * y valida todo al final en build().
- */
 public class FichaBuilder {
 
     private UUID especieId;

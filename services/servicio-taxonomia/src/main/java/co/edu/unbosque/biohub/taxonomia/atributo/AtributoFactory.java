@@ -5,16 +5,12 @@ import java.util.List;
 
 import co.edu.unbosque.biohub.taxonomia.compartido.DatosInvalidosException;
 
-/**
- * Patron Factory: crea el atributo segun su tipo.
- * TEXTO no usa unidad ni opciones, NUMERICO puede tener unidad y LISTA exige opciones.
- */
 public final class AtributoFactory {
 
     private AtributoFactory() { }
 
-    public static AtributoTaxonomico crear(String nombre, TipoDato tipoDato, String unidad,
-                                           List<String> opciones, boolean obligatorio) {
+    public static AtributoTaxonomico crear(String nombre, TipoDato tipoDato, String unidad, List<String> opciones, boolean obligatorio) {
+
         if (nombre == null || nombre.isBlank()) {
             throw new DatosInvalidosException("El nombre del atributo es obligatorio");
         }
@@ -31,7 +27,6 @@ public final class AtributoFactory {
             return new AtributoTaxonomico(nombreLimpio, tipoDato, unidadLimpia, null, obligatorio);
         }
 
-        // LISTA: se guardan las opciones sin espacios y sin vacias
         List<String> opcionesLimpias = new ArrayList<>();
         if (opciones != null) {
             for (String opcion : opciones) {
