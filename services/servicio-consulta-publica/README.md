@@ -22,7 +22,10 @@ GET /api/v1/consulta/hallazgos ──► ServicioConsulta ──┬── Catalo
                                                       └── ClienteAutorizacion (POST /visibilidad-ubicacion, caché 60 s)
 ```
 - La cola es durable: si el servicio está apagado, los eventos esperan en RabbitMQ y se aplican al arrancar.
-- El proyector es idempotente: un evento con versión menor o igual a la guardada se ignora.
+- El proyector es idempotente: un evento con versión menor o igual a la guardada se ignora (el log dice "ignorado").
+- Cola de errores `consulta-publica.hallazgos.dlq`:
+  - JSON ilegible o datos inválidos (falta la fecha, número mal escrito...): va directo, sin reintentos, con la cabecera `x-motivo-error`.
+  - Otros fallos (p. ej. base de datos caída): 3 reintentos y, si sigue fallando, RabbitMQ lo mueve allí (dead-letter). Nada se pierde.
 - El modelo de lectura no guarda el investigador; solo datos públicos.
 - Si `servicio-autorizacion` no responde, la ubicación se muestra al nivel más restrictivo (`DEPARTAMENTO`).
 
@@ -50,6 +53,15 @@ Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMB
 > ```powershell
 > docker exec biohub-mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS consulta_db CHARACTER SET utf8mb4; CREATE USER IF NOT EXISTS 'consulta_user'@'%' IDENTIFIED BY 'consulta_pass'; GRANT ALL PRIVILEGES ON consulta_db.* TO 'consulta_user'@'%';"
 > ```
+
+> Si el servicio falla al arrancar con `PRECONDITION_FAILED - inequivalent arg 'x-dead-letter-exchange'`, tienes una cola `consulta-publica.hallazgos` creada por una versión anterior (sin cola de errores). Detén el servicio, bórrala y vuelve a arrancarlo:
+> ```powershell
+> docker stop biohub-servicio-consulta-publica
+> docker exec biohub-rabbitmq rabbitmqctl delete_queue consulta-publica.hallazgos
+> docker start biohub-servicio-consulta-publica
+> ```
+>
+> Para ver qué hay en la cola de errores: http://localhost:15672 (usuario `biohub` / `biohub`) → Queues → `consulta-publica.hallazgos.dlq` → Get messages.
 
 ## API (`/api/v1/consulta`)
 | Método | Ruta | Descripción |

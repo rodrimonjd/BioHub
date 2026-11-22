@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -31,43 +32,50 @@ public class ProyectorHallazgos {
         this.catalogo = catalogo;
     }
 
+    /** Qué pasó con el evento, para dejarlo claro en el log. */
+    public enum Resultado { APLICADO, IGNORADO }
+
+    /**
+     * @throws EventoInvalidoException si al evento le faltan datos o vienen mal formados
+     */
     @Transactional
-    public void aplicar(EventoEntrante evento) {
-        if (evento.idAgregado() == null) {
-            throw new IllegalArgumentException("Evento sin idAgregado");
+    public Resultado aplicar(EventoEntrante evento) {
+        if (evento.idAgregado() == null || evento.idAgregado().isBlank()) {
+            throw new EventoInvalidoException("Evento sin idAgregado");
         }
-        switch (evento.tipo() == null ? "" : evento.tipo()) {
+        return switch (evento.tipo() == null ? "" : evento.tipo()) {
             case EventoEntrante.HALLAZGO_REGISTRADO -> registrar(evento);
             case EventoEntrante.HALLAZGO_MODIFICADO -> modificar(evento);
-            default -> log.debug("Evento ignorado: {}", evento.tipo());
-        }
+            default -> Resultado.IGNORADO;
+        };
     }
 
-    private void registrar(EventoEntrante evento) {
+    private Resultado registrar(EventoEntrante evento) {
         Map<String, Object> d = evento.datos();
         int version = entero(d.get("version"), 1);
         Optional<HallazgoLectura> existente = repositorio.findById(evento.idAgregado());
         if (existente.isPresent() && existente.get().getVersion() >= version) {
-            return; // ya aplicado
+            return Resultado.IGNORADO; // ya aplicado
         }
         HallazgoLectura h = existente.orElseGet(() -> new HallazgoLectura(evento.idAgregado()));
-        h.registrar(texto(d.get("especieId")), texto(d.get("especie")), instante(d.get("fecha")),
-                texto(d.get("descripcion")), decimal(d.get("latitud")), decimal(d.get("longitud")),
-                texto(d.get("departamento")), texto(d.get("region")), version);
+        h.registrar(texto(d.get("especieId")), requerido(d, "especie"), instante(d.get("fecha")),
+                requerido(d, "descripcion"), decimal(d.get("latitud")), decimal(d.get("longitud")),
+                requerido(d, "departamento"), texto(d.get("region")), version);
         repositorio.save(h);
+        return Resultado.APLICADO;
     }
 
-    private void modificar(EventoEntrante evento) {
+    private Resultado modificar(EventoEntrante evento) {
         Map<String, Object> d = evento.datos();
         Optional<HallazgoLectura> existente = repositorio.findById(evento.idAgregado());
         if (existente.isEmpty()) {
             log.warn("Modificación de un hallazgo desconocido {}; se ignora", evento.idAgregado());
-            return;
+            return Resultado.IGNORADO;
         }
         HallazgoLectura h = existente.get();
         int version = entero(d.get("version"), h.getVersion() + 1);
         if (h.getVersion() >= version) {
-            return; // ya aplicado
+            return Resultado.IGNORADO; // ya aplicado
         }
         String campo = texto(d.get("campo"));
         String valor = texto(d.get("valorNuevo"));
@@ -81,34 +89,55 @@ public class ProyectorHallazgos {
             default -> log.warn("Campo modificado desconocido '{}' en el hallazgo {}", campo, h.getId());
         }
         h.marcarVersion(version);
+        return Resultado.APLICADO;
     }
 
-    // ---- conversión de los valores del JSON ----
+    // ---- conversión de los valores del JSON (cualquier valor mal formado = evento inválido) ----
 
     private static String texto(Object valor) {
         return valor == null ? null : valor.toString();
     }
 
+    private static String requerido(Map<String, Object> datos, String campo) {
+        String valor = texto(datos.get(campo));
+        if (valor == null || valor.isBlank()) {
+            throw new EventoInvalidoException("Evento sin el campo obligatorio '" + campo + "'");
+        }
+        return valor;
+    }
+
     private static Double decimal(Object valor) {
         if (valor == null) return null;
         if (valor instanceof Number n) return n.doubleValue();
-        return Double.valueOf(valor.toString());
+        try {
+            return Double.valueOf(valor.toString());
+        } catch (NumberFormatException e) {
+            throw new EventoInvalidoException("Número inválido: " + valor, e);
+        }
     }
 
     private static int entero(Object valor, int porDefecto) {
         if (valor instanceof Number n) return n.intValue();
-        if (valor != null) return Integer.parseInt(valor.toString());
-        return porDefecto;
+        if (valor == null) return porDefecto;
+        try {
+            return Integer.parseInt(valor.toString());
+        } catch (NumberFormatException e) {
+            throw new EventoInvalidoException("Entero inválido: " + valor, e);
+        }
     }
 
     /** Acepta fecha ISO-8601 ("2026-11-21T10:00:00Z") o segundos desde 1970 (con decimales). */
     private static Instant instante(Object valor) {
-        if (valor == null) throw new IllegalArgumentException("Evento sin fecha");
-        if (valor instanceof Number n) {
-            BigDecimal segundos = new BigDecimal(n.toString());
-            return Instant.ofEpochSecond(segundos.longValue(),
-                    segundos.remainder(BigDecimal.ONE).movePointRight(9).longValue());
+        if (valor == null) throw new EventoInvalidoException("Evento sin el campo obligatorio 'fecha'");
+        try {
+            if (valor instanceof Number n) {
+                BigDecimal segundos = new BigDecimal(n.toString());
+                return Instant.ofEpochSecond(segundos.longValue(),
+                        segundos.remainder(BigDecimal.ONE).movePointRight(9).longValue());
+            }
+            return Instant.parse(valor.toString());
+        } catch (DateTimeException | ArithmeticException e) {
+            throw new EventoInvalidoException("Fecha inválida: " + valor, e);
         }
-        return Instant.parse(valor.toString());
     }
 }

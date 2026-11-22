@@ -1,5 +1,6 @@
 package co.edu.unbosque.biohub.consulta.evento;
 
+import co.edu.unbosque.biohub.consulta.evento.ProyectorHallazgos.Resultado;
 import co.edu.unbosque.biohub.consulta.especie.CatalogoEspecies;
 import co.edu.unbosque.biohub.consulta.especie.EspecieInfo;
 import co.edu.unbosque.biohub.consulta.lectura.HallazgoLectura;
@@ -92,10 +93,10 @@ class ProyectorHallazgosTest {
 
     @Test
     void eventoRepetidoOAntiguoNoCambiaNada() {
-        proyector.aplicar(registrado("h1", 1, "2026-11-01T10:00:00Z"));
-        proyector.aplicar(modificado("h1", "descripcion", "Nueva", 2));
-        proyector.aplicar(modificado("h1", "descripcion", "Vieja repetida", 2));
-        proyector.aplicar(registrado("h1", 1, "2026-11-01T10:00:00Z"));
+        assertEquals(Resultado.APLICADO, proyector.aplicar(registrado("h1", 1, "2026-11-01T10:00:00Z")));
+        assertEquals(Resultado.APLICADO, proyector.aplicar(modificado("h1", "descripcion", "Nueva", 2)));
+        assertEquals(Resultado.IGNORADO, proyector.aplicar(modificado("h1", "descripcion", "Vieja repetida", 2)));
+        assertEquals(Resultado.IGNORADO, proyector.aplicar(registrado("h1", 1, "2026-11-01T10:00:00Z")));
 
         assertEquals("Nueva", tabla.get("h1").getDescripcion());
         assertEquals(2, tabla.get("h1").getVersion());
@@ -114,18 +115,37 @@ class ProyectorHallazgosTest {
 
     @Test
     void modificacionDeHallazgoDesconocidoSeIgnora() {
-        proyector.aplicar(modificado("no-existe", "descripcion", "x", 2));
+        assertEquals(Resultado.IGNORADO, proyector.aplicar(modificado("no-existe", "descripcion", "x", 2)));
         assertFalse(tabla.containsKey("no-existe"));
     }
 
     @Test
     void otrosTiposDeEventoSeIgnoran() {
-        proyector.aplicar(new EventoEntrante("ev", "AVISTAMIENTO_REGISTRADO", "a1", Map.of()));
+        assertEquals(Resultado.IGNORADO,
+                proyector.aplicar(new EventoEntrante("ev", "AVISTAMIENTO_REGISTRADO", "a1", Map.of())));
         assertFalse(tabla.containsKey("a1"));
     }
 
     @Test
     void registroSinFechaEsInvalido() {
-        assertThrows(IllegalArgumentException.class, () -> proyector.aplicar(registrado("h1", 1, null)));
+        assertThrows(EventoInvalidoException.class, () -> proyector.aplicar(registrado("h1", 1, null)));
+    }
+
+    @Test
+    void fechaMalEscritaEsInvalida() {
+        assertThrows(EventoInvalidoException.class, () -> proyector.aplicar(registrado("h1", 1, "ayer")));
+    }
+
+    @Test
+    void registroSinDepartamentoEsInvalido() {
+        EventoEntrante evento = registrado("h1", 1, "2026-11-01T10:00:00Z");
+        evento.datos().remove("departamento");
+        assertThrows(EventoInvalidoException.class, () -> proyector.aplicar(evento));
+        assertFalse(tabla.containsKey("h1"));
+    }
+
+    @Test
+    void eventoSinIdAgregadoEsInvalido() {
+        assertThrows(EventoInvalidoException.class, () -> proyector.aplicar(registrado(null, 1, "2026-11-01T10:00:00Z")));
     }
 }
