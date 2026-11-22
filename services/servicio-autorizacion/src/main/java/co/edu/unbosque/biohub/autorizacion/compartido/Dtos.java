@@ -12,7 +12,8 @@ import java.util.TreeSet;
 public final class Dtos {
     private Dtos() {}
 
-    public record SolicitudVerificacion(@NotBlank String usuarioId, @NotBlank String permiso) {}
+    public record SolicitudVerificacion(@NotBlank(message = "es obligatorio") String usuarioId,
+                                        @NotBlank(message = "es obligatorio") String permiso) {}
     public record RespuestaVerificacion(String usuarioId, String permiso, boolean permitido) {}
 
     public record RespuestaAccesoUsuario(String usuarioId, Set<String> roles, Set<String> permisos) {}
@@ -21,8 +22,8 @@ public final class Dtos {
     public record SolicitudVisibilidad(String usuarioId, String categoriaConservacion) {}
     public record RespuestaVisibilidad(NivelVisibilidad nivel, boolean coordenadasExactas) {}
 
-    public record SolicitudCrearRol(@NotBlank @Size(max = 60) String nombre,
-                                    @Size(max = 255) String descripcion,
+    public record SolicitudCrearRol(@NotBlank(message = "es obligatorio") @Size(max = 60, message = "máximo 60 caracteres") String nombre,
+                                    @Size(max = 255, message = "máximo 255 caracteres") String descripcion,
                                     Set<String> permisos) {}
     public record SolicitudPermisos(Set<String> permisos) {}
 
