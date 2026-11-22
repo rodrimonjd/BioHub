@@ -50,15 +50,12 @@ public class Expedicion {
     private Instant creadoEn;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "expedicion_equipo",
-            joinColumns = @JoinColumn(name = "expedicion_id"),
-            inverseJoinColumns = @JoinColumn(name = "equipo_id"))
+    @JoinTable(name = "expedicion_equipo", joinColumns = @JoinColumn(name = "expedicion_id"), inverseJoinColumns = @JoinColumn(name = "equipo_id"))
     private Set<EquipoCampo> equipos = new HashSet<>();
 
     protected Expedicion() { }
 
-    public Expedicion(String nombre, String zona, LocalDate fechaInicio, LocalDate fechaFin,
-                      String liderId) {
+    public Expedicion(String nombre, String zona, LocalDate fechaInicio, LocalDate fechaFin, String liderId) {
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("nombre es obligatorio");
         }
@@ -85,8 +82,7 @@ public class Expedicion {
 
     public void asignarEquipo(EquipoCampo equipo) {
         if (equipo.getEstado() == EstadoEquipo.MANTENIMIENTO) {
-            throw new IllegalArgumentException(
-                    "El equipo " + equipo.getNumeroSerie() + " esta en mantenimiento");
+            throw new IllegalArgumentException( "El equipo " + equipo.getNumeroSerie() + " esta en mantenimiento");
         }
         equipo.asignarResponsable(liderId);
         equipos.add(equipo);

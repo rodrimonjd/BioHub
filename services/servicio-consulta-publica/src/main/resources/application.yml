@@ -1,0 +1,46 @@
+server:
+  port: ${PUERTO_SERVIDOR:8083}
+
+spring:
+  application:
+    name: servicio-consulta-publica
+  datasource:
+    url: jdbc:mysql://${BD_HOST:localhost}:${BD_PUERTO:3306}/${BD_NOMBRE:consulta_db}?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    username: ${BD_USUARIO:consulta_user}
+    password: ${BD_CLAVE:consulta_pass}
+  jpa:
+    hibernate:
+      ddl-auto: validate      # el esquema lo maneja Flyway
+    open-in-view: false
+  flyway:
+    enabled: true
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PUERTO:5672}
+    username: ${RABBIT_USUARIO:biohub}
+    password: ${RABBIT_CLAVE:biohub}
+    listener:
+      simple:
+        # 3 intentos por mensaje; si sigue fallando se rechaza y va a la cola de errores (dead-letter)
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+        default-requeue-rejected: false
+
+consulta:
+  eventos:
+    exchange: biohub.eventos      # mismo exchange que declara servicio-registro
+    cola: consulta-publica.hallazgos
+    cola-errores: consulta-publica.hallazgos.dlq   # mensajes que no se pudieron procesar
+  registro-url: ${REGISTRO_URL:http://localhost:8081}
+  autorizacion-url: ${AUTORIZACION_URL:http://localhost:8082}
+  cache:
+    especies-ttl: 5m
+    visibilidad-ttl: 60s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -18,7 +18,6 @@ public final class Dtos {
 
     public record RespuestaAccesoUsuario(String usuarioId, Set<String> roles, Set<String> permisos) {}
 
-    /** usuarioId vacío o nulo = usuario anónimo (público). */
     public record SolicitudVisibilidad(String usuarioId, String categoriaConservacion) {}
     public record RespuestaVisibilidad(NivelVisibilidad nivel, boolean coordenadasExactas) {}
 

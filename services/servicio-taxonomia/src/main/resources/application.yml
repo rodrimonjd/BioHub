@@ -1,0 +1,27 @@
+server:
+  port: ${PUERTO_SERVIDOR:8084}
+
+spring:
+  application:
+    name: servicio-taxonomia
+  web:
+    error:
+      include-message: always
+  mongodb:
+    uri: mongodb://${MONGO_HOST:localhost}:${MONGO_PUERTO:27017}/${MONGO_BD:taxonomia_db}
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PUERTO:5672}
+    username: ${RABBIT_USUARIO:biohub}
+    password: ${RABBIT_CLAVE:biohub}
+
+biohub:
+  eventos:
+    exchange: biohub.eventos
+    intervalo-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

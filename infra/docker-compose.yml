@@ -88,6 +88,53 @@ services:
     ports:
       - "8081:8081"
 
+  servicio-consulta-publica:
+    build:
+      context: ../services/servicio-consulta-publica
+    container_name: biohub-servicio-consulta-publica
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: consulta_db
+      BD_USUARIO: consulta_user
+      BD_CLAVE: consulta_pass
+      RABBIT_HOST: rabbitmq
+      RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
+      RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      REGISTRO_URL: http://servicio-registro:8081
+      AUTORIZACION_URL: http://servicio-autorizacion:8082
+      TZ: America/Bogota
+    ports:
+      - "8083:8083"
+
+  servicio-taxonomia:
+    build:
+      context: ../services/servicio-taxonomia
+    container_name: biohub-servicio-taxonomia
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      MONGO_HOST: mongo
+      MONGO_PUERTO: 27017
+      MONGO_BD: taxonomia_db
+      RABBIT_HOST: rabbitmq
+      RABBIT_PUERTO: 5672
+      RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
+      RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      TZ: America/Bogota
+    ports:
+      - "8084:8084"
+
 volumes:
   mysql_data:
   mongo_data:

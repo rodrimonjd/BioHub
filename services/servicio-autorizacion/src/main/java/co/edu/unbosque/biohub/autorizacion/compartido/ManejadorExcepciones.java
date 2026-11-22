@@ -18,10 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.util.stream.Collectors;
 
-/**
- * Traduce todas las excepciones a {@link RespuestaError} sin exponer detalles internos
- * (nombres de clases, firmas de métodos ni trazas).
- */
 @RestControllerAdvice
 public class ManejadorExcepciones extends ResponseEntityExceptionHandler {
 
@@ -42,14 +38,12 @@ public class ManejadorExcepciones extends ResponseEntityExceptionHandler {
         return construir(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
-    /** Cualquier error no previsto: se registra completo, pero al cliente solo se le da un mensaje genérico. */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> errorInesperado(Exception e) {
         log.error("Error no controlado", e);
         return construir(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor");
     }
 
-    /** Falla de @Valid: lista solo "campo: mensaje". */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException e, HttpHeaders headers,
                                                                   HttpStatusCode estado, WebRequest solicitud) {
@@ -60,14 +54,12 @@ public class ManejadorExcepciones extends ResponseEntityExceptionHandler {
         return construir(HttpStatus.BAD_REQUEST, mensaje.isEmpty() ? "Solicitud inválida" : mensaje);
     }
 
-    /** Cuerpo ausente, JSON malformado o con tipos incorrectos. */
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException e, HttpHeaders headers,
                                                                   HttpStatusCode estado, WebRequest solicitud) {
         return construir(HttpStatus.BAD_REQUEST, "El cuerpo de la solicitud falta o no es un JSON válido");
     }
 
-    /** Resto de errores de Spring MVC (405, 415, 404 de ruta, cabecera faltante...): mismo formato de respuesta. */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception e, @Nullable Object cuerpo, HttpHeaders headers,
                                                              HttpStatusCode estado, WebRequest solicitud) {

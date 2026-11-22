@@ -4,8 +4,7 @@ public final class EvidenciaFactory {
 
     private EvidenciaFactory() { }
 
-    public static Evidencia crear(TipoEvidencia tipo, String valor, String unidad,
-                                  String urlArchivo, String atributoTaxonomico) {
+    public static Evidencia crear(TipoEvidencia tipo, String valor, String unidad, String urlArchivo, String atributoTaxonomico) {
         if (tipo == null) {
             throw new DatosInvalidosException("El tipo de evidencia es obligatorio");
         }

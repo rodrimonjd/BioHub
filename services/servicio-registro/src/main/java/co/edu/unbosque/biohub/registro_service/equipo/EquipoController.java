@@ -43,8 +43,7 @@ public class EquipoController {
     }
 
     @PutMapping("/{id}/responsable")
-    public EquipoResponse asignarResponsable(@PathVariable UUID id,
-                                             @Valid @RequestBody ResponsableRequest request) {
+    public EquipoResponse asignarResponsable(@PathVariable UUID id, @Valid @RequestBody ResponsableRequest request) {
         return EquipoResponse.de(servicio.asignarResponsable(id, request.investigadorId()));
     }
 }

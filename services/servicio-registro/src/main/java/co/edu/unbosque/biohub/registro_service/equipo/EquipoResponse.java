@@ -11,7 +11,6 @@ public record EquipoResponse(
         String responsableId) {
 
     public static EquipoResponse de(EquipoCampo e) {
-        return new EquipoResponse(e.getId(), e.getNumeroSerie(), e.getTipo(),
-                e.getModelo(), e.getEstado(), e.getResponsableId());
+        return new EquipoResponse(e.getId(), e.getNumeroSerie(), e.getTipo(), e.getModelo(), e.getEstado(), e.getResponsableId());
     }
 }

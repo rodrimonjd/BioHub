@@ -7,10 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Administración de roles. El Gateway autentica y reenvía el id del usuario
- * en la cabecera X-Usuario-Id; aquí se exige el permiso roles:administrar.
- */
 @RestController
 @RequestMapping("/api/v1/autorizacion")
 public class RolControlador {
