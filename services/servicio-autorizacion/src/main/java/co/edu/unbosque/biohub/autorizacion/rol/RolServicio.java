@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Administración de roles, permisos y asignaciones. Publica eventos mediante Outbox. */
 @Service
 @Transactional
 public class RolServicio {
@@ -89,7 +88,6 @@ public class RolServicio {
         emitir(usuarioId, "usuario.rol_revocado", Map.of("usuario", usuarioId, "rol", ur.getRol().getNombre()));
     }
 
-    // ---- auxiliares ----
     private Rol buscarRol(String nombre) {
         return roles.findByNombre(nombre.trim().toUpperCase())
                 .orElseThrow(() -> new NoEncontradoException("Rol no encontrado: " + nombre));

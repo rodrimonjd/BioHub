@@ -12,12 +12,10 @@ import java.util.TreeSet;
 
 import static java.util.stream.Collectors.toCollection;
 
-/** Consultas de autorización: "¿puede el usuario X hacer Y?" y "¿qué ubicación puede ver?". */
 @Service
 @Transactional(readOnly = true)
 public class ServicioAutorizacion {
 
-    /** Rol que se asume para anónimos y usuarios sin roles asignados. */
     public static final String ROL_POR_DEFECTO = "CIUDADANO";
 
     private final UsuarioRolRepositorio usuarioRoles;
