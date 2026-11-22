@@ -1,26 +1,18 @@
 # BioHub — Sitio Web Oficial (`services/web-app`)
 
-Interfaz web de **BioHub — Sistema Nacional de Registro y Vigilancia de Biodiversidad** construida con **Next.js (App Router) + TypeScript + Tailwind CSS v4** bajo la dirección estética **Editorial Naturalista**.
+Interfaz web de **BioHub — Sistema Nacional de Registro y Vigilancia de Biodiversidad** construida con **Next.js 15 (App Router) + React 19 + TypeScript + Tailwind CSS v4** bajo la dirección estética **Editorial Naturalista**.
 
-## Arquitectura del Frontend
+## Estructura de Rutas
 
-- **`app/globals.css`**: Tokens de diseño en `@theme` de Tailwind v4 (`paper`, `surface`, `line`, `ink`, `ink-muted`, `forest-900`, `forest-700`, `moss-500`, `water-600`, `sun-500` y estados UICN `iucn-lc`, `iucn-nt`, `iucn-vu`, `iucn-en`, `iucn-cr`), soporte de modo oscuro (`.dark`) y respeto por `prefers-reduced-motion`.
-- **`app/layout.tsx`**: Configuración tipográfica con `next/font/google` (`Fraunces` para títulos y nombres científicos en cursiva, `Inter` para interfaz/cuerpo, `JetBrains Mono` para datos técnicos).
-- **`lib/permissions.ts`**: Función única centralizada (`canViewExactCoordinates`) que decide si un rol (`"public"` | `"senior"`) puede visualizar coordenadas exactas de especies sensibles.
-- **`components/ui/`**:
-  - `Button.tsx` (`primary`, `secondary`, `ghost`)
-  - `Card.tsx`
-  - `Container.tsx` (`max-w-6xl`)
-  - `Section.tsx` (`py-20`)
-  - `ConservationBadge.tsx` (`LC` | `NT` | `VU` | `EN` | `CR`, con contraste AA garantizado —`VU` siempre con texto `ink`— y sigla visible).
-- **`components/biohub/`**:
-  - `SpeciesCard.tsx`: Lámina botánica en trazos finos SVG, nombre común, nombre científico en serif cursiva, `ConservationBadge` y atributos flexibles desde un arreglo `{ label, value }`.
-  - `HistoryTimeline.tsx`: Línea de tiempo vertical inmutable con fecha e ID en monoespaciada, qué se creía, qué se sabe ahora, quién autorizó el cambio y por qué.
-  - `ProtectedLocation.tsx`: Mapa topográfico difuminado con candado (`"Región: Meta"`) para visitante común y coordenadas exactas en monoespaciada para personal científico de alto rango.
-  - `ApiUsagePanel.tsx`: Barra de peticiones por minuto (`moss-500` normal, `sun-500` al superar el 80%, `iucn-cr` al exceder el tope).
-  - `ReportStatus.tsx`: Indicador asíncrono en segundo plano con estados `en_cola`, `generando` y `listo`.
+- **`/` (`app/page.tsx`)**: Página pública institucional con el Hero topográfico, los 4 retos científicos del Instituto y acceso para iniciar sesión (inicia siempre sin sesión activa).
+- **`/login` (`app/login/page.tsx`)**: Página de acceso institucional con etiqueta de *Modo demo*, selección de perfil por rol y persistencia de sesión en el navegador.
+- **`/panel` (`app/panel/page.tsx`)**: Panel científico protegido por sesión que integra:
+  - **Estación de campo (`components/biohub/FieldStationWorkspace.tsx`)**: Registro de avistamientos diarios (con estado explícito *"Guardado solo en este equipo, sin sincronizar"* y botón de reintento cuando el backend no está disponible, más paginación incremental), registro de hallazgos con evidencias y reclasificación con diálogo nativo `<dialog>` de confirmación.
+  - **Inventario y fichas taxonómicas (`components/biohub/SpeciesCard.tsx`)**: Tarjetas compactas con botón desplegable *"Ver atributos (n)"*, buscador con estado vacío y formulario titulado *"Agregar atributo a una ficha"*.
+  - **Trazabilidad y corredor biológico (`components/biohub/HistoryTimeline.tsx`, `components/biohub/ProtectedLocation.tsx`)**: Línea de tiempo inmutable y mapa cartográfico de la cuenca del Meta con selector local *"Ver tarjeta como"* (*Visitante común* vs. *Alto rango*).
+  - **API y reportes (`components/biohub/ApiUsagePanel.tsx`, `components/biohub/ReportStatus.tsx`)**: Panel de consumo por minuto y estado de reportes en segundo plano.
 
-## Cómo correr el proyecto
+## Cómo ejecutar el proyecto
 
 ```bash
 cd services/web-app
@@ -28,9 +20,10 @@ npm install
 npm run dev
 ```
 
-Luego abre `http://localhost:3000` en el navegador. Para compilar para producción:
+Abre `http://localhost:3000`.
 
-```bash
-npm run build
-npm run start
-```
+### Verificación de calidad
+
+- **Linter (ESLint):** `npm run lint`
+- **Compilación de producción:** `npm run build`
+- **Pruebas E2E (Playwright a 1440 px y 375 px):** `npm run test:e2e`

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Field } from '@/components/ui/Field';
 import { ConservationBadge } from '@/components/ui/ConservationBadge';
 import {
   BioHubUser,
@@ -10,6 +11,7 @@ import {
   canAuthorizeReclassification,
 } from '@/lib/permissions';
 import {
+  AvistamientoRequest,
   AvistamientoResponse,
   BACKEND_SEED_SPECIES,
   EvidenciaRequest,
@@ -27,7 +29,6 @@ import { HistoryEventItem } from './HistoryTimeline';
 
 export interface FieldStationWorkspaceProps {
   currentUser: BioHubUser;
-  onOpenAuth: () => void;
   onNewSpeciesCardCreated: (card: SpeciesCardProps) => void;
   onNewHistoryEventAdded: (event: HistoryEventItem, findingId: string) => void;
 }
@@ -66,6 +67,18 @@ const INITIAL_LOCAL_AVISTAMIENTOS: AvistamientoResponse[] = [
     departamento: 'Meta',
     region: 'Orinoquía',
     creadoEn: '2026-11-21T08:40:01Z',
+  },
+  {
+    id: 'c441f820-9012-4110-8100-445566778899',
+    especieId: '33333333-3333-3333-3333-333333333333',
+    especie: 'Ara macao',
+    fechaHora: '2026-11-20T16:20:00Z',
+    cantidad: 8,
+    latitud: -1.1984,
+    longitud: -71.5432,
+    departamento: 'Amazonas',
+    region: 'Amazonía',
+    creadoEn: '2026-11-20T16:20:02Z',
   },
 ];
 
@@ -106,9 +119,10 @@ const INITIAL_LOCAL_HALLAZGOS: HallazgoResponse[] = [
   },
 ];
 
+const PAGE_SIZE = 3;
+
 export function FieldStationWorkspace({
   currentUser,
-  onOpenAuth,
   onNewSpeciesCardCreated,
   onNewHistoryEventAdded,
 }: FieldStationWorkspaceProps) {
@@ -117,20 +131,21 @@ export function FieldStationWorkspace({
   >('avistamientos');
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [statusBanner, setStatusBanner] = useState<{
-    type: 'ok' | 'err';
+    type: 'ok' | 'warn' | 'err';
     text: string;
   } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Listas de datos (sincronizadas con :8081 o local)
+  // Bitácora con paginación incremental
   const [avistamientos, setAvistamientos] = useState<AvistamientoResponse[]>(
     INITIAL_LOCAL_AVISTAMIENTOS
   );
+  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
   const [hallazgos, setHallazgos] = useState<HallazgoResponse[]>(
     INITIAL_LOCAL_HALLAZGOS
   );
 
-  // Estado formulario HU-13: POST /avistamientos
+  // Formulario Avistamiento
   const [avEspecieId, setAvEspecieId] = useState(BACKEND_SEED_SPECIES[0].id);
   const [avCantidad, setAvCantidad] = useState<number>(2);
   const [avDepto, setAvDepto] = useState('Vichada');
@@ -138,7 +153,7 @@ export function FieldStationWorkspace({
   const [avLat, setAvLat] = useState('5.5412');
   const [avLon, setAvLon] = useState('-68.5194');
 
-  // Estado formulario HU-01 + HU-03: POST /hallazgos
+  // Formulario Hallazgo + Evidencias
   const [haEspecieId, setHaEspecieId] = useState(BACKEND_SEED_SPECIES[0].id);
   const [haFichaId, setHaFichaId] = useState('FICHA-TOMO-2026');
   const [haDescripcion, setHaDescripcion] = useState('');
@@ -160,7 +175,7 @@ export function FieldStationWorkspace({
     },
   ]);
 
-  // Estado HU-19.1 & HU-10: Modificación (PATCH /hallazgos/{id}) y Reclasificación (POST /hallazgos/{id}/reclasificacion)
+  // Modificación y Reclasificación
   const [targetHallazgoId, setTargetHallazgoId] = useState<string>(
     INITIAL_LOCAL_HALLAZGOS[0].id
   );
@@ -175,13 +190,20 @@ export function FieldStationWorkspace({
   const [recMotivo, setRecMotivo] = useState<string>('');
   const [recAutorizador, setRecAutorizador] = useState<string>('alt-escobar-02');
 
+  // Modal nativo <dialog> para confirmación de reclasificación
+  const confirmDialogRef = useRef<HTMLDialogElement | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
+
   const canWrite = canRegisterFieldData(currentUser.role);
 
   const syncWithBackend = async () => {
     const res = await listarAvistamientos();
     setBackendOnline(res.online);
     if (res.online && res.data) {
-      setAvistamientos(res.data.length > 0 ? res.data : INITIAL_LOCAL_AVISTAMIENTOS);
+      setAvistamientos((prev) => {
+        const pendingItems = prev.filter((item) => item.pendingSync);
+        return [...pendingItems, ...(res.data || [])];
+      });
     }
   };
 
@@ -199,7 +221,33 @@ export function FieldStationWorkspace({
     if (match) setRegionFn(match.region);
   };
 
-  // --- HU-13: Registrar Avistamiento Diario ---
+  // Reintentar sincronización de un avistamiento guardado localmente
+  const handleRetrySyncAvistamiento = async (item: AvistamientoResponse) => {
+    if (!item.originalPayload) return;
+    setLoading(true);
+    setStatusBanner(null);
+    try {
+      const saved = await registrarAvistamiento(item.originalPayload);
+      setBackendOnline(true);
+      setAvistamientos((prev) =>
+        prev.map((av) => (av.id === item.id ? { ...saved, pendingSync: false } : av))
+      );
+      setStatusBanner({
+        type: 'ok',
+        text: `Avistamiento sincronizado con el servidor central (${saved.id.slice(0, 8)}).`,
+      });
+    } catch {
+      setBackendOnline(false);
+      setStatusBanner({
+        type: 'warn',
+        text: 'El servidor central aún no responde. El registro continúa guardado en este equipo.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Registrar Avistamiento Diario
   const handleRegistrarAvistamiento = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusBanner(null);
@@ -207,7 +255,7 @@ export function FieldStationWorkspace({
     if (!canWrite) {
       setStatusBanner({
         type: 'err',
-        text: 'Debes iniciar sesión como Investigador o Científico para registrar avistamientos en campo.',
+        text: 'Tu perfil actual es de solo lectura. Cambia a un perfil de Investigador o Científico para registrar datos.',
       });
       return;
     }
@@ -216,8 +264,7 @@ export function FieldStationWorkspace({
     const lonVal = avLon.trim() === '' ? null : Number(avLon);
 
     setLoading(true);
-    const t0 = performance.now();
-    const payload = {
+    const payload: AvistamientoRequest = {
       investigadorId: currentUser.id,
       especieId: avEspecieId,
       fechaHora: new Date().toISOString(),
@@ -230,50 +277,43 @@ export function FieldStationWorkspace({
 
     try {
       const saved = await registrarAvistamiento(payload);
-      const elapsed = Math.round(performance.now() - t0);
       setBackendOnline(true);
-      setAvistamientos((prev) => [saved, ...prev]);
+      setAvistamientos((prev) => [{ ...saved, pendingSync: false }, ...prev]);
       setStatusBanner({
         type: 'ok',
-        text: `HU-13: Avistamiento registrado en servicio-registro (:8081) con ID ${saved.id.slice(
+        text: `Avistamiento sincronizado en el servidor central con código ${saved.id.slice(
           0,
           8
-        )} en ${elapsed} ms (< 2s RNF-10).`,
+        )}.`,
       });
-    } catch (err) {
-      // Fallback si el backend Spring Boot no está corriendo o error de validación
+    } catch {
+      setBackendOnline(false);
       const espObj = BACKEND_SEED_SPECIES.find((s) => s.id === avEspecieId);
-      const elapsed = Math.round(performance.now() - t0);
-      if (backendOnline && err instanceof Error) {
-        setStatusBanner({ type: 'err', text: err.message });
-      } else {
-        const localSaved: AvistamientoResponse = {
-          id: crypto.randomUUID(),
-          especieId: avEspecieId,
-          especie: espObj?.scientificName || 'Especie',
-          fechaHora: payload.fechaHora,
-          cantidad: payload.cantidad,
-          latitud: payload.latitud,
-          longitud: payload.longitud,
-          departamento: payload.departamento,
-          region: payload.region,
-          creadoEn: new Date().toISOString(),
-        };
-        setAvistamientos((prev) => [localSaved, ...prev]);
-        setStatusBanner({
-          type: 'ok',
-          text: `HU-13: Avistamiento registrado en estación base (${localSaved.id.slice(
-            0,
-            8
-          )}) en ${elapsed} ms.`,
-        });
-      }
+      const localSaved: AvistamientoResponse = {
+        id: crypto.randomUUID(),
+        especieId: avEspecieId,
+        especie: espObj?.scientificName || 'Especie',
+        fechaHora: payload.fechaHora,
+        cantidad: payload.cantidad,
+        latitud: payload.latitud,
+        longitud: payload.longitud,
+        departamento: payload.departamento,
+        region: payload.region,
+        creadoEn: new Date().toISOString(),
+        pendingSync: true,
+        originalPayload: payload,
+      };
+      setAvistamientos((prev) => [localSaved, ...prev]);
+      setStatusBanner({
+        type: 'warn',
+        text: 'Guardado solo en este equipo, sin sincronizar. Puedes reintentar el envío desde la bitácora cuando el servidor esté activo.',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- HU-01 & HU-03: Registrar Hallazgo + Evidencias (HallazgoBuilder + EvidenciaFactory) ---
+  // Registrar Hallazgo + Evidencias
   const addEvidencia = (tipo: TipoEvidencia) => {
     setHaEvidencias((prev) => [
       ...prev,
@@ -315,51 +355,47 @@ export function FieldStationWorkspace({
     if (!canWrite) {
       setStatusBanner({
         type: 'err',
-        text: 'Acceso restringido: Inicia sesión como Investigador para registrar hallazgos biológicos.',
+        text: 'Tu perfil actual es de solo lectura. Inicia sesión como Investigador para registrar hallazgos.',
       });
       return;
     }
 
-    // Validación idéntica a HallazgoBuilder.java: Latitud y longitud deben venir juntas o ninguna
     const hasLat = haLat.trim() !== '';
     const hasLon = haLon.trim() !== '';
     if (hasLat !== hasLon) {
       setStatusBanner({
         type: 'err',
-        text: 'Validación HallazgoBuilder: Latitud y longitud deben venir juntas o ninguna.',
+        text: 'Debes indicar tanto la latitud como la longitud, o dejar ambas en blanco.',
       });
       return;
     }
 
-    // Validación idéntica a EvidenciaFactory.java
     for (const ev of haEvidencias) {
       if (ev.tipo === 'TEMPERATURA') {
         if (!ev.valor?.trim() || isNaN(Number(ev.valor))) {
           setStatusBanner({
             type: 'err',
-            text: `EvidenciaFactory: El valor de la temperatura debe ser numérico (${
-              ev.valor || 'vacío'
-            }).`,
+            text: `El valor de la temperatura debe ser numérico (${ev.valor || 'vacío'}).`,
           });
           return;
         }
         if (!ev.unidad?.trim()) {
           setStatusBanner({
             type: 'err',
-            text: 'EvidenciaFactory: La temperatura requiere una unidad (por ejemplo, C).',
+            text: 'La medición de temperatura requiere una unidad (por ejemplo, °C).',
           });
           return;
         }
       } else if (ev.tipo === 'ADN' && !ev.valor?.trim()) {
         setStatusBanner({
           type: 'err',
-          text: 'EvidenciaFactory: La evidencia de ADN requiere el código de la muestra.',
+          text: 'La evidencia de ADN requiere el código de la muestra recolectada.',
         });
         return;
       } else if (ev.tipo === 'AUDIO' && !ev.urlArchivo?.trim()) {
         setStatusBanner({
           type: 'err',
-          text: 'EvidenciaFactory: La evidencia de audio requiere la URL del archivo.',
+          text: 'La evidencia acústica requiere el enlace al archivo de audio.',
         });
         return;
       }
@@ -414,7 +450,6 @@ export function FieldStationWorkspace({
       setTargetHallazgoId(created.id);
       setHaDescripcion('');
 
-      // Publicar también en la vitrina de fichas taxonómicas
       onNewSpeciesCardCreated({
         id: created.id.slice(0, 8).toUpperCase(),
         commonName: espMeta.commonName,
@@ -446,82 +481,83 @@ export function FieldStationWorkspace({
 
       setStatusBanner({
         type: 'ok',
-        text: `HU-01 / HU-03: Hallazgo registrado en MySQL (:8081) con UUID ${created.id} (v1) y ${created.evidencias.length} evidencias validadas.`,
+        text: `Hallazgo sincronizado en el servidor central con código ${created.id.slice(
+          0,
+          8
+        )}.`,
       });
-    } catch (err) {
-      if (backendOnline && err instanceof Error) {
-        setStatusBanner({ type: 'err', text: err.message });
-      } else {
-        const localCreated: HallazgoResponse = {
-          id: crypto.randomUUID(),
-          investigadorId: payload.investigadorId,
-          especieId: payload.especieId,
-          especie: espMeta.scientificName,
-          fichaId: payload.fichaId || null,
-          fecha: payload.fecha,
-          descripcion: payload.descripcion,
-          latitud: payload.latitud,
-          longitud: payload.longitud,
-          departamento: payload.departamento,
-          region: payload.region,
-          versionActual: 1,
-          creadoEn: new Date().toISOString(),
-          evidencias: payload.evidencias.map((ev, i) => ({
-            id: `ev-local-${i}`,
-            tipo: ev.tipo,
-            valor: ev.valor || null,
-            unidad: ev.unidad || null,
-            urlArchivo: ev.urlArchivo || null,
-            atributoTaxonomico: ev.atributoTaxonomico || null,
+    } catch {
+      setBackendOnline(false);
+      const localCreated: HallazgoResponse = {
+        id: crypto.randomUUID(),
+        investigadorId: payload.investigadorId,
+        especieId: payload.especieId,
+        especie: espMeta.scientificName,
+        fichaId: payload.fichaId || null,
+        fecha: payload.fecha,
+        descripcion: payload.descripcion,
+        latitud: payload.latitud,
+        longitud: payload.longitud,
+        departamento: payload.departamento,
+        region: payload.region,
+        versionActual: 1,
+        creadoEn: new Date().toISOString(),
+        pendingSync: true,
+        evidencias: payload.evidencias.map((ev, i) => ({
+          id: `ev-local-${i}`,
+          tipo: ev.tipo,
+          valor: ev.valor || null,
+          unidad: ev.unidad || null,
+          urlArchivo: ev.urlArchivo || null,
+          atributoTaxonomico: ev.atributoTaxonomico || null,
+        })),
+      };
+      setHallazgos((prev) => [localCreated, ...prev]);
+      setTargetHallazgoId(localCreated.id);
+      setHaDescripcion('');
+
+      onNewSpeciesCardCreated({
+        id: localCreated.id.slice(0, 8).toUpperCase(),
+        commonName: espMeta.commonName,
+        scientificName: espMeta.scientificName,
+        status: espMeta.status,
+        specimenCode: localCreated.fichaId || 'EST-CAMPO-2026',
+        illustrationVariant:
+          espMeta.status === 'CR'
+            ? 'reptile'
+            : espMeta.status === 'LC'
+            ? 'avian'
+            : 'amphibian',
+        attributes: [
+          {
+            label: 'Ubicación registrada',
+            value: `${localCreated.departamento} (${localCreated.region || 'Colombia'})`,
+          },
+          ...localCreated.evidencias.map((ev) => ({
+            label: ev.atributoTaxonomico || `Evidencia ${ev.tipo}`,
+            value:
+              ev.tipo === 'TEMPERATURA'
+                ? `${ev.valor} ${ev.unidad}`
+                : ev.tipo === 'ADN'
+                ? `${ev.valor}`
+                : `${ev.urlArchivo}`,
           })),
-        };
-        setHallazgos((prev) => [localCreated, ...prev]);
-        setTargetHallazgoId(localCreated.id);
-        setHaDescripcion('');
+        ],
+      });
 
-        onNewSpeciesCardCreated({
-          id: localCreated.id.slice(0, 8).toUpperCase(),
-          commonName: espMeta.commonName,
-          scientificName: espMeta.scientificName,
-          status: espMeta.status,
-          specimenCode: localCreated.fichaId || 'EST-CAMPO-2026',
-          illustrationVariant:
-            espMeta.status === 'CR'
-              ? 'reptile'
-              : espMeta.status === 'LC'
-              ? 'avian'
-              : 'amphibian',
-          attributes: [
-            {
-              label: 'Ubicación registrada',
-              value: `${localCreated.departamento} (${localCreated.region || 'Colombia'})`,
-            },
-            ...localCreated.evidencias.map((ev) => ({
-              label: ev.atributoTaxonomico || `Evidencia ${ev.tipo}`,
-              value:
-                ev.tipo === 'TEMPERATURA'
-                  ? `${ev.valor} ${ev.unidad}`
-                  : ev.tipo === 'ADN'
-                  ? `${ev.valor}`
-                  : `${ev.urlArchivo}`,
-            })),
-          ],
-        });
-
-        setStatusBanner({
-          type: 'ok',
-          text: `HU-01 / HU-03: Hallazgo registrado (${localCreated.id.slice(
-            0,
-            8
-          )}) con ${localCreated.evidencias.length} evidencias y agregado a las fichas taxonómicas.`,
-        });
-      }
+      setStatusBanner({
+        type: 'warn',
+        text: `Guardado solo en este equipo, sin sincronizar (${localCreated.id.slice(
+          0,
+          8
+        )}). Se incorporó temporalmente al inventario local.`,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- HU-05: Buscar Hallazgo por UUID en GET /hallazgos/{id} ---
+  // Buscar Hallazgo por identificador
   const handleBuscarHallazgoUuid = async () => {
     if (!lookupUuid.trim()) return;
     setStatusBanner(null);
@@ -538,22 +574,21 @@ export function FieldStationWorkspace({
       setTargetHallazgoId(found.id);
       setStatusBanner({
         type: 'ok',
-        text: `Hallazgo ${found.id} recuperado desde GET /hallazgos/{id} (v${found.versionActual}).`,
+        text: `Hallazgo ${found.id.slice(0, 8)} recuperado desde el servidor (v${
+          found.versionActual
+        }).`,
       });
-    } catch (err) {
+    } catch {
       setStatusBanner({
         type: 'err',
-        text:
-          err instanceof Error
-            ? err.message
-            : 'No se encontró el UUID en servicio-registro (:8081).',
+        text: 'No fue posible recuperar ese código de hallazgo desde el servidor.',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- HU-19.1: Modificar Hallazgo (PATCH /hallazgos/{id}) ---
+  // Modificar Hallazgo
   const handleModificarHallazgo = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusBanner(null);
@@ -570,7 +605,7 @@ export function FieldStationWorkspace({
     if (prevValue === modValor.trim()) {
       setStatusBanner({
         type: 'err',
-        text: 'DatosInvalidosException: El nuevo valor es igual al actual.',
+        text: 'El nuevo valor ingresado es idéntico al valor actual.',
       });
       return;
     }
@@ -593,54 +628,51 @@ export function FieldStationWorkspace({
           date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
           previousBelief: `${modCampo}: "${prevValue}"`,
           currentKnowledge: `${modCampo}: "${modValor.trim()}"`,
-          authorizedBy: `${currentUser.name} (${currentUser.id})`,
-          reason: `Modificación de atributo ${modCampo} vía PATCH /hallazgos/{id}`,
+          authorizedBy: `${currentUser.name}`,
+          reason: `Actualización de ${modCampo} en estación de campo`,
         },
         updated.id.slice(0, 8).toUpperCase()
       );
       setModValor('');
       setStatusBanner({
         type: 'ok',
-        text: `HU-19.1: Hallazgo modificado a versión v${updated.versionActual} y evento añadido a la línea de tiempo.`,
+        text: `Hallazgo actualizado a la versión v${updated.versionActual}.`,
       });
-    } catch (err) {
-      if (backendOnline && err instanceof Error) {
-        setStatusBanner({ type: 'err', text: err.message });
-      } else {
-        const nextVersion = current.versionActual + 1;
-        const localUpdated: HallazgoResponse = {
-          ...current,
-          [modCampo]: modValor.trim(),
-          versionActual: nextVersion,
-        };
-        setHallazgos((prev) =>
-          prev.map((h) => (h.id === current.id ? localUpdated : h))
-        );
-        onNewHistoryEventAdded(
-          {
-            id: `EVT-${Date.now().toString().slice(-4)}`,
-            version: `v${nextVersion}`,
-            date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
-            previousBelief: `${modCampo}: "${prevValue}"`,
-            currentKnowledge: `${modCampo}: "${modValor.trim()}"`,
-            authorizedBy: `${currentUser.name} (${currentUser.id})`,
-            reason: `Actualización trazable del campo ${modCampo} (HU-19.1)`,
-          },
-          current.id.slice(0, 8).toUpperCase()
-        );
-        setModValor('');
-        setStatusBanner({
-          type: 'ok',
-          text: `HU-19.1: Hallazgo actualizado a versión v${nextVersion} y registrado en el historial inmutable.`,
-        });
-      }
+    } catch {
+      const nextVersion = current.versionActual + 1;
+      const localUpdated: HallazgoResponse = {
+        ...current,
+        [modCampo]: modValor.trim(),
+        versionActual: nextVersion,
+        pendingSync: true,
+      };
+      setHallazgos((prev) =>
+        prev.map((h) => (h.id === current.id ? localUpdated : h))
+      );
+      onNewHistoryEventAdded(
+        {
+          id: `EVT-${Date.now().toString().slice(-4)}`,
+          version: `v${nextVersion}`,
+          date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
+          previousBelief: `${modCampo}: "${prevValue}"`,
+          currentKnowledge: `${modCampo}: "${modValor.trim()}"`,
+          authorizedBy: `${currentUser.name}`,
+          reason: `Actualización local de ${modCampo}`,
+        },
+        current.id.slice(0, 8).toUpperCase()
+      );
+      setModValor('');
+      setStatusBanner({
+        type: 'warn',
+        text: `Modificación guardada solo en este equipo, sin sincronizar (versión local v${nextVersion}).`,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- HU-10 & HU-19.1: Reclasificar Hallazgo (POST /hallazgos/{id}/reclasificacion) ---
-  const handleReclasificarHallazgo = async (e: React.FormEvent) => {
+  // Paso 1 de Reclasificación: Validar y abrir diálogo de confirmación (<dialog>)
+  const handlePrepareReclasificacion = (e: React.FormEvent) => {
     e.preventDefault();
     setStatusBanner(null);
     const current = hallazgos.find((h) => h.id === targetHallazgoId);
@@ -649,13 +681,38 @@ export function FieldStationWorkspace({
     if (current.especieId === recNuevaEspecieId) {
       setStatusBanner({
         type: 'err',
-        text: 'DatosInvalidosException: El hallazgo ya está clasificado como esa especie.',
+        text: 'El hallazgo ya se encuentra clasificado bajo esa especie.',
       });
       return;
     }
 
+    if (!recMotivo.trim()) {
+      setStatusBanner({
+        type: 'err',
+        text: 'Debes indicar la justificación científica de la reclasificación.',
+      });
+      return;
+    }
+
+    setConfirmOpen(true);
+    if (confirmDialogRef.current && !confirmDialogRef.current.open) {
+      confirmDialogRef.current.showModal();
+    }
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmOpen(false);
+    if (confirmDialogRef.current && confirmDialogRef.current.open) {
+      confirmDialogRef.current.close();
+    }
+  };
+
+  // Paso 2 de Reclasificación: Confirmar y ejecutar
+  const executeReclasificacionConfirmada = async () => {
+    closeConfirmDialog();
+    const current = hallazgos.find((h) => h.id === targetHallazgoId);
     const nuevaEsp = BACKEND_SEED_SPECIES.find((s) => s.id === recNuevaEspecieId);
-    if (!nuevaEsp) return;
+    if (!current || !nuevaEsp) return;
 
     setLoading(true);
     try {
@@ -676,7 +733,7 @@ export function FieldStationWorkspace({
           date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
           previousBelief: current.especie,
           currentKnowledge: updated.especie,
-          authorizedBy: `Autor: ${currentUser.id} · Autorizó: ${recAutorizador}`,
+          authorizedBy: `${currentUser.name} · Autorizó: ${recAutorizador}`,
           reason: recMotivo.trim(),
         },
         updated.id.slice(0, 8).toUpperCase()
@@ -684,50 +741,51 @@ export function FieldStationWorkspace({
       setRecMotivo('');
       setStatusBanner({
         type: 'ok',
-        text: `HU-10 / HU-19.1: Reclasificación científica aplicada (${current.especie} → ${updated.especie}, v${updated.versionActual}).`,
+        text: `Reclasificación sincronizada (${current.especie} → ${updated.especie}, v${updated.versionActual}).`,
       });
-    } catch (err) {
-      if (backendOnline && err instanceof Error) {
-        setStatusBanner({ type: 'err', text: err.message });
-      } else {
-        const nextVersion = current.versionActual + 1;
-        const localUpdated: HallazgoResponse = {
-          ...current,
-          especieId: nuevaEsp.id,
-          especie: nuevaEsp.scientificName,
-          versionActual: nextVersion,
-        };
-        setHallazgos((prev) =>
-          prev.map((h) => (h.id === current.id ? localUpdated : h))
-        );
-        onNewHistoryEventAdded(
-          {
-            id: `EVT-${Date.now().toString().slice(-4)}`,
-            version: `v${nextVersion}`,
-            date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
-            previousBelief: current.especie,
-            currentKnowledge: nuevaEsp.scientificName,
-            authorizedBy: `Autor: ${currentUser.id} · Autorizó: ${recAutorizador}`,
-            reason: recMotivo.trim(),
-          },
-          current.id.slice(0, 8).toUpperCase()
-        );
-        setRecMotivo('');
-        setStatusBanner({
-          type: 'ok',
-          text: `HU-10 / HU-19.1: Reclasificación científica registrada (${current.especie} → ${nuevaEsp.scientificName}, v${nextVersion}) y añadida a la línea de tiempo.`,
-        });
-      }
+    } catch {
+      const nextVersion = current.versionActual + 1;
+      const localUpdated: HallazgoResponse = {
+        ...current,
+        especieId: nuevaEsp.id,
+        especie: nuevaEsp.scientificName,
+        versionActual: nextVersion,
+        pendingSync: true,
+      };
+      setHallazgos((prev) =>
+        prev.map((h) => (h.id === current.id ? localUpdated : h))
+      );
+      onNewHistoryEventAdded(
+        {
+          id: `EVT-${Date.now().toString().slice(-4)}`,
+          version: `v${nextVersion}`,
+          date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
+          previousBelief: current.especie,
+          currentKnowledge: nuevaEsp.scientificName,
+          authorizedBy: `${currentUser.name} · Autorizó: ${recAutorizador}`,
+          reason: recMotivo.trim(),
+        },
+        current.id.slice(0, 8).toUpperCase()
+      );
+      setRecMotivo('');
+      setStatusBanner({
+        type: 'warn',
+        text: `Reclasificación guardada solo en este equipo, sin sincronizar (${current.especie} → ${nuevaEsp.scientificName}, v${nextVersion}).`,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const selectedHallazgo = hallazgos.find((h) => h.id === targetHallazgoId);
+  const targetNewSpecies = BACKEND_SEED_SPECIES.find(
+    (s) => s.id === recNuevaEspecieId
+  );
+  const visibleAvistamientos = avistamientos.slice(0, visibleCount);
 
   return (
-    <div className="space-y-8">
-      {/* Barra de estado de estación de campo + Conexión con servicio-registro (:8081) */}
+    <div className="space-y-6">
+      {/* Estado de sincronización con el servidor central */}
       <Card className="flex flex-wrap items-center justify-between gap-4 bg-surface">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -739,40 +797,26 @@ export function FieldStationWorkspace({
             />
             <span className="font-mono text-xs font-semibold text-ink">
               {backendOnline
-                ? 'CONECTADO EN VIVO A SERVICIO-REGISTRO (MySQL :8081)'
-                : 'MODO ESTACIÓN LOCAL (Sincronizable con :8081)'}
-            </span>
-            <span className="font-mono text-xs text-ink-muted">
-              · Usuario activo: {currentUser.name} ({currentUser.roleLabel})
+                ? 'SERVIDOR DE REGISTRO EN LÍNEA'
+                : 'MODO LOCAL · SIN CONEXIÓN AL SERVIDOR DE REGISTRO'}
             </span>
           </div>
           <p className="text-xs text-ink-muted">
-            Historias de usuario operativas en este módulo:{' '}
-            <strong className="text-ink">
-              HU-01 (Registrar hallazgos), HU-03 (Registrar evidencias), HU-10 (Responsable
-              y autorizador), HU-13 (Avistamientos diarios) y HU-19.1 (Modificar y
-              reclasificar con versionado)
-            </strong>
-            .
+            {backendOnline
+              ? 'Los registros se almacenan directamente en la base de datos institucional.'
+              : 'Si el servidor no está disponible, tus registros se marcarán como "Guardado solo en este equipo, sin sincronizar" para que puedas reintentar su envío.'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" onClick={syncWithBackend} className="text-xs py-1.5">
-            Sincronizar :8081
-          </Button>
-          {!canWrite && (
-            <Button variant="secondary" onClick={onOpenAuth} className="text-xs py-1.5">
-              Iniciar sesión para registrar
-            </Button>
-          )}
-        </div>
+        <Button variant="ghost" onClick={syncWithBackend} className="text-xs">
+          Verificar conexión
+        </Button>
       </Card>
 
-      {/* Selector de las 3 operaciones implementadas en servicio-registro */}
+      {/* Pestañas cortas en una sola fila con role="tablist" */}
       <div
         role="tablist"
-        aria-label="Operaciones de estación de campo"
+        aria-label="Módulos de estación de campo"
         className="flex flex-wrap gap-2 border-b border-line pb-3"
       >
         <button
@@ -783,13 +827,13 @@ export function FieldStationWorkspace({
             setActiveTab('avistamientos');
             setStatusBanner(null);
           }}
-          className={`rounded-md px-4 py-2 font-mono text-xs font-medium transition-colors cursor-pointer ${
+          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
             activeTab === 'avistamientos'
               ? 'bg-forest-900 text-white'
               : 'bg-surface text-ink border border-line hover:border-forest-700'
           }`}
         >
-          1. Avistamientos diarios (HU-13 · POST / GET /avistamientos)
+          Avistamientos
         </button>
         <button
           type="button"
@@ -799,13 +843,13 @@ export function FieldStationWorkspace({
             setActiveTab('hallazgos');
             setStatusBanner(null);
           }}
-          className={`rounded-md px-4 py-2 font-mono text-xs font-medium transition-colors cursor-pointer ${
+          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
             activeTab === 'hallazgos'
               ? 'bg-forest-900 text-white'
               : 'bg-surface text-ink border border-line hover:border-forest-700'
           }`}
         >
-          2. Registrar hallazgo y evidencias (HU-01 / HU-03 · POST /hallazgos)
+          Hallazgos
         </button>
         <button
           type="button"
@@ -815,65 +859,69 @@ export function FieldStationWorkspace({
             setActiveTab('reclasificacion');
             setStatusBanner(null);
           }}
-          className={`rounded-md px-4 py-2 font-mono text-xs font-medium transition-colors cursor-pointer ${
+          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
             activeTab === 'reclasificacion'
               ? 'bg-forest-900 text-white'
               : 'bg-surface text-ink border border-line hover:border-forest-700'
           }`}
         >
-          3. Modificar y reclasificar especie (HU-10 / HU-19.1 · PATCH & POST)
+          Reclasificación
         </button>
       </div>
 
-      {/* Mensaje de confirmación o error de validación */}
-      {statusBanner && (
-        <div
-          role="alert"
-          className={`rounded-lg border p-4 text-xs font-mono ${
-            statusBanner.type === 'ok'
-              ? 'border-iucn-lc bg-iucn-lc/10 text-ink'
-              : 'border-iucn-cr bg-iucn-cr/10 text-ink'
-          }`}
-        >
-          {statusBanner.text}
-        </div>
-      )}
+      {/* Aviso accesible con aria-live */}
+      <div aria-live="polite" aria-atomic="true">
+        {statusBanner && (
+          <div
+            role="status"
+            className={`rounded-lg border p-4 text-xs font-mono ${
+              statusBanner.type === 'ok'
+                ? 'border-iucn-lc bg-iucn-lc/10 text-ink'
+                : statusBanner.type === 'warn'
+                ? 'border-sun-500 bg-sun-500/15 text-ink'
+                : 'border-iucn-cr bg-iucn-cr/10 text-ink'
+            }`}
+          >
+            {statusBanner.text}
+          </div>
+        )}
+      </div>
 
-      {/* PESTAÑA 1: AVISTAMIENTOS DIARIOS (HU-13) */}
+      {/* PESTAÑA 1: AVISTAMIENTOS */}
       {activeTab === 'avistamientos' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <Card as="section" className="lg:col-span-5 space-y-4">
             <div className="border-b border-line pb-3">
               <span className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
-                HU-13 · Registro ágil independiente (&lt; 2s)
+                Bitácora diaria de expedición
               </span>
               <h3 className="mt-1 font-serif text-xl font-semibold text-ink">
-                Nuevo avistamiento diario
+                Registrar avistamiento
               </h3>
             </div>
 
-            <form onSubmit={handleRegistrarAvistamiento} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-medium text-ink mb-1">
-                  Investigador responsable (`investigadorId`)
-                </label>
+            <form onSubmit={handleRegistrarAvistamiento} className="space-y-4">
+              <Field id="av-investigador" label="Investigador responsable">
                 <input
+                  id="av-investigador"
                   type="text"
                   readOnly
-                  value={currentUser.id}
-                  className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
+                  value={`${currentUser.name} (${currentUser.id})`}
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
                 />
-              </div>
+              </Field>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Especie observada (`especieId`)
-                  </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Field
+                  id="av-especie"
+                  label="Especie observada"
+                  className="sm:col-span-2"
+                >
                   <select
+                    id="av-especie"
                     value={avEspecieId}
                     onChange={(e) => setAvEspecieId(e.target.value)}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   >
                     {BACKEND_SEED_SPECIES.map((sp) => (
                       <option key={sp.id} value={sp.id}>
@@ -881,34 +929,30 @@ export function FieldStationWorkspace({
                       </option>
                     ))}
                   </select>
-                </div>
+                </Field>
 
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Individuos
-                  </label>
+                <Field id="av-cantidad" label="Individuos">
                   <input
+                    id="av-cantidad"
                     type="number"
                     min={1}
                     required
                     value={avCantidad}
                     onChange={(e) => setAvCantidad(Number(e.target.value))}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
                   />
-                </div>
+                </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Departamento
-                  </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field id="av-departamento" label="Departamento">
                   <select
+                    id="av-departamento"
                     value={avDepto}
                     onChange={(e) =>
                       handleDeptoSelect(e.target.value, setAvDepto, setAvRegion)
                     }
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   >
                     {DEPARTAMENTOS_REGIONES.map((d) => (
                       <option key={d.depto} value={d.depto}>
@@ -916,49 +960,44 @@ export function FieldStationWorkspace({
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Región natural
-                  </label>
+                </Field>
+
+                <Field id="av-region" label="Región natural">
                   <input
+                    id="av-region"
                     type="text"
                     value={avRegion}
                     onChange={(e) => setAvRegion(e.target.value)}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   />
-                </div>
+                </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Latitud (-90 a 90)
-                  </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field id="av-latitud" label="Latitud (-90 a 90)">
                   <input
+                    id="av-latitud"
                     type="number"
                     step="any"
                     min={-90}
                     max={90}
                     value={avLat}
                     onChange={(e) => setAvLat(e.target.value)}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Longitud (-180 a 180)
-                  </label>
+                </Field>
+                <Field id="av-longitud" label="Longitud (-180 a 180)">
                   <input
+                    id="av-longitud"
                     type="number"
                     step="any"
                     min={-180}
                     max={180}
                     value={avLon}
                     onChange={(e) => setAvLon(e.target.value)}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
                   />
-                </div>
+                </Field>
               </div>
 
               <Button
@@ -967,94 +1006,139 @@ export function FieldStationWorkspace({
                 disabled={loading}
                 className="w-full"
               >
-                {loading ? 'Guardando avistamiento...' : 'Guardar avistamiento diario'}
+                {loading ? 'Guardando avistamiento...' : 'Guardar avistamiento'}
               </Button>
             </form>
           </Card>
 
+          {/* Bitácora con layout unificado y paginación incremental */}
           <Card as="section" className="lg:col-span-7 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
               <div>
                 <span className="font-mono text-xs uppercase tracking-wider text-ink-muted">
-                  GET /avistamientos · Orden cronológico descendente
+                  Orden cronológico descendente
                 </span>
                 <h3 className="mt-1 font-serif text-xl font-semibold text-ink">
-                  Bitácora de avistamientos registrados ({avistamientos.length})
+                  Bitácora de avistamientos ({avistamientos.length})
                 </h3>
               </div>
-              <span className="font-mono text-xs text-moss-500 font-semibold">
-                HU-13
+              <span className="font-mono text-xs text-ink-muted">
+                Mostrando {visibleAvistamientos.length} de {avistamientos.length}
               </span>
             </div>
 
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {avistamientos.map((av) => {
+            <div className="space-y-3">
+              {visibleAvistamientos.map((av) => {
                 const spMeta = BACKEND_SEED_SPECIES.find((s) => s.id === av.especieId);
                 return (
-                  <div
+                  <article
                     key={av.id}
-                    className="rounded-lg border border-line bg-paper p-3.5 flex flex-wrap items-center justify-between gap-3"
+                    className={`rounded-lg border p-4 space-y-3 ${
+                      av.pendingSync
+                        ? 'border-sun-500 bg-sun-500/5'
+                        : 'border-line bg-paper'
+                    }`}
                   >
-                    <div className="space-y-1">
+                    {/* Fila superior unificada: Especie + Badge UICN + Individuos */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-serif italic font-semibold text-base text-ink">
                           {av.especie}
                         </span>
                         {spMeta && <ConservationBadge status={spMeta.status} />}
-                        <span className="rounded bg-forest-900 px-2 py-0.5 font-mono text-xs text-white">
-                          {av.cantidad} ind.
-                        </span>
                       </div>
-                      <p className="text-xs text-ink-muted">
-                        {av.departamento} {av.region ? `· Región ${av.region}` : ''}{' '}
-                        {av.latitud !== null && av.longitud !== null && (
-                          <span className="font-mono">
-                            ({av.latitud.toFixed(4)}, {av.longitud.toFixed(4)})
+                      <span className="rounded bg-forest-900 px-2.5 py-0.5 font-mono text-xs font-semibold text-white">
+                        {av.cantidad} {av.cantidad === 1 ? 'individuo' : 'individuos'}
+                      </span>
+                    </div>
+
+                    {/* Fila intermedia unificada: Ubicación y coordenadas */}
+                    <div className="text-xs text-ink-muted">
+                      <span>
+                        {av.departamento}
+                        {av.region ? ` · Región ${av.region}` : ''}
+                      </span>
+                      {av.latitud !== null && av.longitud !== null && (
+                        <span className="font-mono ml-2">
+                          ({av.latitud.toFixed(4)}, {av.longitud.toFixed(4)})
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Fila inferior unificada: Fecha, código y estado de sincronización */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5 font-mono text-xs">
+                      <div className="text-ink-muted">
+                        <time dateTime={av.fechaHora} className="text-ink">
+                          {new Date(av.fechaHora).toLocaleString('es-CO')}
+                        </time>
+                        <span className="ml-2">· Código {av.id.slice(0, 8)}</span>
+                      </div>
+
+                      {av.pendingSync ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded bg-sun-500 px-2 py-0.5 text-[11px] font-semibold text-[#1B2A22]">
+                            Guardado solo en este equipo, sin sincronizar
                           </span>
-                        )}
-                      </p>
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleRetrySyncAvistamiento(av)}
+                            className="min-h-11 rounded-md border border-forest-700 bg-surface px-3 py-1 text-xs font-semibold text-ink hover:bg-forest-900 hover:text-white transition-colors cursor-pointer"
+                          >
+                            Reintentar envío
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-moss-500 font-semibold">
+                          Sincronizado
+                        </span>
+                      )}
                     </div>
-                    <div className="text-right font-mono text-xs text-ink-muted">
-                      <p className="text-ink">
-                        {new Date(av.fechaHora).toLocaleString('es-CO')}
-                      </p>
-                      <p className="text-[11px]">ID: {av.id.slice(0, 12)}...</p>
-                    </div>
-                  </div>
+                  </article>
                 );
               })}
             </div>
+
+            {visibleCount < avistamientos.length && (
+              <div className="pt-2 flex justify-center">
+                <Button
+                  variant="ghost"
+                  onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                  className="text-xs"
+                >
+                  Cargar más avistamientos ({avistamientos.length - visibleCount} restantes)
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       )}
 
-      {/* PESTAÑA 2: REGISTRAR HALLAZGO + EVIDENCIAS (HU-01 & HU-03) */}
+      {/* PESTAÑA 2: HALLAZGOS */}
       {activeTab === 'hallazgos' && (
         <Card as="section" className="space-y-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line pb-4">
             <div>
               <span className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
-                HU-01 & HU-03 · Patrones HallazgoBuilder + EvidenciaFactory
+                Documentación científica de expedición
               </span>
               <h3 className="mt-1 font-serif text-2xl font-semibold text-ink">
-                Registrar hallazgo biológico con evidencias científicas
+                Registrar hallazgo biológico con evidencias
               </h3>
             </div>
             <span className="font-mono text-xs text-ink-muted">
-              POST /hallazgos · Responsable: {currentUser.id}
+              Responsable: {currentUser.name}
             </span>
           </div>
 
           <form onSubmit={handleRegistrarHallazgo} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-ink mb-1">
-                  Especie identificada (`especieId`)
-                </label>
+              <Field id="ha-especie" label="Especie identificada">
                 <select
+                  id="ha-especie"
                   value={haEspecieId}
                   onChange={(e) => setHaEspecieId(e.target.value)}
-                  className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                 >
                   {BACKEND_SEED_SPECIES.map((sp) => (
                     <option key={sp.id} value={sp.id}>
@@ -1062,32 +1146,28 @@ export function FieldStationWorkspace({
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-xs font-medium text-ink mb-1">
-                  Código de ficha taxonómica (`fichaId`)
-                </label>
+              <Field id="ha-ficha" label="Código de ficha taxonómica">
                 <input
+                  id="ha-ficha"
                   type="text"
                   value={haFichaId}
                   onChange={(e) => setHaFichaId(e.target.value)}
                   placeholder="FICHA-TOMO-2026"
-                  className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
                 />
-              </div>
+              </Field>
 
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Departamento
-                  </label>
+                <Field id="ha-departamento" label="Departamento">
                   <select
+                    id="ha-departamento"
                     value={haDepto}
                     onChange={(e) =>
                       handleDeptoSelect(e.target.value, setHaDepto, setHaRegion)
                     }
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   >
                     {DEPARTAMENTOS_REGIONES.map((d) => (
                       <option key={d.depto} value={d.depto}>
@@ -1095,27 +1175,27 @@ export function FieldStationWorkspace({
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Región
-                  </label>
+                </Field>
+                <Field id="ha-region" label="Región">
                   <input
+                    id="ha-region"
                     type="text"
                     value={haRegion}
                     onChange={(e) => setHaRegion(e.target.value)}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   />
-                </div>
+                </Field>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-ink mb-1">
-                  Descripción científica del hallazgo (máx. 1000 caracteres)
-                </label>
+              <Field
+                id="ha-descripcion"
+                label="Descripción científica del hallazgo (máx. 1000 caracteres)"
+                className="md:col-span-2"
+              >
                 <textarea
+                  id="ha-descripcion"
                   rows={3}
                   maxLength={1000}
                   required
@@ -1124,71 +1204,67 @@ export function FieldStationWorkspace({
                   placeholder="Describe el ejemplar, microhábitat, comportamiento observado y condiciones de muestreo..."
                   className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
                 />
-              </div>
+              </Field>
 
               <div className="rounded-lg border border-line bg-paper p-3.5 space-y-2">
                 <p className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">
                   Coordenadas GPS (ambas o ninguna)
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] text-ink-muted mb-1">
-                      Latitud
-                    </label>
+                  <Field id="ha-latitud" label="Latitud">
                     <input
+                      id="ha-latitud"
                       type="number"
                       step="any"
                       value={haLat}
                       onChange={(e) => setHaLat(e.target.value)}
-                      className="w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
+                      className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-ink-muted mb-1">
-                      Longitud
-                    </label>
+                  </Field>
+                  <Field id="ha-longitud" label="Longitud">
                     <input
+                      id="ha-longitud"
                       type="number"
                       step="any"
                       value={haLon}
                       onChange={(e) => setHaLon(e.target.value)}
-                      className="w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
+                      className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
                     />
-                  </div>
+                  </Field>
                 </div>
               </div>
             </div>
 
-            {/* Constructor de Evidencias (EvidenciaFactory: TEMPERATURA, ADN, AUDIO) */}
+            {/* Evidencias asociadas */}
             <div className="space-y-3 border-t border-line pt-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h4 className="font-serif text-lg font-semibold text-ink">
-                    Evidencias vinculadas al hallazgo (HU-03)
+                    Evidencias recolectadas en campo
                   </h4>
                   <p className="text-xs text-ink-muted">
-                    Cada evidencia es validada por <code className="font-mono">EvidenciaFactory</code> según su tipo:
+                    Adjunta mediciones térmicas, códigos de muestras genéticas o grabaciones acústicas:
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="ghost"
                     onClick={() => addEvidencia('TEMPERATURA')}
-                    className="text-xs py-1.5 px-3"
+                    className="text-xs"
                   >
                     + Temperatura
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => addEvidencia('ADN')}
-                    className="text-xs py-1.5 px-3"
+                    className="text-xs"
                   >
                     + Muestra ADN
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => addEvidencia('AUDIO')}
-                    className="text-xs py-1.5 px-3"
+                    className="text-xs"
                   >
                     + Audio bioacústico
                   </Button>
@@ -1201,97 +1277,109 @@ export function FieldStationWorkspace({
                     key={idx}
                     className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end rounded-lg border border-line bg-paper p-3"
                   >
-                    <div className="md:col-span-2">
-                      <label className="block text-[11px] text-ink-muted mb-1">
-                        Tipo (`TipoEvidencia`)
-                      </label>
+                    <Field
+                      id={`ev-tipo-${idx}`}
+                      label="Tipo de evidencia"
+                      className="md:col-span-2"
+                    >
                       <select
+                        id={`ev-tipo-${idx}`}
                         value={ev.tipo}
                         onChange={(e) =>
                           updateEvidencia(idx, {
                             tipo: e.target.value as TipoEvidencia,
                           })
                         }
-                        className="w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
+                        className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
                       >
-                        <option value="TEMPERATURA">TEMPERATURA</option>
-                        <option value="ADN">ADN</option>
-                        <option value="AUDIO">AUDIO</option>
+                        <option value="TEMPERATURA">Temperatura</option>
+                        <option value="ADN">Muestra ADN</option>
+                        <option value="AUDIO">Audio</option>
                       </select>
-                    </div>
+                    </Field>
 
                     {ev.tipo === 'TEMPERATURA' && (
                       <>
-                        <div className="md:col-span-3">
-                          <label className="block text-[11px] text-ink-muted mb-1">
-                            Valor numérico
-                          </label>
+                        <Field
+                          id={`ev-valor-${idx}`}
+                          label="Valor numérico"
+                          className="md:col-span-3"
+                        >
                           <input
+                            id={`ev-valor-${idx}`}
                             type="text"
                             value={ev.valor || ''}
                             onChange={(e) =>
                               updateEvidencia(idx, { valor: e.target.value })
                             }
                             placeholder="28.5"
-                            className="w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
+                            className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
                           />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-[11px] text-ink-muted mb-1">
-                            Unidad
-                          </label>
+                        </Field>
+                        <Field
+                          id={`ev-unidad-${idx}`}
+                          label="Unidad"
+                          className="md:col-span-2"
+                        >
                           <input
+                            id={`ev-unidad-${idx}`}
                             type="text"
                             value={ev.unidad || ''}
                             onChange={(e) =>
                               updateEvidencia(idx, { unidad: e.target.value })
                             }
                             placeholder="C"
-                            className="w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
+                            className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
                           />
-                        </div>
+                        </Field>
                       </>
                     )}
 
                     {ev.tipo === 'ADN' && (
-                      <div className="md:col-span-5">
-                        <label className="block text-[11px] text-ink-muted mb-1">
-                          Código de muestra de ADN (`valor`)
-                        </label>
+                      <Field
+                        id={`ev-adn-${idx}`}
+                        label="Código de muestra genética"
+                        className="md:col-span-5"
+                      >
                         <input
+                          id={`ev-adn-${idx}`}
                           type="text"
                           value={ev.valor || ''}
                           onChange={(e) =>
                             updateEvidencia(idx, { valor: e.target.value })
                           }
                           placeholder="ADN-2026-901"
-                          className="w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
+                          className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
                         />
-                      </div>
+                      </Field>
                     )}
 
                     {ev.tipo === 'AUDIO' && (
-                      <div className="md:col-span-5">
-                        <label className="block text-[11px] text-ink-muted mb-1">
-                          URL del archivo acústico (`urlArchivo`)
-                        </label>
+                      <Field
+                        id={`ev-audio-${idx}`}
+                        label="Enlace del archivo acústico"
+                        className="md:col-span-5"
+                      >
                         <input
+                          id={`ev-audio-${idx}`}
                           type="text"
                           value={ev.urlArchivo || ''}
                           onChange={(e) =>
                             updateEvidencia(idx, { urlArchivo: e.target.value })
                           }
                           placeholder="https://archivo.biohub.gov.co/canto.wav"
-                          className="w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
+                          className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-ink"
                         />
-                      </div>
+                      </Field>
                     )}
 
-                    <div className="md:col-span-4">
-                      <label className="block text-[11px] text-ink-muted mb-1">
-                        Atributo taxonómico (`atributoTaxonomico`)
-                      </label>
+                    <Field
+                      id={`ev-attr-${idx}`}
+                      label="Parámetro medido"
+                      className="md:col-span-4"
+                    >
                       <input
+                        id={`ev-attr-${idx}`}
                         type="text"
                         value={ev.atributoTaxonomico || ''}
                         onChange={(e) =>
@@ -1300,16 +1388,16 @@ export function FieldStationWorkspace({
                           })
                         }
                         placeholder="Temperatura del agua"
-                        className="w-full rounded border border-line bg-surface px-2.5 py-1.5 text-xs text-ink"
+                        className="min-h-11 w-full rounded border border-line bg-surface px-2.5 py-1.5 text-xs text-ink"
                       />
-                    </div>
+                    </Field>
 
                     <div className="md:col-span-1 flex justify-end">
                       <button
                         type="button"
                         onClick={() => removeEvidencia(idx)}
-                        className="rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-iucn-cr hover:border-iucn-cr cursor-pointer"
-                        aria-label="Eliminar evidencia"
+                        className="min-h-11 min-w-11 rounded border border-line bg-surface px-2.5 py-1.5 font-mono text-xs text-iucn-cr hover:border-iucn-cr cursor-pointer"
+                        aria-label={`Quitar evidencia ${idx + 1}`}
                       >
                         ✕
                       </button>
@@ -1330,42 +1418,51 @@ export function FieldStationWorkspace({
         </Card>
       )}
 
-      {/* PESTAÑA 3: MODIFICAR Y RECLASIFICAR HALLAZGO CON VERSIONADO (HU-10 & HU-19.1) */}
+      {/* PESTAÑA 3: RECLASIFICACIÓN */}
       {activeTab === 'reclasificacion' && (
         <div className="space-y-6">
           <Card className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              <div className="md:col-span-7">
-                <label className="block text-xs font-medium text-ink mb-1">
-                  Seleccionar hallazgo registrado para modificar o reclasificar
-                </label>
+              <Field
+                id="target-hallazgo-select"
+                label="Seleccionar hallazgo registrado"
+                className="md:col-span-7"
+              >
                 <select
+                  id="target-hallazgo-select"
                   value={targetHallazgoId}
                   onChange={(e) => setTargetHallazgoId(e.target.value)}
-                  className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
                 >
                   {hallazgos.map((h) => (
                     <option key={h.id} value={h.id}>
-                      [v{h.versionActual}] {h.especie} — {h.departamento} ({h.id})
+                      [v{h.versionActual}] {h.especie} — {h.departamento} ({h.id.slice(0, 8)})
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
 
-              <div className="md:col-span-5 flex gap-2">
-                <input
-                  type="text"
-                  value={lookupUuid}
-                  onChange={(e) => setLookupUuid(e.target.value)}
-                  placeholder="Consultar UUID en GET /hallazgos/{id}"
-                  className="flex-1 rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
-                />
+              <div className="md:col-span-5 flex gap-2 items-end">
+                <Field
+                  id="lookup-uuid-input"
+                  label="Buscar hallazgo por código"
+                  className="flex-1"
+                >
+                  <input
+                    id="lookup-uuid-input"
+                    type="text"
+                    value={lookupUuid}
+                    onChange={(e) => setLookupUuid(e.target.value)}
+                    placeholder="Código UUID del hallazgo..."
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                  />
+                </Field>
                 <Button
                   variant="ghost"
                   onClick={handleBuscarHallazgoUuid}
-                  className="text-xs py-2"
+                  className="text-xs"
                 >
-                  Buscar UUID
+                  Consultar
                 </Button>
               </div>
             </div>
@@ -1384,7 +1481,8 @@ export function FieldStationWorkspace({
                 <div>
                   <span className="text-ink-muted block">Ubicación registrada:</span>
                   <span className="font-mono text-ink">
-                    {selectedHallazgo.departamento} · {selectedHallazgo.region || 'Sin región'}
+                    {selectedHallazgo.departamento} ·{' '}
+                    {selectedHallazgo.region || 'Sin región'}
                   </span>
                 </div>
                 <div>
@@ -1398,62 +1496,55 @@ export function FieldStationWorkspace({
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* PATCH /hallazgos/{id} */}
             <Card as="section" className="space-y-4">
               <div className="border-b border-line pb-3">
                 <span className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
-                  HU-19.1 · PATCH /hallazgos/&#123;id&#125;
+                  Control de versiones inmutable
                 </span>
                 <h3 className="mt-1 font-serif text-xl font-semibold text-ink">
-                  Modificar atributo con versionado
+                  Actualizar datos del hallazgo
                 </h3>
               </div>
 
-              <form onSubmit={handleModificarHallazgo} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Campo permitido (`descripcion`, `departamento`, `region`)
-                  </label>
+              <form onSubmit={handleModificarHallazgo} className="space-y-4">
+                <Field id="mod-campo" label="Dato a actualizar">
                   <select
+                    id="mod-campo"
                     value={modCampo}
                     onChange={(e) =>
                       setModCampo(
                         e.target.value as 'descripcion' | 'departamento' | 'region'
                       )
                     }
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   >
-                    <option value="descripcion">descripcion (máx. 1000 caracteres)</option>
-                    <option value="departamento">departamento (máx. 80 caracteres)</option>
-                    <option value="region">region (máx. 80 caracteres)</option>
+                    <option value="descripcion">Descripción científica</option>
+                    <option value="departamento">Departamento</option>
+                    <option value="region">Región natural</option>
                   </select>
-                </div>
+                </Field>
 
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Nuevo valor (debe ser distinto al actual)
-                  </label>
+                <Field id="mod-valor" label="Nuevo valor">
                   <textarea
+                    id="mod-valor"
                     rows={3}
                     required
                     value={modValor}
                     onChange={(e) => setModValor(e.target.value)}
-                    placeholder={`Ingresa el nuevo valor para ${modCampo}...`}
+                    placeholder="Ingresa la información corregida o ampliada..."
                     className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   />
-                </div>
+                </Field>
 
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Autor de la modificación (`autor`)
-                  </label>
+                <Field id="mod-autor" label="Responsable de la modificación">
                   <input
+                    id="mod-autor"
                     type="text"
                     readOnly
-                    value={currentUser.id}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
+                    value={`${currentUser.name} (${currentUser.id})`}
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
                   />
-                </div>
+                </Field>
 
                 <Button
                   type="submit"
@@ -1461,31 +1552,28 @@ export function FieldStationWorkspace({
                   disabled={loading}
                   className="w-full"
                 >
-                  Aplicar cambio e incrementar versión
+                  Guardar nueva versión
                 </Button>
               </form>
             </Card>
 
-            {/* POST /hallazgos/{id}/reclasificacion */}
             <Card as="section" className="space-y-4">
               <div className="border-b border-line pb-3">
                 <span className="font-mono text-xs uppercase tracking-wider text-sun-500 font-semibold">
-                  HU-10 & HU-19.1 · POST /hallazgos/&#123;id&#125;/reclasificacion
+                  Auditoría taxonómica con doble firma
                 </span>
                 <h3 className="mt-1 font-serif text-xl font-semibold text-ink">
-                  Reclasificar especie con autorizador
+                  Reclasificar especie del hallazgo
                 </h3>
               </div>
 
-              <form onSubmit={handleReclasificarHallazgo} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Nueva especie (`nuevaEspecieId`)
-                  </label>
+              <form onSubmit={handlePrepareReclasificacion} className="space-y-4">
+                <Field id="rec-nueva-especie" label="Nueva especie determinada">
                   <select
+                    id="rec-nueva-especie"
                     value={recNuevaEspecieId}
                     onChange={(e) => setRecNuevaEspecieId(e.target.value)}
-                    className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   >
                     {BACKEND_SEED_SPECIES.map((sp) => (
                       <option key={sp.id} value={sp.id}>
@@ -1493,52 +1581,47 @@ export function FieldStationWorkspace({
                       </option>
                     ))}
                   </select>
-                </div>
+                </Field>
 
-                <div>
-                  <label className="block text-xs font-medium text-ink mb-1">
-                    Motivo científico de reclasificación (`motivo` · máx. 500 chars)
-                  </label>
+                <Field
+                  id="rec-motivo"
+                  label="Justificación científica (máx. 500 caracteres)"
+                >
                   <textarea
+                    id="rec-motivo"
                     rows={2}
                     maxLength={500}
                     required
                     value={recMotivo}
                     onChange={(e) => setRecMotivo(e.target.value)}
-                    placeholder="Ej. Análisis genético de muestra ADN confirma nueva clasificación taxonómica..."
+                    placeholder="Ej. Análisis genético de muestra de laboratorio confirma nueva clasificación..."
                     className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   />
-                </div>
+                </Field>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-ink mb-1">
-                      Autor (`autor`)
-                    </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field id="rec-autor" label="Investigador solicitante">
                     <input
+                      id="rec-autor"
                       type="text"
                       readOnly
-                      value={currentUser.id}
-                      className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
+                      value={currentUser.name}
+                      className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-ink mb-1">
-                      Científico autorizador (`autorizador`)
-                    </label>
+                  </Field>
+                  <Field id="rec-autorizador" label="Científico autorizador">
                     <select
+                      id="rec-autorizador"
                       value={recAutorizador}
                       onChange={(e) => setRecAutorizador(e.target.value)}
-                      className="w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                      className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                     >
-                      <option value="alt-escobar-02">
-                        alt-escobar-02 (Dra. Elena Escobar)
-                      </option>
-                      <option value="dir-rodriguez-04">
-                        dir-rodriguez-04 (Dr. Juan D. Rodríguez)
+                      <option value="Dra. Elena Escobar">Dra. Elena Escobar</option>
+                      <option value="Dr. Juan D. Rodríguez">
+                        Dr. Juan D. Rodríguez
                       </option>
                     </select>
-                  </div>
+                  </Field>
                 </div>
 
                 <Button
@@ -1548,14 +1631,72 @@ export function FieldStationWorkspace({
                   className="w-full"
                 >
                   {canAuthorizeReclassification(currentUser.role)
-                    ? 'Autorizar y ejecutar reclasificación'
-                    : 'Solicitar y registrar reclasificación científica'}
+                    ? 'Revisar y autorizar reclasificación'
+                    : 'Revisar y registrar reclasificación'}
                 </Button>
               </form>
             </Card>
           </div>
         </div>
       )}
+
+      {/* Diálogo nativo <dialog> de confirmación antes de reclasificar */}
+      <dialog
+        ref={confirmDialogRef}
+        onClose={() => setConfirmOpen(false)}
+        aria-labelledby="confirm-reclass-title"
+        className="m-auto w-full max-w-lg rounded-xl border border-line bg-surface p-6 text-ink backdrop:bg-ink/60"
+      >
+        {confirmOpen && selectedHallazgo && targetNewSpecies && (
+          <div className="space-y-4">
+            <div className="border-b border-line pb-3">
+              <p className="font-mono text-xs uppercase tracking-wider text-sun-500 font-semibold">
+                Confirmación de cambio taxonómico
+              </p>
+              <h3
+                id="confirm-reclass-title"
+                className="mt-1 font-serif text-xl font-semibold text-ink"
+              >
+                ¿Confirmas la reclasificación de este hallazgo?
+              </h3>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-line bg-paper p-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-ink-muted block">Especie anterior (se conserva):</span>
+                  <span className="font-serif italic font-semibold text-base text-ink">
+                    {selectedHallazgo.especie}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-ink-muted block">Nueva especie vigente:</span>
+                  <span className="font-serif italic font-semibold text-base text-moss-500">
+                    {targetNewSpecies.scientificName}
+                  </span>
+                </div>
+              </div>
+              <div className="border-t border-line pt-2">
+                <span className="text-ink-muted block">Motivo científico registrado:</span>
+                <p className="mt-0.5 text-ink">{recMotivo}</p>
+              </div>
+              <div className="border-t border-line pt-2 font-mono text-[11px] text-ink-muted">
+                Solicita: {currentUser.name} · Autoriza: {recAutorizador} · Nueva versión: v
+                {selectedHallazgo.versionActual + 1}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={closeConfirmDialog}>
+                Cancelar
+              </Button>
+              <Button variant="primary" onClick={executeReclasificacionConfirmada}>
+                Confirmar reclasificación
+              </Button>
+            </div>
+          </div>
+        )}
+      </dialog>
     </div>
   );
 }
