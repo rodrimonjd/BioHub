@@ -9,7 +9,6 @@ public record EspecieResponse(
         String estadoConservacion) {
 
     public static EspecieResponse desde(Especie e) {
-        return new EspecieResponse(e.getId(), e.getNombreCientifico(),
-                e.getNombreComun(), e.getEstadoConservacion());
+        return new EspecieResponse(e.getId(), e.getNombreCientifico(), e.getNombreComun(), e.getEstadoConservacion());
     }
 }

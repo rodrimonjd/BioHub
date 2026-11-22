@@ -20,8 +20,7 @@ public class ExpedicionService {
     private final EquipoService equipoService;
     private final OutboxService outbox;
 
-    public ExpedicionService(ExpedicionRepository expediciones, EquipoService equipoService,
-                             OutboxService outbox) {
+    public ExpedicionService(ExpedicionRepository expediciones, EquipoService equipoService, OutboxService outbox) {
         this.expediciones = expediciones;
         this.equipoService = equipoService;
         this.outbox = outbox;
@@ -30,8 +29,7 @@ public class ExpedicionService {
     @Transactional
     public Expedicion crear(ExpedicionRequest r) {
         try {
-            return expediciones.save(
-                    new Expedicion(r.nombre(), r.zona(), r.fechaInicio(), r.fechaFin(), r.liderId()));
+            return expediciones.save( new Expedicion(r.nombre(), r.zona(), r.fechaInicio(), r.fechaFin(), r.liderId()));
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
@@ -39,8 +37,7 @@ public class ExpedicionService {
 
     @Transactional(readOnly = true)
     public Expedicion obtener(UUID id) {
-        return expediciones.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Expedicion no encontrada"));
+        return expediciones.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Expedicion no encontrada"));
     }
 
     @Transactional(readOnly = true)

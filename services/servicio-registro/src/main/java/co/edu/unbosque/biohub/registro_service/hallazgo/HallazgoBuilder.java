@@ -48,8 +48,7 @@ public class HallazgoBuilder {
         return this;
     }
 
-    public HallazgoBuilder ubicacion(Double latitud, Double longitud,
-                                     String departamento, String region) {
+    public HallazgoBuilder ubicacion(Double latitud, Double longitud, String departamento, String region) {
         this.latitud = latitud;
         this.longitud = longitud;
         this.departamento = departamento;

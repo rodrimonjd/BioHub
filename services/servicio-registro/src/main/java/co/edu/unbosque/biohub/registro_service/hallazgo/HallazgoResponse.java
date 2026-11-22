@@ -28,9 +28,7 @@ public record HallazgoResponse(
         if (h.getExpedicion() != null) {
             expedicionId = h.getExpedicion().getId();
         }
-        List<EvidenciaResponse> evidencias = h.getEvidencias().stream()
-                .map(EvidenciaResponse::desde)
-                .toList();
+        List<EvidenciaResponse> evidencias = h.getEvidencias().stream().map(EvidenciaResponse::desde).toList();
         return new HallazgoResponse(h.getId(), h.getInvestigadorId(),
                 h.getEspecie().getId(), h.getEspecie().getNombreCientifico(),
                 h.getFichaId(), h.getFecha(), h.getDescripcion(),

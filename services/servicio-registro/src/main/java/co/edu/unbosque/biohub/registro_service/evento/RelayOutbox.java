@@ -19,8 +19,7 @@ public class RelayOutbox {
     private final PublicadorEventos publicador;
     private final int lote;
 
-    public RelayOutbox(OutboxEventoRepository repositorio, PublicadorEventos publicador,
-                       @Value("${biohub.eventos.lote}") int lote) {
+    public RelayOutbox(OutboxEventoRepository repositorio, PublicadorEventos publicador, @Value("${biohub.eventos.lote}") int lote) {
         this.repositorio = repositorio;
         this.publicador = publicador;
         this.lote = lote;

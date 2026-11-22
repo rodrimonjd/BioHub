@@ -24,8 +24,7 @@ public class HallazgoService {
     private final ExpedicionRepository expediciones;
     private final OutboxService outbox;
 
-    public HallazgoService(HallazgoRepository hallazgos, EspecieRepository especies,
-                        ExpedicionRepository expediciones, OutboxService outbox) {
+    public HallazgoService(HallazgoRepository hallazgos, EspecieRepository especies, ExpedicionRepository expediciones, OutboxService outbox) {
         this.hallazgos = hallazgos;
         this.especies = especies;
         this.expediciones = expediciones;
@@ -34,9 +33,7 @@ public class HallazgoService {
 
     @Transactional
     public Hallazgo registrar(HallazgoRequest r) {
-        Especie especie = especies.findById(r.especieId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Especie no encontrada: " + r.especieId()));
+        Especie especie = especies.findById(r.especieId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Especie no encontrada: " + r.especieId()));
 
         HallazgoBuilder builder = new HallazgoBuilder()
                 .investigador(r.investigadorId())
@@ -47,16 +44,13 @@ public class HallazgoService {
                 .ubicacion(r.latitud(), r.longitud(), r.departamento(), r.region());
 
         if (r.expedicionId() != null) {
-            Expedicion expedicion = expediciones.findById(r.expedicionId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND, "Expedicion no encontrada"));
+            Expedicion expedicion = expediciones.findById(r.expedicionId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Expedicion no encontrada"));
             builder.expedicion(expedicion);
         }
 
         if (r.evidencias() != null) {
             for (EvidenciaRequest e : r.evidencias()) {
-                builder.agregarEvidencia(EvidenciaFactory.crear(
-                        e.tipo(), e.valor(), e.unidad(), e.urlArchivo(), e.atributoTaxonomico()));
+                builder.agregarEvidencia(EvidenciaFactory.crear(e.tipo(), e.valor(), e.unidad(), e.urlArchivo(), e.atributoTaxonomico()));
             }
         }
 
@@ -67,9 +61,7 @@ public class HallazgoService {
 
     @Transactional(readOnly = true)
     public Hallazgo obtener(UUID id) {
-        return hallazgos.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Hallazgo no encontrado: " + id));
+        return hallazgos.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hallazgo no encontrado: " + id));
     }
 
     @Transactional
@@ -83,11 +75,8 @@ public class HallazgoService {
     @Transactional
     public Hallazgo reclasificar(UUID id, ReclasificarHallazgoRequest r) {
         Hallazgo hallazgo = obtener(id);
-        Especie nueva = especies.findById(r.nuevaEspecieId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Especie no encontrada: " + r.nuevaEspecieId()));
-        CambioHallazgo cambio = hallazgo.reclasificar(nueva, r.motivo().trim(),
-                r.autor(), r.autorizador());
+        Especie nueva = especies.findById(r.nuevaEspecieId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Especie no encontrada: " + r.nuevaEspecieId()));
+        CambioHallazgo cambio = hallazgo.reclasificar(nueva, r.motivo().trim(), r.autor(), r.autorizador());
         outbox.guardar(EventoFactory.hallazgoModificado(hallazgo, cambio));
         return hallazgo;
     }

@@ -19,8 +19,6 @@ public class EspecieController {
 
     @GetMapping
     public List<EspecieResponse> listar(@RequestParam(defaultValue = "") String nombre) {
-        return especies.buscar(nombre.trim()).stream()
-                .map(EspecieResponse::desde)
-                .toList();
+        return especies.buscar(nombre.trim()).stream().map(EspecieResponse::desde).toList();
     }
 }
