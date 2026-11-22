@@ -19,12 +19,12 @@ Java 21 · Spring Boot 4.1 · Spring Data MongoDB (`taxonomia_db`) · Spring AMQ
 | Patrón | Clase | Qué hace |
 |---|---|---|
 | Strategy | `TipoDato` | Cada tipo (`TEXTO`, `NUMERICO`, `LISTA`) tiene su propia regla `esValido` |
-| Factory | `AtributoFactory`, `EventoFactory` | Crean atributos según su tipo y eventos con la misma estructura |
-| Builder | `FichaBuilder` | Arma la ficha agregando atributos uno a uno y valida todo en `build()` |
+| Factory | `FabricaAtributo`, `FabricaEventos` | Crean atributos según su tipo y eventos con la misma estructura |
+| Builder | `ConstructorFicha` | Arma la ficha agregando atributos uno a uno y valida todo en `build()` |
 | Adapter | `PublicadorEventos` / `PublicadorRabbit` | El resto del código no depende de RabbitMQ |
-| Outbox | `FichaService.guardar` + `RelayEventos` | El evento se guarda dentro de la ficha y luego se publica |
+| Outbox | `FichaServicio.guardar` + `RetransmisorEventos` | El evento se guarda dentro de la ficha y luego se publica |
 
-Agregar un tipo de dato nuevo = una constante en `TipoDato` con su regla (y su caso en `AtributoFactory` si necesita datos propios).
+Agregar un tipo de dato nuevo = una constante en `TipoDato` con su regla (y su caso en `FabricaAtributo` si necesita datos propios).
 
 ## API
 | Método | Ruta | Qué hace |
@@ -53,7 +53,7 @@ Ejemplo para crear una ficha:
 ```
 
 ## Eventos
-Cada cambio deja su evento dentro de la misma ficha (`eventosPendientes`), así la ficha y el evento se guardan en una sola escritura de MongoDB. `RelayEventos` revisa cada 5 s, publica los pendientes en orden en RabbitMQ y los quita de la ficha; si RabbitMQ no responde, quedan pendientes para la siguiente vuelta. En casos raros un evento puede llegar dos veces: los consumidores pueden ignorar repetidos por `idEvento`.
+Cada cambio deja su evento dentro de la misma ficha (`eventosPendientes`), así la ficha y el evento se guardan en una sola escritura de MongoDB. `RetransmisorEventos` revisa cada 5 s, publica los pendientes en orden en RabbitMQ y los quita de la ficha; si RabbitMQ no responde, quedan pendientes para la siguiente vuelta. En casos raros un evento puede llegar dos veces: los consumidores pueden ignorar repetidos por `idEvento`.
 
 Cuerpo JSON (`EventoDominio`, igual que en registro): `idEvento`, `tipo`, `version`, `idAgregado` (id de la ficha), `ocurrioEn`, `autor`, `autorizador`, `datos`.
 

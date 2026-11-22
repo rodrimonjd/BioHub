@@ -4,7 +4,7 @@ Hallazgos, fichas taxonómicas flexibles, evidencias, equipos y avistamientos. B
 
 **ASR:** ASR-06, ASR-08, ASR-09
 
-**Eventos que publica:** se guardan en la tabla `outbox_evento` en la misma transaccion del cambio y `RelayOutbox` los envia cada 5 s a RabbitMQ.
+**Eventos que publica:** se guardan en la tabla `outbox_evento` en la misma transaccion del cambio y `RetransmisorOutbox` los envia cada 5 s a RabbitMQ.
 
 - Exchange: `biohub.eventos` (tipo `topic`, durable)
 - Routing key = tipo del evento: `HALLAZGO_REGISTRADO`, `HALLAZGO_MODIFICADO`, `AVISTAMIENTO_REGISTRADO`, `EQUIPO_ASIGNADO`

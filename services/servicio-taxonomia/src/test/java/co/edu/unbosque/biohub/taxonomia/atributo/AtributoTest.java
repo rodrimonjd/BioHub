@@ -14,9 +14,9 @@ class AtributoTest {
 
     @Test
     void laFabricaCreaCadaTipoConSusReglas() {
-        AtributoTaxonomico texto = AtributoFactory.crear("  habitat ", TipoDato.TEXTO, "m", List.of("x"), false);
-        AtributoTaxonomico numero = AtributoFactory.crear("temperatura del agua", TipoDato.NUMERICO, " C ", null, true);
-        AtributoTaxonomico lista = AtributoFactory.crear("dieta", TipoDato.LISTA, "kg",
+        AtributoTaxonomico texto = FabricaAtributo.crear("  habitat ", TipoDato.TEXTO, "m", List.of("x"), false);
+        AtributoTaxonomico numero = FabricaAtributo.crear("temperatura del agua", TipoDato.NUMERICO, " C ", null, true);
+        AtributoTaxonomico lista = FabricaAtributo.crear("dieta", TipoDato.LISTA, "kg",
                 Arrays.asList(" Insectivora ", "", null, "Frugivora"), false);
 
         assertThat(texto.getNombre()).isEqualTo("habitat");
@@ -30,19 +30,19 @@ class AtributoTest {
 
     @Test
     void laFabricaRechazaListaSinOpcionesNombreVacioYTipoNulo() {
-        assertThatThrownBy(() -> AtributoFactory.crear("dieta", TipoDato.LISTA, null, List.of(" "), false))
+        assertThatThrownBy(() -> FabricaAtributo.crear("dieta", TipoDato.LISTA, null, List.of(" "), false))
                 .isInstanceOf(DatosInvalidosException.class).hasMessageContaining("LISTA");
-        assertThatThrownBy(() -> AtributoFactory.crear(" ", TipoDato.TEXTO, null, null, false))
+        assertThatThrownBy(() -> FabricaAtributo.crear(" ", TipoDato.TEXTO, null, null, false))
                 .isInstanceOf(DatosInvalidosException.class);
-        assertThatThrownBy(() -> AtributoFactory.crear("habitat", null, null, null, false))
+        assertThatThrownBy(() -> FabricaAtributo.crear("habitat", null, null, null, false))
                 .isInstanceOf(DatosInvalidosException.class);
     }
 
     @Test
     void cadaTipoValidaSusValores() {
-        AtributoTaxonomico numero = AtributoFactory.crear("peso", TipoDato.NUMERICO, "g", null, false);
-        AtributoTaxonomico lista = AtributoFactory.crear("dieta", TipoDato.LISTA, null, List.of("Insectivora"), false);
-        AtributoTaxonomico texto = AtributoFactory.crear("habitat", TipoDato.TEXTO, null, null, false);
+        AtributoTaxonomico numero = FabricaAtributo.crear("peso", TipoDato.NUMERICO, "g", null, false);
+        AtributoTaxonomico lista = FabricaAtributo.crear("dieta", TipoDato.LISTA, null, List.of("Insectivora"), false);
+        AtributoTaxonomico texto = FabricaAtributo.crear("habitat", TipoDato.TEXTO, null, null, false);
 
         assertThat(numero.validarValor("12.5")).isTrue();
         assertThat(numero.validarValor("-3")).isTrue();
@@ -56,8 +56,8 @@ class AtributoTest {
 
     @Test
     void unValorVacioSoloEsValidoSiElAtributoNoEsObligatorio() {
-        AtributoTaxonomico opcional = AtributoFactory.crear("habitat", TipoDato.TEXTO, null, null, false);
-        AtributoTaxonomico obligatorio = AtributoFactory.crear("peso", TipoDato.NUMERICO, "g", null, true);
+        AtributoTaxonomico opcional = FabricaAtributo.crear("habitat", TipoDato.TEXTO, null, null, false);
+        AtributoTaxonomico obligatorio = FabricaAtributo.crear("peso", TipoDato.NUMERICO, "g", null, true);
 
         assertThat(opcional.validarValor(null)).isTrue();
         assertThat(opcional.validarValor("  ")).isTrue();

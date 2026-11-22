@@ -9,9 +9,9 @@ class EvidenciaTest {
 
     @Test
     void laFabricaCreaEvidenciasValidasDeCadaTipo() {
-        Evidencia temperatura = EvidenciaFactory.crear(TipoEvidencia.TEMPERATURA, " 18.5 ", "C", null, null);
-        Evidencia adn = EvidenciaFactory.crear(TipoEvidencia.ADN, "M-001", null, null, null);
-        Evidencia audio = EvidenciaFactory.crear(TipoEvidencia.AUDIO, null, null, "https://x/canto.wav", null);
+        Evidencia temperatura = FabricaEvidencia.crear(TipoEvidencia.TEMPERATURA, " 18.5 ", "C", null, null);
+        Evidencia adn = FabricaEvidencia.crear(TipoEvidencia.ADN, "M-001", null, null, null);
+        Evidencia audio = FabricaEvidencia.crear(TipoEvidencia.AUDIO, null, null, "https://x/canto.wav", null);
 
         assertThat(temperatura.getValor()).isEqualTo("18.5");
         assertThat(temperatura.validarFormato()).isTrue();
@@ -21,20 +21,20 @@ class EvidenciaTest {
 
     @Test
     void laFabricaRechazaTemperaturaNoNumerica() {
-        assertThatThrownBy(() -> EvidenciaFactory.crear(TipoEvidencia.TEMPERATURA, "caliente", "C", null, null))
+        assertThatThrownBy(() -> FabricaEvidencia.crear(TipoEvidencia.TEMPERATURA, "caliente", "C", null, null))
                 .isInstanceOf(DatosInvalidosException.class)
                 .hasMessageContaining("numerico");
     }
 
     @Test
     void laFabricaRechazaAudioSinUrl() {
-        assertThatThrownBy(() -> EvidenciaFactory.crear(TipoEvidencia.AUDIO, null, null, " ", null))
+        assertThatThrownBy(() -> FabricaEvidencia.crear(TipoEvidencia.AUDIO, null, null, " ", null))
                 .isInstanceOf(DatosInvalidosException.class);
     }
 
     @Test
     void laFabricaRechazaTipoNulo() {
-        assertThatThrownBy(() -> EvidenciaFactory.crear(null, "x", null, null, null))
+        assertThatThrownBy(() -> FabricaEvidencia.crear(null, "x", null, null, null))
                 .isInstanceOf(DatosInvalidosException.class);
     }
 
