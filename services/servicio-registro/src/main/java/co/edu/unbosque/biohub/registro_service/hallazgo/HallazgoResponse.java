@@ -18,11 +18,16 @@ public record HallazgoResponse(
         Double longitud,
         String departamento,
         String region,
+        UUID expedicionId,
         int versionActual,
         Instant creadoEn,
         List<EvidenciaResponse> evidencias) {
 
     public static HallazgoResponse desde(Hallazgo h) {
+        UUID expedicionId = null;
+        if (h.getExpedicion() != null) {
+            expedicionId = h.getExpedicion().getId();
+        }
         List<EvidenciaResponse> evidencias = h.getEvidencias().stream()
                 .map(EvidenciaResponse::desde)
                 .toList();
@@ -30,6 +35,7 @@ public record HallazgoResponse(
                 h.getEspecie().getId(), h.getEspecie().getNombreCientifico(),
                 h.getFichaId(), h.getFecha(), h.getDescripcion(),
                 h.getLatitud(), h.getLongitud(), h.getDepartamento(), h.getRegion(),
+                expedicionId,
                 h.getVersionActual(), h.getCreadoEn(), evidencias);
     }
 }

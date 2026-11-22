@@ -9,5 +9,6 @@ public record ExpedicionRequest(
         @NotBlank String nombre,
         @NotBlank String zona,
         @NotNull LocalDate fechaInicio,
-        LocalDate fechaFin) {
+        LocalDate fechaFin,
+        @NotBlank String liderId) {
 }
