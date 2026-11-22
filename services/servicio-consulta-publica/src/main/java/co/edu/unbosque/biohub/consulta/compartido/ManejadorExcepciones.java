@@ -13,10 +13,6 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-/**
- * Traduce todas las excepciones a {@link RespuestaError} sin exponer detalles internos
- * (mismo formato que servicio-autorizacion).
- */
 @RestControllerAdvice
 public class ManejadorExcepciones extends ResponseEntityExceptionHandler {
 
@@ -32,20 +28,17 @@ public class ManejadorExcepciones extends ResponseEntityExceptionHandler {
         return construir(HttpStatus.BAD_REQUEST, e.getMessage(), null);
     }
 
-    /** Parámetro con tipo incorrecto, p. ej. ?pagina=abc */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Object> tipoInvalido(MethodArgumentTypeMismatchException e) {
         return construir(HttpStatus.BAD_REQUEST, "Valor inválido para el parámetro " + e.getName(), null);
     }
 
-    /** Cualquier error no previsto: se registra completo, pero al cliente solo se le da un mensaje genérico. */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> errorInesperado(Exception e) {
         log.error("Error no controlado", e);
         return construir(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor", null);
     }
 
-    /** Resto de errores de Spring MVC (404 de ruta, 405, 406...): mismo formato de respuesta. */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception e, @Nullable Object cuerpo, HttpHeaders headers,
                                                              HttpStatusCode estado, WebRequest solicitud) {

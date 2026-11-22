@@ -29,8 +29,7 @@ public class ExpedicionController {
     @PostMapping
     public ResponseEntity<ExpedicionResponse> crear(@Valid @RequestBody ExpedicionRequest request) {
         Expedicion creada = servicio.crear(request);
-        return ResponseEntity.created(URI.create("/expediciones/" + creada.getId()))
-                .body(ExpedicionResponse.de(creada));
+        return ResponseEntity.created(URI.create("/expediciones/" + creada.getId())).body(ExpedicionResponse.de(creada));
     }
 
     @GetMapping
@@ -48,8 +47,7 @@ public List<ExpedicionResponse> listar(@RequestParam(required = false) String li
     }
 
     @PostMapping("/{id}/equipos")
-    public ExpedicionResponse asignarEquipo(@PathVariable UUID id,
-                                            @Valid @RequestBody AsignarEquipoRequest request) {
+    public ExpedicionResponse asignarEquipo(@PathVariable UUID id, @Valid @RequestBody AsignarEquipoRequest request) {
         return ExpedicionResponse.de(servicio.asignarEquipo(id, request.equipoId()));
     }
 }

@@ -19,7 +19,6 @@ public class OutboxService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void guardar(EventoDominio evento) {
         String payload = json.writeValueAsString(evento);
-        repositorio.save(new OutboxEvento(evento.idEvento(), evento.tipo(),
-                evento.idAgregado(), evento.ocurrioEn(), payload));
+        repositorio.save(new OutboxEvento(evento.idEvento(), evento.tipo(), evento.idAgregado(), evento.ocurrioEn(), payload));
     }
 }

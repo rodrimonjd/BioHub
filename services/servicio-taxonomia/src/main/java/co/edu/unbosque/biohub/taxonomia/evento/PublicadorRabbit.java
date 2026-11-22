@@ -8,18 +8,14 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/**
- * Adapter del broker: envuelve RabbitTemplate. Publica en el exchange topic
- * usando el tipo del evento como routing key (por ejemplo FICHA_CREADA).
- */
+
 @Component
 public class PublicadorRabbit implements PublicadorEventos {
 
     private final RabbitTemplate rabbit;
     private final String exchange;
 
-    public PublicadorRabbit(RabbitTemplate rabbit,
-                            @Value("${biohub.eventos.exchange}") String exchange) {
+    public PublicadorRabbit(RabbitTemplate rabbit, @Value("${biohub.eventos.exchange}") String exchange) {
         this.rabbit = rabbit;
         this.exchange = exchange;
     }

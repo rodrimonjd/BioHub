@@ -18,11 +18,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Lee el catálogo completo de servicio-registro y lo guarda en memoria durante un tiempo (caché).
- * Si se pide una especie que no está, recarga (como mucho una vez cada 10 s).
- * Si registro no responde, sigue usando la última copia que tenga.
- */
 @Component
 public class CatalogoEspeciesHttp implements CatalogoEspecies {
 

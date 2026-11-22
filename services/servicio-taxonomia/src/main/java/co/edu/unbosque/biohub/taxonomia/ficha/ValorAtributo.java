@@ -2,9 +2,6 @@ package co.edu.unbosque.biohub.taxonomia.ficha;
 
 import co.edu.unbosque.biohub.taxonomia.atributo.AtributoTaxonomico;
 
-/**
- * Un atributo dentro de una ficha con su valor (el valor puede ser null).
- */
 public class ValorAtributo {
 
     private AtributoTaxonomico atributo;

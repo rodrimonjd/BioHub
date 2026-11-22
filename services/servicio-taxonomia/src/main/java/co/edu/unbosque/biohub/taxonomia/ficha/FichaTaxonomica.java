@@ -16,13 +16,6 @@ import co.edu.unbosque.biohub.taxonomia.atributo.AtributoTaxonomico;
 import co.edu.unbosque.biohub.taxonomia.compartido.DatosInvalidosException;
 import co.edu.unbosque.biohub.taxonomia.evento.EventoPendiente;
 
-/**
- * Ficha taxonomica de una especie: sus atributos con sus valores.
- * La especie vive en servicio-registro; aqui solo se guarda su id.
- *
- * Outbox: los eventos de cada cambio se guardan en la misma ficha (eventosPendientes),
- * asi la ficha y su evento se escriben juntos. RelayEventos los publica despues.
- */
 @Document("fichas")
 public class FichaTaxonomica {
 
@@ -39,7 +32,6 @@ public class FichaTaxonomica {
     @JsonIgnore
     private List<EventoPendiente> eventosPendientes = new ArrayList<>();
 
-    /** Evita que dos escrituras al mismo tiempo se pisen (no es la version de la ficha). */
     @Version
     @JsonIgnore
     private Long revision;
@@ -56,7 +48,6 @@ public class FichaTaxonomica {
         this.actualizadoEn = this.creadoEn;
     }
 
-    /** Agrega un atributo con su valor. Lo usa el Builder al crear la ficha. */
     public void agregarAtributo(AtributoTaxonomico atributo, String valor) {
         if (buscar(atributo.getNombre()) != null) {
             throw new DatosInvalidosException("La ficha ya tiene el atributo: " + atributo.getNombre());
@@ -65,17 +56,12 @@ public class FichaTaxonomica {
         atributos.add(new ValorAtributo(atributo, limpiar(valor)));
     }
 
-    /** Agrega un atributo a una ficha que ya existe, sin tocar los demas valores. */
     public void incorporarAtributo(AtributoTaxonomico atributo, String valor) {
         exigirActiva();
         agregarAtributo(atributo, valor);
         subirVersion();
     }
 
-    /**
-     * Cambia el valor de un atributo y devuelve el valor anterior.
-     * Un valor vacio borra el valor si el atributo no es obligatorio.
-     */
     public String modificarValor(String nombre, String valor) {
         exigirActiva();
         ValorAtributo actual = buscar(nombre);
@@ -93,7 +79,6 @@ public class FichaTaxonomica {
         return anterior;
     }
 
-    /** La ficha no se borra: queda inactiva y se puede seguir consultando. */
     public void desactivar() {
         if (!activa) {
             throw new DatosInvalidosException("La ficha ya esta inactiva");
@@ -136,8 +121,7 @@ public class FichaTaxonomica {
         if (valor == null || valor.isBlank()) {
             throw new DatosInvalidosException("El atributo " + atributo.getNombre() + " es obligatorio");
         }
-        throw new DatosInvalidosException("Valor invalido para el atributo " + atributo.getNombre()
-                + " (" + atributo.getTipoDato() + "): " + valor);
+        throw new DatosInvalidosException("Valor invalido para el atributo " + atributo.getNombre() + " (" + atributo.getTipoDato() + "): " + valor);
     }
 
     private static String limpiar(String valor) {

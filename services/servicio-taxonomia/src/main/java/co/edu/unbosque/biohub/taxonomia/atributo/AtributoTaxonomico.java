@@ -6,10 +6,6 @@ import java.util.UUID;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-/**
- * Atributo del catalogo, por ejemplo "temperatura del agua" (NUMERICO, en C).
- * Las fichas guardan una copia del atributo junto con su valor.
- */
 @Document("atributos")
 public class AtributoTaxonomico {
 
@@ -23,8 +19,7 @@ public class AtributoTaxonomico {
 
     protected AtributoTaxonomico() { }
 
-    AtributoTaxonomico(String nombre, TipoDato tipoDato, String unidad,
-                       List<String> opciones, boolean obligatorio) {
+    AtributoTaxonomico(String nombre, TipoDato tipoDato, String unidad, List<String> opciones, boolean obligatorio) {
         this.id = UUID.randomUUID().toString();
         this.nombre = nombre;
         this.tipoDato = tipoDato;
@@ -33,10 +28,6 @@ public class AtributoTaxonomico {
         this.obligatorio = obligatorio;
     }
 
-    /**
-     * Vacio: valido solo si el atributo no es obligatorio.
-     * Con contenido: lo valida su tipo de dato.
-     */
     public boolean validarValor(String valor) {
         if (valor == null || valor.isBlank()) {
             return !obligatorio;

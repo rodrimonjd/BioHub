@@ -72,9 +72,7 @@ public class Hallazgo {
 
     protected Hallazgo() { }
 
-    Hallazgo(String investigadorId, Especie especie, String fichaId, Instant fecha,
-             String descripcion, Double latitud, Double longitud,
-             String departamento, String region) {
+    Hallazgo(String investigadorId, Especie especie, String fichaId, Instant fecha, String descripcion, Double latitud, Double longitud, String departamento, String region) {
         this.id = UUID.randomUUID();
         this.versionActual = 1;
         this.creadoEn = Instant.now();
@@ -91,8 +89,7 @@ public class Hallazgo {
 
     public void agregarEvidencia(Evidencia evidencia) {
         if (!evidencia.validarFormato()) {
-            throw new DatosInvalidosException(
-                    "La evidencia de tipo " + evidencia.getTipo() + " no tiene un formato valido");
+            throw new DatosInvalidosException("La evidencia de tipo " + evidencia.getTipo() + " no tiene un formato valido");
         }
         evidencia.asignarHallazgo(this);
         this.evidencias.add(evidencia);
@@ -142,8 +139,7 @@ public class Hallazgo {
         String anterior = this.especie.getNombreCientifico();
         this.especie = nueva;
         this.versionActual++;
-        return new CambioHallazgo("especie", anterior, nueva.getNombreCientifico(),
-                autor, autorizador, motivo);
+        return new CambioHallazgo("especie", anterior, nueva.getNombreCientifico(), autor, autorizador, motivo);
     }
 
     private String valorActual(String campo) {
@@ -151,15 +147,13 @@ public class Hallazgo {
             case "descripcion" -> descripcion;
             case "departamento" -> departamento;
             case "region" -> region;
-            default -> throw new DatosInvalidosException(
-                    "Campo no modificable: " + campo + " (permitidos: descripcion, departamento, region)");
+            default -> throw new DatosInvalidosException("Campo no modificable: " + campo + " (permitidos: descripcion, departamento, region)");
         };
     }
 
     private static void exigirMaximo(String valor, int maximo, String campo) {
         if (valor.length() > maximo) {
-            throw new DatosInvalidosException(
-                    "El campo " + campo + " admite maximo " + maximo + " caracteres");
+            throw new DatosInvalidosException("El campo " + campo + " admite maximo " + maximo + " caracteres");
         }
     }
     

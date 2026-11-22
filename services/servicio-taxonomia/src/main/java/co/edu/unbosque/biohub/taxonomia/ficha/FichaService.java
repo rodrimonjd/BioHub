@@ -30,12 +30,9 @@ public class FichaService {
 
     public FichaTaxonomica crear(FichaRequests.CrearFicha r) {
         if (fichas.existsByEspecieIdAndActivaTrue(r.especieId().toString())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "La especie ya tiene una ficha activa; desactivela antes de crear otra");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La especie ya tiene una ficha activa; desactivela antes de crear otra");
         }
-        FichaBuilder builder = new FichaBuilder()
-                .especie(r.especieId())
-                .autor(r.autor());
+        FichaBuilder builder = new FichaBuilder().especie(r.especieId()).autor(r.autor());
         for (FichaRequests.ValorRequest v : r.atributos()) {
             builder.atributo(atributos.buscarPorNombre(v.nombre()), v.valor());
         }
@@ -44,11 +41,9 @@ public class FichaService {
     }
 
     public FichaTaxonomica obtener(String id) {
-        return fichas.findById(id).orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Ficha no encontrada: " + id));
+        return fichas.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ficha no encontrada: " + id));
     }
 
-    /** Por defecto solo las activas; con incluirInactivas tambien las desactivadas. */
     public List<FichaTaxonomica> listar(UUID especieId, boolean incluirInactivas) {
         List<FichaTaxonomica> todas = especieId == null
                 ? fichas.findAll()
@@ -65,15 +60,13 @@ public class FichaService {
     public FichaTaxonomica modificarValor(String id, String nombre, FichaRequests.ModificarValor r) {
         FichaTaxonomica ficha = obtener(id);
         String anterior = ficha.modificarValor(nombre, r.valor());
-        return guardar(ficha, EventoFactory.fichaModificada(ficha, nombre.trim(), anterior,
-                ficha.valorDe(nombre), r.autor()));
+        return guardar(ficha, EventoFactory.fichaModificada(ficha, nombre.trim(), anterior, ficha.valorDe(nombre), r.autor()));
     }
 
     public FichaTaxonomica incorporarAtributo(String id, FichaRequests.IncorporarAtributo r) {
         FichaTaxonomica ficha = obtener(id);
         ficha.incorporarAtributo(atributos.buscarPorNombre(r.nombre()), r.valor());
-        return guardar(ficha, EventoFactory.fichaModificada(ficha, r.nombre().trim(), null,
-                ficha.valorDe(r.nombre()), r.autor()));
+        return guardar(ficha, EventoFactory.fichaModificada(ficha, r.nombre().trim(), null, ficha.valorDe(r.nombre()), r.autor()));
     }
 
     public FichaTaxonomica desactivar(String id, FichaRequests.DesactivarFicha r) {
@@ -82,14 +75,12 @@ public class FichaService {
         return guardar(ficha, EventoFactory.fichaDesactivada(ficha, r.autor(), r.motivo()));
     }
 
-    /** Guarda la ficha junto con su evento pendiente, en una sola escritura (Outbox). */
     private FichaTaxonomica guardar(FichaTaxonomica ficha, EventoDominio evento) {
         ficha.agregarEvento(new EventoPendiente(evento.tipo(), json.writeValueAsString(evento)));
         try {
             return fichas.save(ficha);
         } catch (OptimisticLockingFailureException e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "La ficha fue modificada al mismo tiempo por otra operacion; intente de nuevo");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La ficha fue modificada al mismo tiempo por otra operacion; intente de nuevo");
         }
     }
 }

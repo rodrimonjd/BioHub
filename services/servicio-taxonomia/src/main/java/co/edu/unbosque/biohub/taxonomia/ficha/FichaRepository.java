@@ -11,7 +11,6 @@ public interface FichaRepository extends MongoRepository<FichaTaxonomica, String
 
     boolean existsByEspecieIdAndActivaTrue(String especieId);
 
-    /** Fichas que tienen al menos un evento pendiente de publicar. */
     @Query("{ 'eventosPendientes.0': { $exists: true } }")
     List<FichaTaxonomica> buscarConEventosPendientes();
 }

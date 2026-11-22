@@ -33,8 +33,7 @@ public class FichaController {
     }
 
     @GetMapping
-    public List<FichaTaxonomica> listar(@RequestParam(required = false) UUID especieId,
-                                        @RequestParam(defaultValue = "false") boolean incluirInactivas) {
+    public List<FichaTaxonomica> listar(@RequestParam(required = false) UUID especieId, @RequestParam(defaultValue = "false") boolean incluirInactivas) {
         return servicio.listar(especieId, incluirInactivas);
     }
 
@@ -44,20 +43,17 @@ public class FichaController {
     }
 
     @PutMapping("/{id}/atributos/{nombre}")
-    public FichaTaxonomica modificarValor(@PathVariable String id, @PathVariable String nombre,
-                                          @Valid @RequestBody FichaRequests.ModificarValor request) {
+    public FichaTaxonomica modificarValor(@PathVariable String id, @PathVariable String nombre, @Valid @RequestBody FichaRequests.ModificarValor request) {
         return servicio.modificarValor(id, nombre, request);
     }
 
     @PostMapping("/{id}/atributos")
-    public FichaTaxonomica incorporarAtributo(@PathVariable String id,
-                                              @Valid @RequestBody FichaRequests.IncorporarAtributo request) {
+    public FichaTaxonomica incorporarAtributo(@PathVariable String id, @Valid @RequestBody FichaRequests.IncorporarAtributo request) {
         return servicio.incorporarAtributo(id, request);
     }
 
     @PostMapping("/{id}/desactivacion")
-    public FichaTaxonomica desactivar(@PathVariable String id,
-                                      @Valid @RequestBody FichaRequests.DesactivarFicha request) {
+    public FichaTaxonomica desactivar(@PathVariable String id, @Valid @RequestBody FichaRequests.DesactivarFicha request) {
         return servicio.desactivar(id, request);
     }
 }

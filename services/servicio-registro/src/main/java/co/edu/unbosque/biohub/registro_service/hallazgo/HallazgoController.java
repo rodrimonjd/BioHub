@@ -30,14 +30,12 @@ public class HallazgoController {
     }
 
     @PatchMapping("/{id}")
-    public HallazgoResponse modificar(@PathVariable UUID id,
-                                    @Valid @RequestBody ModificarHallazgoRequest request) {
+    public HallazgoResponse modificar(@PathVariable UUID id, @Valid @RequestBody ModificarHallazgoRequest request) {
         return HallazgoResponse.desde(service.modificar(id, request));
     }
 
     @PostMapping("/{id}/reclasificacion")
-    public HallazgoResponse reclasificar(@PathVariable UUID id,
-                                        @Valid @RequestBody ReclasificarHallazgoRequest request) {
+    public HallazgoResponse reclasificar(@PathVariable UUID id,@Valid @RequestBody ReclasificarHallazgoRequest request) {
         return HallazgoResponse.desde(service.reclasificar(id, request));
     }
 }

@@ -10,14 +10,6 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-/**
- * Escucha la cola de consulta pública (patrón Observer) y pasa cada evento al proyector.
- * <ul>
- *   <li>Mensaje ilegible o con datos inválidos: va directo a la cola de errores, sin reintentos.</li>
- *   <li>Cualquier otro fallo (p. ej. base de datos caída): se reintenta y, si sigue fallando,
- *       RabbitMQ lo pasa a la cola de errores (dead-letter).</li>
- * </ul>
- */
 @Component
 public class ConsumidorEventos {
 

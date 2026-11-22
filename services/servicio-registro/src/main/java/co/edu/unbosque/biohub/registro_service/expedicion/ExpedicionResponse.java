@@ -23,13 +23,6 @@ public record ExpedicionResponse(
             equipos.add(EquipoResponse.de(equipo));
         }
 
-            return new ExpedicionResponse(
-                    e.getId(),
-                    e.getNombre(),
-                    e.getZona(),
-                    e.getFechaInicio(),
-                    e.getFechaFin(),
-                    e.getLiderId(),
-                    equipos);
+            return new ExpedicionResponse( e.getId(),e.getNombre(), e.getZona(), e.getFechaInicio(), e.getFechaFin(), e.getLiderId(), equipos);
             }
 }

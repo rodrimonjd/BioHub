@@ -49,6 +49,6 @@ public class EquipoService {
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
-        return equipo;   // JPA guarda el cambio al cerrar la transaccion
+        return equipo;
     }
 }

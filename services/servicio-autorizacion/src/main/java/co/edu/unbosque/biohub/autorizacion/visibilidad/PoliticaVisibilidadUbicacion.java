@@ -3,18 +3,6 @@ package co.edu.unbosque.biohub.autorizacion.visibilidad;
 import org.springframework.stereotype.Component;
 import java.util.Set;
 
-/**
- * Decide si se muestran coordenadas exactas o solo región/departamento.
- * Es el punto de extensión (patrón Strategy) para las reglas de ASR-04 y ASR-05.
- *
- * Reglas actuales (ajustables a lo que digan los ASR):
- *  1. Quien tenga el permiso 'ubicacion:ver_exacta' siempre ve coordenadas exactas.
- *  2. Para el resto, depende de la categoría UICN de la especie:
- *       CR, EN       -> solo DEPARTAMENTO
- *       VU           -> solo REGION
- *       LC, NT       -> EXACTA
- *       desconocida  -> REGION (criterio conservador)
- */
 @Component
 public class PoliticaVisibilidadUbicacion {
 
