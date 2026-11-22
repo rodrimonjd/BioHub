@@ -28,6 +28,24 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  servicio-autorizacion:
+    build:
+      context: ../services/servicio-autorizacion
+    container_name: biohub-servicio-autorizacion
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: biohub_autorizacion
+      BD_USUARIO: root
+      BD_CLAVE: ${MYSQL_ROOT_PASSWORD:-root}
+      TZ: America/Bogota
+    ports:
+      - "8082:8082"
+
 volumes:
   mysql_data:
   mongo_data:
