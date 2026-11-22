@@ -1,5 +1,5 @@
 server:
-  port: 8081
+  port: ${PUERTO_SERVIDOR:8081}
 
 spring:
   application:
@@ -8,9 +8,20 @@ spring:
     error:
       include-message: always
   datasource:
-    url: jdbc:mysql://localhost:3306/registro_db
-    username: registro_user
-    password: registro_pass
+    url: jdbc:mysql://${BD_HOST:localhost}:${BD_PUERTO:3306}/${BD_NOMBRE:registro_db}
+    username: ${BD_USUARIO:registro_user}
+    password: ${BD_CLAVE:registro_pass}
   jpa:
     hibernate:
       ddl-auto: validate
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PUERTO:5672}
+    username: ${RABBIT_USUARIO:biohub}
+    password: ${RABBIT_CLAVE:biohub}
+
+biohub:
+  eventos:
+    exchange: biohub.eventos
+    intervalo-ms: 5000
+    lote: 50

@@ -21,6 +21,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.util.Objects;
 import co.edu.unbosque.biohub.registro_service.evidencia.DatosInvalidosException;
+import co.edu.unbosque.biohub.registro_service.expedicion.Expedicion;
 
 @Entity
 @Table(name = "hallazgo")
@@ -37,6 +38,10 @@ public class Hallazgo {
     @ManyToOne(optional = false)
     @JoinColumn(name = "especie_id")
     private Especie especie;
+
+    @ManyToOne
+    @JoinColumn(name = "expedicion_id")
+    private Expedicion expedicion;
 
     @Column(name = "ficha_id", length = 36)
     private String fichaId;
@@ -67,9 +72,7 @@ public class Hallazgo {
 
     protected Hallazgo() { }
 
-    Hallazgo(String investigadorId, Especie especie, String fichaId, Instant fecha,
-             String descripcion, Double latitud, Double longitud,
-             String departamento, String region) {
+    Hallazgo(String investigadorId, Especie especie, String fichaId, Instant fecha, String descripcion, Double latitud, Double longitud, String departamento, String region) {
         this.id = UUID.randomUUID();
         this.versionActual = 1;
         this.creadoEn = Instant.now();
@@ -85,8 +88,15 @@ public class Hallazgo {
     }
 
     public void agregarEvidencia(Evidencia evidencia) {
+        if (!evidencia.validarFormato()) {
+            throw new DatosInvalidosException("La evidencia de tipo " + evidencia.getTipo() + " no tiene un formato valido");
+        }
         evidencia.asignarHallazgo(this);
         this.evidencias.add(evidencia);
+    }
+
+    void asignarExpedicion(Expedicion expedicion) {
+        this.expedicion = expedicion;
     }
 
     public String obtenerUbicacion(boolean exacta) {
@@ -129,8 +139,7 @@ public class Hallazgo {
         String anterior = this.especie.getNombreCientifico();
         this.especie = nueva;
         this.versionActual++;
-        return new CambioHallazgo("especie", anterior, nueva.getNombreCientifico(),
-                autor, autorizador, motivo);
+        return new CambioHallazgo("especie", anterior, nueva.getNombreCientifico(), autor, autorizador, motivo);
     }
 
     private String valorActual(String campo) {
@@ -138,15 +147,13 @@ public class Hallazgo {
             case "descripcion" -> descripcion;
             case "departamento" -> departamento;
             case "region" -> region;
-            default -> throw new DatosInvalidosException(
-                    "Campo no modificable: " + campo + " (permitidos: descripcion, departamento, region)");
+            default -> throw new DatosInvalidosException("Campo no modificable: " + campo + " (permitidos: descripcion, departamento, region)");
         };
     }
 
     private static void exigirMaximo(String valor, int maximo, String campo) {
         if (valor.length() > maximo) {
-            throw new DatosInvalidosException(
-                    "El campo " + campo + " admite maximo " + maximo + " caracteres");
+            throw new DatosInvalidosException("El campo " + campo + " admite maximo " + maximo + " caracteres");
         }
     }
     
@@ -173,6 +180,10 @@ public class Hallazgo {
 
     public void setEspecie(Especie especie) {
         this.especie = especie;
+    }
+
+    public Expedicion getExpedicion() {
+        return expedicion;
     }
 
     public String getFichaId() {

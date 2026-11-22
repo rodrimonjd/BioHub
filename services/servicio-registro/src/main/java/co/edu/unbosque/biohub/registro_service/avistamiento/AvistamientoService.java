@@ -10,16 +10,21 @@ import org.springframework.web.server.ResponseStatusException;
 
 import co.edu.unbosque.biohub.registro_service.especie.Especie;
 import co.edu.unbosque.biohub.registro_service.especie.EspecieRepository;
+import co.edu.unbosque.biohub.registro_service.evento.EventoFactory;
+import co.edu.unbosque.biohub.registro_service.evento.OutboxService;
+import co.edu.unbosque.biohub.registro_service.evidencia.DatosInvalidosException;
 
 @Service
 public class AvistamientoService {
 
     private final AvistamientoRepository avistamientos;
     private final EspecieRepository especies;
+    private final OutboxService outbox;
 
-    public AvistamientoService(AvistamientoRepository avistamientos, EspecieRepository especies) {
+    public AvistamientoService(AvistamientoRepository avistamientos, EspecieRepository especies, OutboxService outbox) {
         this.avistamientos = avistamientos;
         this.especies = especies;
+        this.outbox = outbox;
     }
 
     @Transactional
@@ -30,7 +35,14 @@ public class AvistamientoService {
 
         Avistamiento a = new Avistamiento(r.investigadorId(), especie, r.fechaHora(),
                 r.cantidad(), r.latitud(), r.longitud(), r.departamento(), r.region());
-        return avistamientos.save(a);
+        if (!a.validarDatos()) {
+            throw new DatosInvalidosException(
+                    "Datos del avistamiento invalidos: revise la fecha, la cantidad y que latitud y longitud vengan juntas");
+        }
+
+        Avistamiento guardado = avistamientos.save(a);
+        outbox.guardar(EventoFactory.avistamientoRegistrado(guardado));
+        return guardado;
     }
 
     public Avistamiento obtener(UUID id) {

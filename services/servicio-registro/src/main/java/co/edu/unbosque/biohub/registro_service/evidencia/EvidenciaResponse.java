@@ -11,7 +11,6 @@ public record EvidenciaResponse(
         String atributoTaxonomico) {
 
     public static EvidenciaResponse desde(Evidencia e) {
-        return new EvidenciaResponse(e.getId(), e.getTipo(), e.getValor(), e.getUnidad(),
-                e.getUrlArchivo(), e.getAtributoTaxonomico());
+        return new EvidenciaResponse(e.getId(), e.getTipo(), e.getValor(), e.getUnidad(), e.getUrlArchivo(), e.getAtributoTaxonomico());
     }
 }

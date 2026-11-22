@@ -57,6 +57,41 @@ public class Evidencia {
         this.atributoTaxonomico = atributoTaxonomico;
     }
 
+    /**
+     * Revisa que la evidencia tenga los datos que exige su tipo:
+     * TEMPERATURA un valor numerico y una unidad, ADN el codigo de la muestra
+     * y AUDIO la URL del archivo.
+     */
+    public boolean validarFormato() {
+        if (tipo == null) {
+            return false;
+        }
+        switch (tipo) {
+            case TEMPERATURA -> {
+                if (esVacio(valor) || esVacio(unidad)) {
+                    return false;
+                }
+                try {
+                    Double.parseDouble(valor.trim());
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+                return true;
+            }
+            case ADN -> {
+                return !esVacio(valor);
+            }
+            case AUDIO -> {
+                return !esVacio(urlArchivo);
+            }
+        }
+        return false;
+    }
+
+    private static boolean esVacio(String texto) {
+        return texto == null || texto.isBlank();
+    }
+
     public void asignarHallazgo(Hallazgo hallazgo) {
         this.hallazgo = hallazgo;
     }
