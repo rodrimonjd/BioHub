@@ -99,7 +99,7 @@ public class RolServicio {
         if (codigos == null || codigos.isEmpty()) return new HashSet<>();
         List<Permiso> encontrados = permisos.findByCodigoIn(codigos);
         if (encontrados.size() != codigos.size()) {
-            Set<String> conocidos = encontrados.stream().map(Permiso::getCodigo).collect(Collectors.toSet());
+            Set<String> conocidos = encontrados.stream().map(p -> p.getCodigo()).collect(Collectors.toSet());
             Set<String> desconocidos = new TreeSet<>(codigos);
             desconocidos.removeAll(conocidos);
             throw new IllegalArgumentException("Permisos inexistentes: " + desconocidos);

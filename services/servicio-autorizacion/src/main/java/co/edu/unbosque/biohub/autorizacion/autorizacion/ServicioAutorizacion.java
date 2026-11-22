@@ -1,8 +1,6 @@
 package co.edu.unbosque.biohub.autorizacion.autorizacion;
 
-import co.edu.unbosque.biohub.autorizacion.permiso.Permiso;
 import co.edu.unbosque.biohub.autorizacion.rol.RolRepositorio;
-import co.edu.unbosque.biohub.autorizacion.usuario.UsuarioRol;
 import co.edu.unbosque.biohub.autorizacion.usuario.UsuarioRolRepositorio;
 import co.edu.unbosque.biohub.autorizacion.visibilidad.NivelVisibilidad;
 import co.edu.unbosque.biohub.autorizacion.visibilidad.PoliticaVisibilidadUbicacion;
@@ -38,7 +36,7 @@ public class ServicioAutorizacion {
             return Set.of(ROL_POR_DEFECTO);
         }
         Set<String> nombres = usuarioRoles.findByUsuarioId(usuarioId).stream()
-                .map(UsuarioRol::getRol)
+                .map(ur -> ur.getRol())
                 .map(r -> r.getNombre())
                 .collect(toCollection(TreeSet::new));
         return nombres.isEmpty() ? Set.of(ROL_POR_DEFECTO) : nombres;
@@ -47,7 +45,7 @@ public class ServicioAutorizacion {
     public Set<String> permisosDe(String usuarioId) {
         return roles.findByNombreIn(rolesDe(usuarioId)).stream()
                 .flatMap(r -> r.getPermisos().stream())
-                .map(Permiso::getCodigo)
+                .map(p -> p.getCodigo())
                 .collect(toCollection(TreeSet::new));
     }
 
