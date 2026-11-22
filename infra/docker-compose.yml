@@ -113,6 +113,28 @@ services:
     ports:
       - "8083:8083"
 
+  servicio-taxonomia:
+    build:
+      context: ../services/servicio-taxonomia
+    container_name: biohub-servicio-taxonomia
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      MONGO_HOST: mongo
+      MONGO_PUERTO: 27017
+      MONGO_BD: taxonomia_db
+      RABBIT_HOST: rabbitmq
+      RABBIT_PUERTO: 5672
+      RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
+      RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      TZ: America/Bogota
+    ports:
+      - "8084:8084"
+
 volumes:
   mysql_data:
   mongo_data:
