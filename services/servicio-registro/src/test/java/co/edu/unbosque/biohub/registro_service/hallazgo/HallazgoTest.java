@@ -15,7 +15,7 @@ class HallazgoTest {
     private final Especie especie = new Especie("Atelopus varius", "Rana arlequin", "CR");
 
     private Hallazgo nuevoHallazgo() {
-        return new HallazgoBuilder()
+        return new ConstructorHallazgo()
                 .investigador("inv-1")
                 .especie(especie)
                 .fecha(Instant.now())
