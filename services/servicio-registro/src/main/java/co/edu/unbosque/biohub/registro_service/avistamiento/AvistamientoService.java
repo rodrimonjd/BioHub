@@ -12,6 +12,7 @@ import co.edu.unbosque.biohub.registro_service.especie.Especie;
 import co.edu.unbosque.biohub.registro_service.especie.EspecieRepository;
 import co.edu.unbosque.biohub.registro_service.evento.EventoFactory;
 import co.edu.unbosque.biohub.registro_service.evento.OutboxService;
+import co.edu.unbosque.biohub.registro_service.evidencia.DatosInvalidosException;
 
 @Service
 public class AvistamientoService {
@@ -34,7 +35,11 @@ public class AvistamientoService {
 
         Avistamiento a = new Avistamiento(r.investigadorId(), especie, r.fechaHora(),
                 r.cantidad(), r.latitud(), r.longitud(), r.departamento(), r.region());
-        
+        if (!a.validarDatos()) {
+            throw new DatosInvalidosException(
+                    "Datos del avistamiento invalidos: revise la fecha, la cantidad y que latitud y longitud vengan juntas");
+        }
+
         Avistamiento guardado = avistamientos.save(a);
         outbox.guardar(EventoFactory.avistamientoRegistrado(guardado));
         return guardado;
