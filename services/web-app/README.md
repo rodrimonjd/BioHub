@@ -41,6 +41,7 @@ Para entrar al panel hace falta `servicio-autorizacion` en marcha (`docker compo
 | Modificar y reclasificar hallazgos | `hallazgo:editar` |
 | Autorizar reclasificaciones (y aparecer como autorizador) | `hallazgo:validar` |
 | Ver coordenadas exactas de especies sensibles | `ubicacion:ver_exacta` |
+| Solicitar reportes científicos | `reporte:generar` |
 
 Esto solo muestra u oculta botones: la protección real está en el backend. Cada escritura a registro envía la cabecera `X-Usuario-Id` y registro valida el permiso con autorización. Si responde 403 o 400, el panel muestra el motivo; solo si el servidor no responde guarda el registro en el equipo para reintentarlo.
 

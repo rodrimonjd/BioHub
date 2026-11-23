@@ -1,13 +1,17 @@
 import React from 'react';
 import { Card } from '@/components/ui/Card';
 
-export type BackgroundReportState = 'en_cola' | 'generando' | 'listo';
+export type BackgroundReportState = 'en_cola' | 'generando' | 'listo' | 'sin_datos' | 'error';
 
 export interface ReportStatusProps {
   reportTitle: string;
   reportId: string;
   recordsProcessed: string;
   state: BackgroundReportState;
+  /** Enlace al PDF; solo se muestra cuando el reporte está listo. */
+  downloadUrl?: string;
+  /** Mensaje del servicio (por ejemplo, el motivo de un error). */
+  message?: string | null;
 }
 
 const STATE_DETAILS: Record<
@@ -32,6 +36,17 @@ const STATE_DETAILS: Record<
       'Cálculo analítico finalizado de forma independiente sin afectar la disponibilidad de las estaciones de campo.',
     dotColor: 'bg-iucn-lc',
   },
+  sin_datos: {
+    badgeText: 'Sin datos en el período',
+    description:
+      'No hay avistamientos registrados para los filtros elegidos. Pruebe con otro período o departamento.',
+    dotColor: 'bg-ink-muted',
+  },
+  error: {
+    badgeText: 'Error al generar',
+    description: 'El servicio de reportes no pudo terminar el cálculo. Puede solicitarlo de nuevo.',
+    dotColor: 'bg-iucn-cr',
+  },
 };
 
 export function ReportStatus({
@@ -39,6 +54,8 @@ export function ReportStatus({
   reportId,
   recordsProcessed,
   state,
+  downloadUrl,
+  message,
 }: ReportStatusProps) {
   const info = STATE_DETAILS[state];
 
@@ -95,7 +112,16 @@ export function ReportStatus({
         </span>
       </div>
 
-      <p className="text-xs text-ink-muted leading-relaxed">{info.description}</p>
+      <p className="text-xs text-ink-muted leading-relaxed">{message || info.description}</p>
+
+      {state === 'listo' && downloadUrl && (
+        <a
+          href={downloadUrl}
+          className="inline-flex min-h-11 items-center rounded-md bg-forest-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-700"
+        >
+          Descargar PDF
+        </a>
+      )}
     </Card>
   );
 }

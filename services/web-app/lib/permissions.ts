@@ -29,6 +29,7 @@ export const PERMISOS = {
   VER_UBICACION_EXACTA: 'ubicacion:ver_exacta',
   VER_HISTORIAL: 'historial:ver',
   VER_REPORTES: 'reporte:ver',
+  GENERAR_REPORTES: 'reporte:generar',
   ADMINISTRAR_ROLES: 'roles:administrar',
 } as const;
 
@@ -155,4 +156,9 @@ export function canEditFindings(user: BioHubUser | null | undefined): boolean {
 /** Autorizar reclasificaciones: permiso hallazgo:validar. */
 export function canAuthorizeReclassification(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.VALIDAR_HALLAZGO);
+}
+
+/** Solicitar reportes científicos: permiso reporte:generar. */
+export function canGenerateReports(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.GENERAR_REPORTES);
 }
