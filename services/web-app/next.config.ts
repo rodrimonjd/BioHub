@@ -9,6 +9,9 @@ const AUTORIZACION_URL = process.env.AUTORIZACION_URL ?? 'http://localhost:8082'
 // servicio-taxonomia (fichas y atributos).
 const TAXONOMIA_URL = process.env.TAXONOMIA_URL ?? 'http://localhost:8084';
 
+// URL de servicio-reportes (reportes en segundo plano). Por defecto :8085.
+const REPORTES_URL = process.env.REPORTES_URL ?? 'http://localhost:8085';
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // El navegador llama a /api/<servicio>/... (mismo origen, sin CORS) y Next lo reenvia al servicio.
@@ -25,6 +28,14 @@ const nextConfig: NextConfig = {
       {
         source: '/api/taxonomia/:path*',
         destination: `${TAXONOMIA_URL}/:path*`,
+      },
+      {
+        source: '/api/reportes/:path*',
+        destination: `${REPORTES_URL}/reportes/:path*`,
+      },
+      {
+        source: '/api/reportes',
+        destination: `${REPORTES_URL}/reportes`,
       },
     ];
   },
