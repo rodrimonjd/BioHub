@@ -19,19 +19,39 @@ public final class SolicitudesFicha {
 
     public record CrearFicha(
             @NotNull UUID especieId,
-            @NotBlank String autor,
-            @NotEmpty List<@Valid SolicitudValor> atributos) { }
+            String autor,
+            @NotEmpty List<@Valid SolicitudValor> atributos) {
+
+        public CrearFicha conAutor(String usuarioId) {
+            return new CrearFicha(especieId, usuarioId, atributos);
+        }
+    }
 
     public record ModificarValor(
             String valor,
-            @NotBlank String autor) { }
+            String autor) {
+
+        public ModificarValor conAutor(String usuarioId) {
+            return new ModificarValor(valor, usuarioId);
+        }
+    }
 
     public record IncorporarAtributo(
             @NotBlank String nombre,
             String valor,
-            @NotBlank String autor) { }
+            String autor) {
+
+        public IncorporarAtributo conAutor(String usuarioId) {
+            return new IncorporarAtributo(nombre, valor, usuarioId);
+        }
+    }
 
     public record DesactivarFicha(
-            @NotBlank String autor,
-            @Size(max = 500) String motivo) { }
+            String autor,
+            @Size(max = 500) String motivo) {
+
+        public DesactivarFicha conAutor(String usuarioId) {
+            return new DesactivarFicha(usuarioId, motivo);
+        }
+    }
 }
