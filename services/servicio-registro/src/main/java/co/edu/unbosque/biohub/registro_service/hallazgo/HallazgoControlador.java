@@ -6,6 +6,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos.CABECERA_USUARIO;
@@ -29,6 +31,15 @@ public class HallazgoControlador {
         Hallazgo guardado = service.registrar(request.conInvestigador(investigador));
         URI location = URI.create("/hallazgos/" + guardado.getId());
         return ResponseEntity.created(location).build();
+    }
+
+    @GetMapping
+    public List<RespuestaHallazgo> listar(@RequestParam(required = false) String investigadorId) {
+        List<RespuestaHallazgo> respuesta = new ArrayList<>();
+        for (Hallazgo h : service.listar(investigadorId)) {
+            respuesta.add(RespuestaHallazgo.desde(h));
+        }
+        return respuesta;
     }
 
     @GetMapping("/{id}")
