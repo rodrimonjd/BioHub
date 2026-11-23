@@ -4,7 +4,7 @@ Proyecto semestral de **Ingeniería de Software 2** · Universidad El Bosque.
 Plataforma que centraliza, protege y divulga el inventario nacional de flora y fauna.
 
 ## Equipo
-Juan David Rodriguez · Raul Sebastian Escobar · Sebastian Garcia · Julian Rodriguez · Sebastian Bonilla
+Juan David Rodriguez · Raul Sebastian Escobar · Sebastian Garcia
 
 ## Arquitectura (Entrega 2)
 Microservicios + arquitectura orientada a eventos (EDA) + API Gateway. Cada servicio con su propia base de datos.
@@ -27,7 +27,7 @@ Patrones: Singleton, Factory, Builder, Adapter, Decorator, Strategy, Observer, O
 - Documento de la entrega: `docs/entrega-2-arquitectura/Entrega_2_proyecto_biohub.docx`
 - Modelo C4: `docs/entrega-2-arquitectura/c4/`
 - UML (despliegue, componentes, clases, 8 secuencias): `docs/entrega-2-arquitectura/uml/`
-- Historias comprometidas (18 historias, 93 puntos): [docs/backlog.md](docs/backlog.md)
+- Historias comprometidas y reparto del equipo (18 historias, 93 puntos): [docs/backlog.md](docs/backlog.md)
 
 ## Entregas
 | Entrega | Carpeta |
