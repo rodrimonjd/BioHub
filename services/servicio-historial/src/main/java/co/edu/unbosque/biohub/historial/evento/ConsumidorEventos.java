@@ -13,11 +13,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * Recibe los eventos de registro y taxonomía y los guarda en el historial.
- * Mensaje ilegible o incompleto: directo a la cola de errores. Otros fallos (p. ej. BD caída): reintentos y,
- * si siguen fallando, RabbitMQ lo pasa a la cola de errores. Ningún cambio se pierde en silencio.
- */
 @Component
 public class ConsumidorEventos {
 

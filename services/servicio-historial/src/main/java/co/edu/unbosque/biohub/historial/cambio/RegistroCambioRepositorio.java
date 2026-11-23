@@ -9,7 +9,6 @@ public interface RegistroCambioRepositorio extends JpaRepository<RegistroCambio,
 
     boolean existsByIdEvento(String idEvento);
 
-    /** Todos los cambios del registro en orden cronológico (por versión). */
     List<RegistroCambio> findByTipoRegistroAndIdRegistroOrderByVersionAsc(TipoRegistro tipo, String idRegistro);
 
     Optional<RegistroCambio> findTopByTipoRegistroAndIdRegistroOrderByVersionDesc(TipoRegistro tipo, String idRegistro);

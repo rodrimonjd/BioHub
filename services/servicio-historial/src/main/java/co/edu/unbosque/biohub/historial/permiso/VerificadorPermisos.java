@@ -4,7 +4,6 @@ import co.edu.unbosque.biohub.historial.compartido.ProhibidoException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/** Exige que quien consulta el historial tenga el permiso de consulta (por defecto historial:ver). */
 @Component
 public class VerificadorPermisos {
 

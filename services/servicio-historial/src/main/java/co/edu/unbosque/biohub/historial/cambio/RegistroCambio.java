@@ -12,11 +12,6 @@ import org.hibernate.annotations.Immutable;
 
 import java.time.Instant;
 
-/**
- * Un cambio sobre un registro científico: quién lo hizo, quién lo autorizó, qué campo cambió y sus valores.
- * Es inmutable (@Immutable + triggers en la base de datos): una vez guardado no se modifica ni se borra.
- * Solo se crea con {@link ConstructorRegistroCambio}.
- */
 @Entity
 @Immutable
 @Table(name = "registro_cambio")

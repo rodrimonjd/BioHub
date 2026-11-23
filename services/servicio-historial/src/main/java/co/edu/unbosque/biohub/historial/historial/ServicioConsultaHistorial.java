@@ -28,7 +28,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Consultas del historial: cambios, versiones y verificación de integridad. Solo lectura. */
 @Service
 @Transactional(readOnly = true)
 public class ServicioConsultaHistorial {
@@ -94,10 +93,6 @@ public class ServicioConsultaHistorial {
                 leer(v.getEstado()), mensaje);
     }
 
-    /**
-     * Recalcula la cadena de hashes. Detecta cambios alterados (el hash no coincide), cambios borrados
-     * (la cadena se rompe) y versiones faltantes.
-     */
     public VistaIntegridad integridad(TipoRegistro tipo, String id) {
         List<RegistroCambio> lista = cambiosDe(tipo, id);
         Map<Integer, String> estados = new HashMap<>();
@@ -122,8 +117,6 @@ public class ServicioConsultaHistorial {
         versionesFaltantes(lista).forEach(v -> problemas.add("Versión " + v + ": no está en el historial"));
         return new VistaIntegridad(tipo, id, problemas.isEmpty(), lista.size(), problemas);
     }
-
-    // ---- auxiliares ----
 
     private List<RegistroCambio> cambiosDe(TipoRegistro tipo, String id) {
         List<RegistroCambio> lista = cambios.findByTipoRegistroAndIdRegistroOrderByVersionAsc(tipo, id);

@@ -13,11 +13,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Consulta del historial de hallazgos y fichas: {@code /api/v1/historial/{hallazgos|fichas}/{id}...}
- * Solo lectura: el historial no expone ninguna operación para modificar ni borrar.
- * Exige la cabecera X-Usuario-Id de un usuario con el permiso historial:ver (diagrama de secuencia 03).
- */
 @RestController
 @RequestMapping("/api/v1/historial")
 public class HistorialControlador {

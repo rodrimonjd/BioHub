@@ -13,10 +13,6 @@ import org.springframework.context.annotation.Configuration;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Cola propia del historial enlazada al exchange de eventos (patrón Observer: el historial es un suscriptor más).
- * Durable: si el servicio está apagado los eventos esperan. Lo que no se puede procesar va a la cola de errores.
- */
 @Configuration
 public class ConfiguracionBroker {
 

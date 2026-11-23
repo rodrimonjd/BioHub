@@ -22,14 +22,6 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Guarda cada evento como un cambio inmutable y una versión nueva del registro (ASR-06, ASR-07).
- * <ul>
- *   <li>Idempotente: un evento ya guardado (mismo idEvento) o con una versión ya conocida se ignora.</li>
- *   <li>Nunca modifica ni borra filas: solo inserta.</li>
- *   <li>Si llega una versión saltándose otras, se guarda igual y la consulta del historial avisa del hueco.</li>
- * </ul>
- */
 @Service
 public class ServicioRegistroHistorial {
 

@@ -13,10 +13,6 @@ import org.hibernate.annotations.Immutable;
 
 import java.time.Instant;
 
-/**
- * Estado completo de un registro científico en una versión ("qué se sabía en esa fecha").
- * Inmutable: cada cambio crea una versión nueva y las anteriores nunca se sobrescriben (ASR-07).
- */
 @Entity
 @Immutable
 @Table(name = "version_registro")
@@ -34,7 +30,6 @@ public class VersionRegistro {
     private String idRegistro;
     @Column(nullable = false)
     private int version;
-    /** JSON con todos los campos; null si llegó un cambio sin conocer la versión anterior. */
     @Column(columnDefinition = "TEXT")
     private String estado;
     @Column(nullable = false, length = 100)

@@ -14,10 +14,6 @@ import org.springframework.web.client.RestClient;
 import java.time.Duration;
 import java.util.Map;
 
-/**
- * Cliente de POST /api/v1/autorizacion/verificar con caché por (usuario, permiso).
- * Si autorización no responde NO se concede el acceso (falla cerrado): el historial es información sensible.
- */
 @Component
 public class ClienteAutorizacionHttp implements ClienteAutorizacion {
 

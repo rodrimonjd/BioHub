@@ -7,10 +7,6 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Adapter: convierte los eventos de registro y taxonomía en {@link CambioPropuesto}.
- * Si cambia el formato de un evento, solo se toca esta clase.
- */
 @Component
 public class TraductorEventos {
 

@@ -3,15 +3,6 @@ package co.edu.unbosque.biohub.historial.cambio;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-/**
- * Builder de {@link RegistroCambio} (patrón Builder de la Entrega 2): arma el cambio paso a paso
- * y {@link #construir()} no lo deja terminar si falta algún dato obligatorio:
- * <ul>
- *   <li>Siempre: evento, registro, versión, tipo de cambio, autor y fecha.</li>
- *   <li>Modificación: el campo y el valor nuevo (el anterior puede ser vacío si antes no tenía valor).</li>
- *   <li>Reclasificación: valor anterior, valor nuevo, autorizador y motivo (HU-10).</li>
- * </ul>
- */
 public class ConstructorRegistroCambio {
 
     private String idEvento;

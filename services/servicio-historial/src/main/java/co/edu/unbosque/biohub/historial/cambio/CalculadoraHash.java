@@ -5,11 +5,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
-/**
- * Encadena los cambios de un registro con SHA-256: el hash de cada cambio incluye el hash del anterior.
- * Si alguien altera o borra un cambio directamente en la base de datos, la cadena deja de cuadrar
- * y la verificación de integridad lo detecta (HU-19.3: "la información no ha sido eliminada ni alterada").
- */
 public final class CalculadoraHash {
 
     private static final char SEPARADOR = '\u001F'; // separador de unidad: no aparece en datos normales
