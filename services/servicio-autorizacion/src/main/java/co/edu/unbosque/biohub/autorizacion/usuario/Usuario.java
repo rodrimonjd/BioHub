@@ -7,10 +7,6 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/**
- * Cuenta de un usuario del panel. El id es el mismo usuario_id de {@link UsuarioRol}.
- * Solo guarda el hash BCrypt de la contraseña.
- */
 @Entity
 @Table(name = "usuarios")
 public class Usuario {
