@@ -25,3 +25,7 @@ biohub:
     exchange: biohub.eventos
     intervalo-ms: 5000
     lote: 50
+  # Las escrituras exigen permisos de servicio-autorizacion (cabecera X-Usuario-Id)
+  autorizacion:
+    url: ${AUTORIZACION_URL:http://localhost:8082}
+    cache-ttl: 60s

@@ -1,70 +1,110 @@
-export type UserRole = 'public' | 'researcher' | 'senior' | 'auditor' | 'director';
+import type { AccesoUsuario, RespuestaSesion } from '@/lib/autorizacion-api';
 
+/**
+ * Sesión del usuario en el navegador. Los roles y permisos vienen de servicio-autorizacion:
+ * el front no decide quién puede qué, solo muestra u oculta acciones según esos permisos.
+ */
 export interface BioHubUser {
   id: string;
   name: string;
   initials: string;
   email: string;
-  role: UserRole;
+  roles: string[];
+  permisos: string[];
   roleLabel: string;
   institution: string;
   station: string;
+  /** Sesión de invitado: sin cuenta ni contraseña, con los permisos de CIUDADANO. */
+  invitado?: boolean;
 }
 
-export const DEMO_USERS: BioHubUser[] = [
-  {
-    id: 'inv-garcia-01',
-    name: 'Sebastián García',
-    initials: 'SG',
-    email: 'investigador@biohub.gov.co',
-    role: 'researcher',
-    roleLabel: 'Investigador de campo',
-    institution: 'Instituto Nacional de Biodiversidad',
-    station: 'Estación Base Río Tomo — Orinoquía',
-  },
-  {
-    id: 'alt-escobar-02',
-    name: 'Dra. Elena Escobar',
-    initials: 'EE',
-    email: 'altorango@biohub.gov.co',
-    role: 'senior',
-    roleLabel: 'Personal científico de alto rango',
-    institution: 'Comité Científico Nacional BioHub',
-    station: 'Dirección de Corredores Biológicos',
-  },
-  {
-    id: 'aud-bonilla-03',
-    name: 'Sebastián Bonilla',
-    initials: 'SB',
-    email: 'auditor@biohub.gov.co',
-    role: 'auditor',
-    roleLabel: 'Auditor científico',
-    institution: 'Unidad de Trazabilidad Taxonómica',
-    station: 'Archivo Central Bogotá',
-  },
-  {
-    id: 'dir-rodriguez-04',
-    name: 'Dr. Juan D. Rodríguez',
-    initials: 'JR',
-    email: 'director@biohub.gov.co',
-    role: 'director',
-    roleLabel: 'Director científico',
-    institution: 'Dirección General BioHub',
-    station: 'Sede Central',
-  },
-  {
-    id: 'vis-publico-00',
-    name: 'Visitante público',
-    initials: 'VP',
-    email: 'consulta@biohub.gov.co',
-    role: 'public',
-    roleLabel: 'Visitante común',
-    institution: 'Consulta Abierta Ciudadana',
-    station: 'Ventana Pública',
-  },
-];
+/** Id con el que el invitado consulta sus permisos; servicio-autorizacion no permite crear una cuenta con él. */
+export const ID_INVITADO = 'invitado';
 
-const SESSION_STORAGE_KEY = 'biohub_active_session_v1';
+/** Códigos de permiso de servicio-autorizacion que usa la interfaz. */
+export const PERMISOS = {
+  CREAR_HALLAZGO: 'hallazgo:crear',
+  EDITAR_HALLAZGO: 'hallazgo:editar',
+  VALIDAR_HALLAZGO: 'hallazgo:validar',
+  VER_UBICACION_EXACTA: 'ubicacion:ver_exacta',
+  VER_HISTORIAL: 'historial:ver',
+  VER_REPORTES: 'reporte:ver',
+  ADMINISTRAR_ROLES: 'roles:administrar',
+} as const;
+
+const ETIQUETAS_ROL: Record<string, string> = {
+  ADMIN: 'Administrador del sistema',
+  AUTORIDAD_AMBIENTAL: 'Autoridad ambiental',
+  INVESTIGADOR: 'Investigador de campo',
+  CIUDADANO: 'Visitante común',
+  CONSUMIDOR_EXTERNO: 'Consumidor externo',
+};
+
+// Orden para elegir el rol que se muestra cuando el usuario tiene varios.
+const PRIORIDAD_ROL = ['ADMIN', 'AUTORIDAD_AMBIENTAL', 'INVESTIGADOR', 'CONSUMIDOR_EXTERNO', 'CIUDADANO'];
+
+export function etiquetaRoles(roles: string[]): string {
+  const principal = [...roles].sort(
+    (a, b) => indicePrioridad(a) - indicePrioridad(b)
+  )[0];
+  return principal ? ETIQUETAS_ROL[principal] ?? principal : 'Sin rol asignado';
+}
+
+function indicePrioridad(rol: string): number {
+  const i = PRIORIDAD_ROL.indexOf(rol);
+  return i === -1 ? PRIORIDAD_ROL.length : i;
+}
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  return (partes[0]?.[0] ?? '?').concat(partes[1]?.[0] ?? '').toUpperCase();
+}
+
+/** Convierte la respuesta de POST /sesiones en la sesión del front. */
+export function crearSesion(r: RespuestaSesion): BioHubUser {
+  return {
+    id: r.usuarioId,
+    name: r.nombre,
+    initials: iniciales(r.nombre),
+    email: r.correo,
+    roles: r.roles,
+    permisos: r.permisos,
+    roleLabel: etiquetaRoles(r.roles),
+    institution: 'Instituto Nacional de Biodiversidad',
+    station: 'Panel científico BioHub',
+  };
+}
+
+/**
+ * Sesión de invitado. Los permisos vienen de servicio-autorizacion (un usuario sin roles es CIUDADANO);
+ * si no responde, se usan los de CIUDADANO, que solo permiten consultar.
+ */
+export function crearSesionInvitado(acceso: AccesoUsuario | null): BioHubUser {
+  const roles = acceso?.roles ?? ['CIUDADANO'];
+  return {
+    id: ID_INVITADO,
+    name: 'Invitado',
+    initials: 'IN',
+    email: '',
+    roles,
+    permisos: acceso?.permisos ?? ['hallazgo:ver'],
+    roleLabel: etiquetaRoles(roles),
+    institution: 'Consulta abierta ciudadana',
+    station: 'Acceso como invitado',
+    invitado: true,
+  };
+}
+
+/** Actualiza roles y permisos de una sesión guardada con lo que diga hoy el backend. */
+export function actualizarAcceso(user: BioHubUser, acceso: AccesoUsuario): BioHubUser {
+  return { ...user, roles: acceso.roles, permisos: acceso.permisos, roleLabel: etiquetaRoles(acceso.roles) };
+}
+
+export function tienePermiso(user: BioHubUser | null | undefined, permiso: string): boolean {
+  return !!user && user.permisos.includes(permiso);
+}
+
+const SESSION_STORAGE_KEY = 'biohub_active_session_v2';
 
 export function getStoredSession(): BioHubUser | null {
   if (typeof window === 'undefined') return null;
@@ -72,8 +112,7 @@ export function getStoredSession(): BioHubUser | null {
     const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as BioHubUser;
-    const found = DEMO_USERS.find((u) => u.id === parsed.id);
-    return found || parsed;
+    return Array.isArray(parsed?.permisos) ? parsed : null;
   } catch {
     return null;
   }
@@ -92,23 +131,28 @@ export function clearStoredSession(): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.localStorage.removeItem('biohub_active_session_v1'); // sesión demo antigua
   } catch {
     // ignore storage errors
   }
 }
 
-/**
- * Validación centralizada de permisos para acceso a coordenadas exactas
- * de especies sensibles.
- */
-export function canViewExactCoordinates(role: UserRole): boolean {
-  return role === 'senior' || role === 'director' || role === 'auditor';
+/** Coordenadas exactas de especies sensibles: permiso ubicacion:ver_exacta. */
+export function canViewExactCoordinates(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.VER_UBICACION_EXACTA);
 }
 
-export function canRegisterFieldData(role: UserRole): boolean {
-  return role === 'researcher' || role === 'senior' || role === 'director';
+/** Registrar avistamientos y hallazgos: permiso hallazgo:crear. */
+export function canRegisterFieldData(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.CREAR_HALLAZGO);
 }
 
-export function canAuthorizeReclassification(role: UserRole): boolean {
-  return role === 'senior' || role === 'director';
+/** Modificar y reclasificar hallazgos: permiso hallazgo:editar. */
+export function canEditFindings(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.EDITAR_HALLAZGO);
+}
+
+/** Autorizar reclasificaciones: permiso hallazgo:validar. */
+export function canAuthorizeReclassification(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.VALIDAR_HALLAZGO);
 }

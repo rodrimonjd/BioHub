@@ -77,6 +77,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      servicio-autorizacion:
+        condition: service_started
     environment:
       BD_HOST: mysql
       BD_PUERTO: 3306
@@ -87,6 +89,7 @@ services:
       RABBIT_PUERTO: 5672
       RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
       RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      AUTORIZACION_URL: http://servicio-autorizacion:8082
       TZ: America/Bogota
     ports:
       - "8081:8081"

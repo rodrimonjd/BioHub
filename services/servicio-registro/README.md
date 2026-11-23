@@ -2,7 +2,17 @@
 
 Hallazgos, fichas taxonómicas flexibles, evidencias, equipos y avistamientos. BD documental (MongoDB). Publica eventos con patrón Outbox.
 
-**ASR:** ASR-06, ASR-08, ASR-09
+**ASR:** ASR-05, ASR-06, ASR-08, ASR-09
+
+**Permisos (ASR-05):** toda escritura exige la cabecera `X-Usuario-Id` y registro pregunta a `servicio-autorizacion` (`POST /verificar`, con caché de 60 s) si ese usuario tiene el permiso. Sin cabecera o sin permiso responde 403; si autorización no responde, 503 (no se escribe nada).
+
+| Operación | Permiso |
+|---|---|
+| `POST /hallazgos`, `POST /avistamientos` | `hallazgo:crear` |
+| `PATCH /hallazgos/{id}`, `POST /hallazgos/{id}/reclasificacion` | `hallazgo:editar` (y el `autorizador` de la reclasificación debe tener `hallazgo:validar`) |
+| `POST /equipos`, `PUT /equipos/{id}/responsable`, `POST /expediciones`, `POST /expediciones/{id}/equipos` | `equipo:gestionar` |
+
+El investigador o autor que se guarda es **el de la cabecera**: los campos `investigadorId` y `autor` del cuerpo se ignoran, para que nadie pueda registrar a nombre de otro. Las lecturas (`GET`) no exigen permiso. Variable de entorno: `AUTORIZACION_URL` (`http://localhost:8082`).
 
 **Eventos que publica:** se guardan en la tabla `outbox_evento` en la misma transaccion del cambio y `RetransmisorOutbox` los envia cada 5 s a RabbitMQ.
 

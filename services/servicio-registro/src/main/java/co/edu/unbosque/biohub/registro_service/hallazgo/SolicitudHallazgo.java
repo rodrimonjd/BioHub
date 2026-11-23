@@ -9,8 +9,9 @@ import java.util.UUID;
 
 import co.edu.unbosque.biohub.registro_service.evidencia.SolicitudEvidencia;
 
+/** investigadorId se toma de la cabecera X-Usuario-Id: el valor que venga en el cuerpo se ignora. */
 public record SolicitudHallazgo(
-        @NotBlank String investigadorId,
+        String investigadorId,
         @NotNull UUID especieId,
         String fichaId,
         @NotNull @PastOrPresent Instant fecha,
@@ -20,4 +21,10 @@ public record SolicitudHallazgo(
         @NotBlank String departamento,
         String region,
         UUID expedicionId,
-        @Valid List<SolicitudEvidencia> evidencias) { }
+        @Valid List<SolicitudEvidencia> evidencias) {
+
+    public SolicitudHallazgo conInvestigador(String usuarioId) {
+        return new SolicitudHallazgo(usuarioId, especieId, fichaId, fecha, descripcion, latitud, longitud,
+                departamento, region, expedicionId, evidencias);
+    }
+}

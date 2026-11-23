@@ -1,10 +1,11 @@
 import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { ConservationBadge, ConservationStatus } from '@/components/ui/ConservationBadge';
-import { canViewExactCoordinates, UserRole } from '@/lib/permissions';
-
 export interface ProtectedLocationProps {
-  role: UserRole;
+  /** Decisión tomada con los permisos de servicio-autorizacion (ubicacion:ver_exacta). */
+  puedeVerExacta: boolean;
+  /** Texto del nivel de visibilidad que se está mostrando (p. ej. el rol del usuario). */
+  nivelLabel: string;
   speciesCommonName: string;
   speciesScientificName: string;
   status: ConservationStatus;
@@ -13,16 +14,9 @@ export interface ProtectedLocationProps {
   altitude: string;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  public: 'Visitante común',
-  researcher: 'Investigador de campo',
-  senior: 'Personal científico de alto rango',
-  auditor: 'Auditor científico',
-  director: 'Director científico',
-};
-
 export function ProtectedLocation({
-  role,
+  puedeVerExacta,
+  nivelLabel,
   speciesCommonName,
   speciesScientificName,
   status,
@@ -30,7 +24,7 @@ export function ProtectedLocation({
   exactCoordinates,
   altitude,
 }: ProtectedLocationProps) {
-  const isAuthorized = canViewExactCoordinates(role);
+  const isAuthorized = puedeVerExacta;
 
   return (
     <Card as="section" aria-labelledby="location-heading" className="space-y-5">
@@ -187,7 +181,7 @@ export function ProtectedLocation({
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
         <span>Nivel de visibilidad activo en esta vista:</span>
-        <span className="font-mono font-medium text-ink">{ROLE_LABELS[role]}</span>
+        <span className="font-mono font-medium text-ink">{nivelLabel}</span>
       </div>
     </Card>
   );
