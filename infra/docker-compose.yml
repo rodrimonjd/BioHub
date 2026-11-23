@@ -5,6 +5,9 @@ services:
     image: mysql:8.4
     container_name: biohub-mysql
     restart: unless-stopped
+    # Permite que los usuarios de cada servicio creen triggers con Flyway aunque el binlog esté activo
+    # (servicio-historial usa triggers para que su historial sea de solo inserción).
+    command: ["--log-bin-trust-function-creators=1"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       TZ: America/Bogota
@@ -134,6 +137,70 @@ services:
       TZ: America/Bogota
     ports:
       - "8084:8084"
+
+  servicio-reportes:
+    build:
+      context: ../services/servicio-reportes
+    container_name: biohub-servicio-reportes
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: reportes_db
+      BD_USUARIO: reportes_user
+      BD_CLAVE: reportes_pass
+      RABBIT_HOST: rabbitmq
+      RABBIT_PUERTO: 5672
+      RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
+      RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      TZ: America/Bogota
+    ports:
+      - "8085:8085"
+
+  servicio-historial:
+    build:
+      context: ../services/servicio-historial
+    container_name: biohub-servicio-historial
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: historial_db
+      BD_USUARIO: historial_user
+      BD_CLAVE: historial_pass
+      RABBIT_HOST: rabbitmq
+      RABBIT_PUERTO: 5672
+      RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
+      RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      AUTORIZACION_URL: http://servicio-autorizacion:8082
+      TZ: America/Bogota
+    ports:
+      - "8086:8086"
+
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+    container_name: biohub-api-gateway
+    restart: unless-stopped
+    depends_on:
+      - servicio-autorizacion
+      - servicio-consulta-publica
+    environment:
+      AUTORIZACION_URL: http://servicio-autorizacion:8082
+      CONSULTA_URL: http://servicio-consulta-publica:8083
+      TZ: America/Bogota
+    ports:
+      - "8080:8080"
 
 volumes:
   mysql_data:

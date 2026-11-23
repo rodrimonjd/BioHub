@@ -17,6 +17,7 @@ import static java.util.stream.Collectors.toCollection;
 public class ServicioAutorizacion {
 
     public static final String ROL_POR_DEFECTO = "CIUDADANO";
+    public static final String PERMISO_API_EXTERNA = "api_externa:consultar";
 
     private final UsuarioRolRepositorio usuarioRoles;
     private final RolRepositorio roles;
@@ -49,6 +50,10 @@ public class ServicioAutorizacion {
 
     public boolean verificar(String usuarioId, String permiso) {
         return permisosDe(usuarioId).contains(permiso);
+    }
+
+    public boolean validarConsumidor(String consumidorId) {
+        return verificar(consumidorId, PERMISO_API_EXTERNA);
     }
 
     public NivelVisibilidad visibilidadUbicacion(String usuarioId, String categoriaUicn) {

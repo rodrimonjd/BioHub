@@ -39,6 +39,7 @@ Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL,
 |---|---|---|
 | POST | `/verificar` | `{usuarioId, permiso}` → `{permitido}` |
 | GET | `/usuarios/{usuarioId}/permisos` | Roles y permisos efectivos |
+| POST | `/consumidores/validar` | `{consumidorId}` → `{valido}`. Lo usa el API Gateway: es válido si el consumidor tiene el permiso `api_externa:consultar` (rol `CONSUMIDOR_EXTERNO`, migración V3) |
 | POST | `/visibilidad-ubicacion` | `{usuarioId?, categoriaConservacion}` → `EXACTA` / `REGION` / `DEPARTAMENTO` |
 | GET/POST | `/roles` | Listar / crear roles (admin) |
 | PUT | `/roles/{nombre}/permisos` | Reemplazar los permisos de un rol (admin) |

@@ -18,6 +18,9 @@ public final class Dtos {
 
     public record RespuestaAccesoUsuario(String usuarioId, Set<String> roles, Set<String> permisos) {}
 
+    public record SolicitudConsumidor(@NotBlank(message = "es obligatorio") String consumidorId) {}
+    public record RespuestaConsumidor(String consumidorId, boolean valido) {}
+
     public record SolicitudVisibilidad(String usuarioId, String categoriaConservacion) {}
     public record RespuestaVisibilidad(NivelVisibilidad nivel, boolean coordenadasExactas) {}
 

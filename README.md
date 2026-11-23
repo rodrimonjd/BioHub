@@ -17,7 +17,7 @@ Microservicios + arquitectura orientada a eventos (EDA) + API Gateway. Cada serv
 | Servicio de registro (hallazgos, evidencias, expediciones, equipos de campo, avistamientos) | `services/servicio-registro` | MySQL (`registro_db`) |
 | Servicio de taxonomía (fichas taxonómicas flexibles y sus atributos) | `services/servicio-taxonomia` (por crear) | MongoDB |
 | Servicio de consulta pública (modelo de lectura con caché) | `services/servicio-consulta-publica` | BD de lectura (réplica + caché) |
-| Servicio de historial (versiones inmutables) | `services/servicio-historial` | Almacenamiento de eventos |
+| Servicio de historial (versiones inmutables) | `services/servicio-historial` | MySQL (`historial_db`, solo inserción) |
 | Servicio de reportes (índices de presión, segundo plano) | `services/servicio-reportes` | BD analítica |
 | Message broker (RabbitMQ, AMQP) | `infra/` | — |
 
