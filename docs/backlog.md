@@ -1,6 +1,6 @@
 # Historias de usuario comprometidas (Entrega 2) — 93 puntos
 
-Equipo de 3 personas: **Juan David Rodriguez** y **Raul Escobar** (backend) y **Sebastian Garcia** (aplicación web).
+Equipo de 5 personas: **Juan David Rodriguez**, **Raul Escobar**, **Sebastian Garcia**, **Julian Rodriguez**, **Sebastian Bonilla**.
 
 - **Responsable** es quien implementa el servicio (backend).
 - **Interfaz web** indica que la historia tiene pantalla en `services/web-app`, hecha por Sebastian Garcia.
