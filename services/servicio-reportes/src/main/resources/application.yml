@@ -1,0 +1,48 @@
+server:
+  port: ${PUERTO_SERVIDOR:8085}
+
+spring:
+  application:
+    name: servicio-reportes
+  web:
+    error:
+      include-message: always
+  datasource:
+    url: jdbc:mysql://${BD_HOST:localhost}:${BD_PUERTO:3306}/${BD_NOMBRE:reportes_db}?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    username: ${BD_USUARIO:reportes_user}
+    password: ${BD_CLAVE:reportes_pass}
+  jpa:
+    hibernate:
+      ddl-auto: validate      # el esquema lo maneja Flyway
+    open-in-view: false
+  flyway:
+    enabled: true
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PUERTO:5672}
+    username: ${RABBIT_USUARIO:biohub}
+    password: ${RABBIT_CLAVE:biohub}
+    listener:
+      simple:
+        # Politica de reintentos: 1 intento + 2 reintentos con espera creciente (1 s, 2 s).
+        # Si sigue fallando, el mensaje va a la cola de errores (dead-letter).
+        retry:
+          enabled: true
+          max-retries: 2
+          initial-interval: 1s
+          multiplier: 2
+        default-requeue-rejected: false
+
+reportes:
+  eventos:
+    exchange: biohub.eventos                     # mismo exchange que declara servicio-registro
+    cola: reportes.avistamientos
+    cola-errores: reportes.avistamientos.dlq
+  # Cada cuanto se revisan los reportes en cola para generarlos
+  intervalo-generacion-ms: 3000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
