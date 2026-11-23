@@ -135,6 +135,30 @@ services:
     ports:
       - "8084:8084"
 
+  servicio-reportes:
+    build:
+      context: ../services/servicio-reportes
+    container_name: biohub-servicio-reportes
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      BD_HOST: mysql
+      BD_PUERTO: 3306
+      BD_NOMBRE: reportes_db
+      BD_USUARIO: reportes_user
+      BD_CLAVE: reportes_pass
+      RABBIT_HOST: rabbitmq
+      RABBIT_PUERTO: 5672
+      RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
+      RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      TZ: America/Bogota
+    ports:
+      - "8085:8085"
+
   api-gateway:
     build:
       context: ../services/api-gateway
