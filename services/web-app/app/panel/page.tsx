@@ -16,7 +16,7 @@ import {
 } from '@/components/biohub/HistoryTimeline';
 import { ProtectedLocation } from '@/components/biohub/ProtectedLocation';
 import { ApiUsagePanel } from '@/components/biohub/ApiUsagePanel';
-import { ReportStatus } from '@/components/biohub/ReportStatus';
+import { ReportesPanel } from '@/components/biohub/ReportesPanel';
 import { FieldStationWorkspace } from '@/components/biohub/FieldStationWorkspace';
 import {
   actualizarAcceso,
@@ -630,12 +630,7 @@ export default function PanelPage() {
                 <p className="font-mono text-xs uppercase tracking-wider text-water-600 font-semibold">
                   Reportes analíticos sin bloqueo de campo
                 </p>
-                <ReportStatus
-                  reportTitle="Índice mensual de presión sobre ecosistemas y deforestación"
-                  reportId="REP-2026-11"
-                  recordsProcessed="2.450.000 registros"
-                  state="generando"
-                />
+                <ReportesPanel currentUser={currentUser} />
               </div>
             </div>
           </div>
