@@ -31,9 +31,14 @@ import {
 import { obtenerAcceso } from '@/lib/autorizacion-api';
 import { AdminUsuarios } from '@/components/biohub/AdminUsuarios';
 import { BACKEND_SEED_SPECIES } from '@/lib/registro-api';
+import {
+  cargarInventario,
+  EspecieRegistro,
+  FichaTaxonomica,
+  guardarAtributoEnFicha,
+} from '@/lib/taxonomia-api';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 
-// Categoría UICN unificada desde BACKEND_SEED_SPECIES (Panthera onca -> NT, Crocodylus intermedius -> CR, Ara macao -> LC)
 const JAGUAR_SEED = BACKEND_SEED_SPECIES[1];
 
 const INITIAL_SPECIES_CARDS: SpeciesCardProps[] = [
@@ -81,6 +86,33 @@ const INITIAL_SPECIES_CARDS: SpeciesCardProps[] = [
   },
 ];
 
+const ILUSTRACION_POR_ESPECIE: Record<string, SpeciesCardProps['illustrationVariant']> = {
+  'Crocodylus intermedius': 'reptile',
+  'Ara macao': 'avian',
+};
+
+function codigoFicha(especieId: string): string {
+  return especieId.slice(0, 8).toUpperCase();
+}
+
+function tarjetaDesde(especie: EspecieRegistro, ficha: FichaTaxonomica | undefined): SpeciesCardProps {
+  const atributos = (ficha?.atributos ?? [])
+    .filter((a) => a.atributo && a.valor)
+    .map((a) => ({
+      label: a.atributo!.unidad ? `${a.atributo!.nombre} (${a.atributo!.unidad})` : a.atributo!.nombre,
+      value: a.valor as string,
+    }));
+  return {
+    id: codigoFicha(especie.id),
+    commonName: especie.nombreComun,
+    scientificName: especie.nombreCientifico,
+    status: especie.estadoConservacion as ConservationStatus,
+    specimenCode: ficha ? `Ficha v${ficha.version}` : 'Sin ficha taxonómica',
+    illustrationVariant: ILUSTRACION_POR_ESPECIE[especie.nombreCientifico],
+    attributes: atributos,
+  };
+}
+
 const INITIAL_HISTORY_EVENTS: HistoryEventItem[] = [
   {
     id: 'EVT-2026-0114',
@@ -109,22 +141,32 @@ export default function PanelPage() {
   const [currentUser, setCurrentUser] = useState<BioHubUser | null>(null);
   const [checkingSession, setCheckingSession] = useState<boolean>(true);
 
+<<<<<<< HEAD
   // Estado de fichas taxonómicas
+=======
+  const [locationPreviewRole, setLocationPreviewRole] = useState<UserRole>('public');
+
+>>>>>>> origin/desarrollo
   const [speciesList, setSpeciesList] = useState<SpeciesCardProps[]>(
     INITIAL_SPECIES_CARDS
   );
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ConservationStatus>('ALL');
 
-  // Formulario para agregar atributo a una ficha
   const [selectedCardIdForAttr, setSelectedCardIdForAttr] = useState<string>(
     INITIAL_SPECIES_CARDS[0].id
   );
   const [newAttrLabel, setNewAttrLabel] = useState<string>('');
   const [newAttrValue, setNewAttrValue] = useState<string>('');
   const [attrSavedNotice, setAttrSavedNotice] = useState<string | null>(null);
+  const [attrError, setAttrError] = useState<string | null>(null);
+  const [guardandoAtributo, setGuardandoAtributo] = useState<boolean>(false);
 
-  // Historial científico
+  const [inventario, setInventario] = useState<{
+    especies: EspecieRegistro[];
+    fichas: FichaTaxonomica[];
+  } | null>(null);
+
   const [activeFindingId, setActiveFindingId] = useState<string>('HAL-A1B2C3D4');
   const [historyEvents, setHistoryEvents] = useState<HistoryEventItem[]>(
     INITIAL_HISTORY_EVENTS
@@ -149,7 +191,27 @@ export default function PanelPage() {
     });
   }, [router]);
 
+<<<<<<< HEAD
   // Al cerrar sesión se vuelve a la página principal
+=======
+  const recargarInventario = async () => {
+    const datos = await cargarInventario();
+    if (!datos) return;
+    setInventario(datos);
+    const tarjetas = datos.especies.map((especie) =>
+      tarjetaDesde(especie, datos.fichas.find((f) => f.especieId === especie.id))
+    );
+    setSpeciesList(tarjetas);
+    setSelectedCardIdForAttr((actual) =>
+      tarjetas.some((t) => t.id === actual) ? actual : tarjetas[0]?.id ?? actual
+    );
+  };
+
+  useEffect(() => {
+    recargarInventario();
+  }, []);
+
+>>>>>>> origin/desarrollo
   const handleLogout = () => {
     clearStoredSession();
     setCurrentUser(null);
@@ -170,9 +232,38 @@ export default function PanelPage() {
     return matchesText && matchesStatus;
   });
 
-  const handleAddDynamicAttribute = (e: React.FormEvent) => {
+  const handleAddDynamicAttribute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAttrLabel.trim() || !newAttrValue.trim()) return;
+    setAttrError(null);
+    setAttrSavedNotice(null);
+
+    const especie = inventario?.especies.find((sp) => codigoFicha(sp.id) === selectedCardIdForAttr);
+    if (inventario && especie && currentUser) {
+      // Conectado: se guarda en servicio-taxonomia
+      setGuardandoAtributo(true);
+      try {
+        const ficha = await guardarAtributoEnFicha({
+          especieId: especie.id,
+          ficha: inventario.fichas.find((f) => f.especieId === especie.id) ?? null,
+          nombre: newAttrLabel.trim(),
+          valor: newAttrValue.trim(),
+          autor: currentUser.id,
+        });
+        setAttrSavedNotice(
+          `Atributo "${newAttrLabel.trim()}" guardado en la ficha de ${especie.nombreComun} (versión ${ficha.version}).`
+        );
+        setNewAttrLabel('');
+        setNewAttrValue('');
+        await recargarInventario();
+      } catch (error) {
+        setAttrError(error instanceof Error ? error.message : 'No se pudo guardar el atributo.');
+      } finally {
+        setGuardandoAtributo(false);
+      }
+      return;
+    }
+
     setSpeciesList((prev) =>
       prev.map((card) =>
         card.id === selectedCardIdForAttr
@@ -325,6 +416,11 @@ export default function PanelPage() {
                     Explora las fichas registradas en estación base y despliega los
                     atributos específicos medidos para cada ejemplar.
                   </p>
+                  <p className="font-mono text-xs text-ink-muted">
+                    {inventario
+                      ? 'Conectado a servicio-taxonomía · especies de servicio-registro'
+                      : 'Fichas de demostración (servicio-taxonomía sin conexión)'}
+                  </p>
                 </div>
 
                 {/* Buscador amplio y filtro por estado UICN */}
@@ -399,10 +495,15 @@ export default function PanelPage() {
                   </p>
                 </div>
 
-                <div aria-live="polite">
+                <div aria-live="polite" className="space-y-2">
                   {attrSavedNotice && (
                     <p className="rounded-md border border-iucn-lc bg-iucn-lc/10 px-3 py-2 font-mono text-xs text-ink">
                       {attrSavedNotice}
+                    </p>
+                  )}
+                  {attrError && (
+                    <p role="alert" className="rounded-md border border-iucn-cr bg-iucn-cr/10 px-3 py-2 font-mono text-xs text-ink">
+                      {attrError}
                     </p>
                   )}
                 </div>
@@ -463,8 +564,13 @@ export default function PanelPage() {
                   </Field>
 
                   <div className="md:col-span-2">
-                    <Button type="submit" variant="ghost" className="w-full text-xs">
-                      + Agregar atributo
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      className="w-full text-xs"
+                      disabled={guardandoAtributo}
+                    >
+                      {guardandoAtributo ? 'Guardando...' : '+ Agregar atributo'}
                     </Button>
                   </div>
                 </form>
