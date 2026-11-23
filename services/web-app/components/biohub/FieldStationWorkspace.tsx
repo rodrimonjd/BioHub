@@ -9,11 +9,15 @@ import {
   BioHubUser,
   canRegisterFieldData,
   canAuthorizeReclassification,
+  canEditFindings,
+  PERMISOS,
 } from '@/lib/permissions';
+import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
 import {
   AvistamientoRequest,
   AvistamientoResponse,
   BACKEND_SEED_SPECIES,
+  ErrorRechazado,
   EvidenciaRequest,
   HallazgoResponse,
   listarAvistamientos,
@@ -188,13 +192,27 @@ export function FieldStationWorkspace({
     BACKEND_SEED_SPECIES[1].id
   );
   const [recMotivo, setRecMotivo] = useState<string>('');
-  const [recAutorizador, setRecAutorizador] = useState<string>('alt-escobar-02');
+  const [recAutorizador, setRecAutorizador] = useState<string>('');
+  // Quién puede autorizar: cuentas con el permiso hallazgo:validar según servicio-autorizacion
+  const [autorizadores, setAutorizadores] = useState<ResumenUsuario[]>([]);
 
   // Modal nativo <dialog> para confirmación de reclasificación
   const confirmDialogRef = useRef<HTMLDialogElement | null>(null);
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
 
-  const canWrite = canRegisterFieldData(currentUser.role);
+  const canWrite = canRegisterFieldData(currentUser);
+  const canEdit = canEditFindings(currentUser);
+
+  useEffect(() => {
+    listarUsuariosConPermiso(currentUser.id, PERMISOS.VALIDAR_HALLAZGO).then((lista) => {
+      setAutorizadores(lista);
+      const propio = lista.find((u) => u.id === currentUser.id);
+      setRecAutorizador((propio ?? lista[0])?.id ?? '');
+    });
+  }, [currentUser.id]);
+
+  const nombreAutorizador = (id: string) =>
+    autorizadores.find((u) => u.id === id)?.nombre ?? id;
 
   const syncWithBackend = async () => {
     const res = await listarAvistamientos();
@@ -227,7 +245,7 @@ export function FieldStationWorkspace({
     setLoading(true);
     setStatusBanner(null);
     try {
-      const saved = await registrarAvistamiento(item.originalPayload);
+      const saved = await registrarAvistamiento(item.originalPayload, currentUser.id);
       setBackendOnline(true);
       setAvistamientos((prev) =>
         prev.map((av) => (av.id === item.id ? { ...saved, pendingSync: false } : av))
@@ -236,7 +254,11 @@ export function FieldStationWorkspace({
         type: 'ok',
         text: `Avistamiento sincronizado con el servidor central (${saved.id.slice(0, 8)}).`,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ErrorRechazado) {
+        setStatusBanner({ type: 'err', text: error.message });
+        return;
+      }
       setBackendOnline(false);
       setStatusBanner({
         type: 'warn',
@@ -255,7 +277,7 @@ export function FieldStationWorkspace({
     if (!canWrite) {
       setStatusBanner({
         type: 'err',
-        text: 'Tu perfil actual es de solo lectura. Cambia a un perfil de Investigador o Científico para registrar datos.',
+        text: 'Tu cuenta no tiene el permiso para registrar datos de campo (hallazgo:crear).',
       });
       return;
     }
@@ -276,7 +298,7 @@ export function FieldStationWorkspace({
     };
 
     try {
-      const saved = await registrarAvistamiento(payload);
+      const saved = await registrarAvistamiento(payload, currentUser.id);
       setBackendOnline(true);
       setAvistamientos((prev) => [{ ...saved, pendingSync: false }, ...prev]);
       setStatusBanner({
@@ -286,7 +308,11 @@ export function FieldStationWorkspace({
           8
         )}.`,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ErrorRechazado) {
+        setStatusBanner({ type: 'err', text: error.message });
+        return;
+      }
       setBackendOnline(false);
       const espObj = BACKEND_SEED_SPECIES.find((s) => s.id === avEspecieId);
       const localSaved: AvistamientoResponse = {
@@ -355,7 +381,7 @@ export function FieldStationWorkspace({
     if (!canWrite) {
       setStatusBanner({
         type: 'err',
-        text: 'Tu perfil actual es de solo lectura. Inicia sesión como Investigador para registrar hallazgos.',
+        text: 'Tu cuenta no tiene el permiso para registrar hallazgos (hallazgo:crear).',
       });
       return;
     }
@@ -420,7 +446,7 @@ export function FieldStationWorkspace({
       BACKEND_SEED_SPECIES[0];
 
     try {
-      const result = await registrarHallazgo(payload);
+      const result = await registrarHallazgo(payload, currentUser.id);
       setBackendOnline(true);
       const created: HallazgoResponse = result.hallazgo || {
         id: result.id || crypto.randomUUID(),
@@ -486,7 +512,11 @@ export function FieldStationWorkspace({
           8
         )}.`,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ErrorRechazado) {
+        setStatusBanner({ type: 'err', text: error.message });
+        return;
+      }
       setBackendOnline(false);
       const localCreated: HallazgoResponse = {
         id: crypto.randomUUID(),
@@ -592,6 +622,13 @@ export function FieldStationWorkspace({
   const handleModificarHallazgo = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusBanner(null);
+    if (!canEdit) {
+      setStatusBanner({
+        type: 'err',
+        text: 'Tu cuenta no tiene el permiso para modificar hallazgos (hallazgo:editar).',
+      });
+      return;
+    }
     const current = hallazgos.find((h) => h.id === targetHallazgoId);
     if (!current) return;
 
@@ -616,7 +653,7 @@ export function FieldStationWorkspace({
         campo: modCampo,
         valor: modValor.trim(),
         autor: currentUser.id,
-      });
+      }, currentUser.id);
       setBackendOnline(true);
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
@@ -638,7 +675,11 @@ export function FieldStationWorkspace({
         type: 'ok',
         text: `Hallazgo actualizado a la versión v${updated.versionActual}.`,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ErrorRechazado) {
+        setStatusBanner({ type: 'err', text: error.message });
+        return;
+      }
       const nextVersion = current.versionActual + 1;
       const localUpdated: HallazgoResponse = {
         ...current,
@@ -675,6 +716,13 @@ export function FieldStationWorkspace({
   const handlePrepareReclasificacion = (e: React.FormEvent) => {
     e.preventDefault();
     setStatusBanner(null);
+    if (!canEdit) {
+      setStatusBanner({
+        type: 'err',
+        text: 'Tu cuenta no tiene el permiso para reclasificar hallazgos (hallazgo:editar).',
+      });
+      return;
+    }
     const current = hallazgos.find((h) => h.id === targetHallazgoId);
     if (!current) return;
 
@@ -690,6 +738,14 @@ export function FieldStationWorkspace({
       setStatusBanner({
         type: 'err',
         text: 'Debes indicar la justificación científica de la reclasificación.',
+      });
+      return;
+    }
+
+    if (!recAutorizador) {
+      setStatusBanner({
+        type: 'err',
+        text: 'No hay ningún científico autorizador disponible. Revisa la conexión con el servicio de autorización.',
       });
       return;
     }
@@ -721,7 +777,7 @@ export function FieldStationWorkspace({
         motivo: recMotivo.trim(),
         autor: currentUser.id,
         autorizador: recAutorizador,
-      });
+      }, currentUser.id);
       setBackendOnline(true);
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
@@ -733,7 +789,7 @@ export function FieldStationWorkspace({
           date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
           previousBelief: current.especie,
           currentKnowledge: updated.especie,
-          authorizedBy: `${currentUser.name} · Autorizó: ${recAutorizador}`,
+          authorizedBy: `${currentUser.name} · Autorizó: ${nombreAutorizador(recAutorizador)}`,
           reason: recMotivo.trim(),
         },
         updated.id.slice(0, 8).toUpperCase()
@@ -743,7 +799,11 @@ export function FieldStationWorkspace({
         type: 'ok',
         text: `Reclasificación sincronizada (${current.especie} → ${updated.especie}, v${updated.versionActual}).`,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ErrorRechazado) {
+        setStatusBanner({ type: 'err', text: error.message });
+        return;
+      }
       const nextVersion = current.versionActual + 1;
       const localUpdated: HallazgoResponse = {
         ...current,
@@ -762,7 +822,7 @@ export function FieldStationWorkspace({
           date: new Date().toISOString().replace('T', ' · ').slice(0, 18) + ' UTC',
           previousBelief: current.especie,
           currentKnowledge: nuevaEsp.scientificName,
-          authorizedBy: `${currentUser.name} · Autorizó: ${recAutorizador}`,
+          authorizedBy: `${currentUser.name} · Autorizó: ${nombreAutorizador(recAutorizador)}`,
           reason: recMotivo.trim(),
         },
         current.id.slice(0, 8).toUpperCase()
@@ -890,6 +950,8 @@ export function FieldStationWorkspace({
       {/* PESTAÑA 1: AVISTAMIENTOS */}
       {activeTab === 'avistamientos' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* El formulario solo aparece si la cuenta puede registrar (hallazgo:crear); el invitado no lo ve */}
+          {canWrite && (
           <Card as="section" className="lg:col-span-5 space-y-4">
             <div className="border-b border-line pb-3">
               <span className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
@@ -1010,9 +1072,10 @@ export function FieldStationWorkspace({
               </Button>
             </form>
           </Card>
+          )}
 
-          {/* Bitácora con layout unificado y paginación incremental */}
-          <Card as="section" className="lg:col-span-7 space-y-4">
+          {/* Bitácora con layout unificado y paginación incremental (a todo el ancho si no hay formulario) */}
+          <Card as="section" className={`${canWrite ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-4`}>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
               <div>
                 <span className="font-mono text-xs uppercase tracking-wider text-ink-muted">
@@ -1616,10 +1679,14 @@ export function FieldStationWorkspace({
                       onChange={(e) => setRecAutorizador(e.target.value)}
                       className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                     >
-                      <option value="Dra. Elena Escobar">Dra. Elena Escobar</option>
-                      <option value="Dr. Juan D. Rodríguez">
-                        Dr. Juan D. Rodríguez
-                      </option>
+                      {autorizadores.length === 0 && (
+                        <option value="">Sin autorizadores disponibles</option>
+                      )}
+                      {autorizadores.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.nombre}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                 </div>
@@ -1630,7 +1697,7 @@ export function FieldStationWorkspace({
                   disabled={loading}
                   className="w-full"
                 >
-                  {canAuthorizeReclassification(currentUser.role)
+                  {canAuthorizeReclassification(currentUser)
                     ? 'Revisar y autorizar reclasificación'
                     : 'Revisar y registrar reclasificación'}
                 </Button>
@@ -1681,7 +1748,7 @@ export function FieldStationWorkspace({
                 <p className="mt-0.5 text-ink">{recMotivo}</p>
               </div>
               <div className="border-t border-line pt-2 font-mono text-[11px] text-ink-muted">
-                Solicita: {currentUser.name} · Autoriza: {recAutorizador} · Nueva versión: v
+                Solicita: {currentUser.name} · Autoriza: {nombreAutorizador(recAutorizador)} · Nueva versión: v
                 {selectedHallazgo.versionActual + 1}
               </div>
             </div>

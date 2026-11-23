@@ -19,11 +19,17 @@ import { ApiUsagePanel } from '@/components/biohub/ApiUsagePanel';
 import { ReportStatus } from '@/components/biohub/ReportStatus';
 import { FieldStationWorkspace } from '@/components/biohub/FieldStationWorkspace';
 import {
+  actualizarAcceso,
   BioHubUser,
+  canViewExactCoordinates,
   clearStoredSession,
   getStoredSession,
-  UserRole,
+  PERMISOS,
+  saveStoredSession,
+  tienePermiso,
 } from '@/lib/permissions';
+import { obtenerAcceso } from '@/lib/autorizacion-api';
+import { AdminUsuarios } from '@/components/biohub/AdminUsuarios';
 import { BACKEND_SEED_SPECIES } from '@/lib/registro-api';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 
@@ -103,9 +109,6 @@ export default function PanelPage() {
   const [currentUser, setCurrentUser] = useState<BioHubUser | null>(null);
   const [checkingSession, setCheckingSession] = useState<boolean>(true);
 
-  // Vista previa local "Ver como..." para la tarjeta del corredor biológico (sin alterar la sesión real)
-  const [locationPreviewRole, setLocationPreviewRole] = useState<UserRole>('public');
-
   // Estado de fichas taxonómicas
   const [speciesList, setSpeciesList] = useState<SpeciesCardProps[]>(
     INITIAL_SPECIES_CARDS
@@ -135,14 +138,22 @@ export default function PanelPage() {
       return;
     }
     setCurrentUser(stored);
-    setLocationPreviewRole(stored.role);
     setCheckingSession(false);
+
+    // Los permisos pueden haber cambiado desde el inicio de sesión: se piden de nuevo a autorización.
+    obtenerAcceso(stored.id).then((acceso) => {
+      if (!acceso) return; // servicio caído: se mantiene la sesión guardada
+      const actualizado = actualizarAcceso(stored, acceso);
+      saveStoredSession(actualizado);
+      setCurrentUser(actualizado);
+    });
   }, [router]);
 
+  // Al cerrar sesión se vuelve a la página principal
   const handleLogout = () => {
     clearStoredSession();
     setCurrentUser(null);
-    router.push('/login');
+    router.push('/');
   };
 
   const filteredSpecies = speciesList.filter((sp) => {
@@ -265,6 +276,31 @@ export default function PanelPage() {
             />
           </div>
         </Section>
+
+        {/* ADMINISTRACIÓN DE USUARIOS: solo con el permiso roles:administrar */}
+        {tienePermiso(currentUser, PERMISOS.ADMINISTRAR_ROLES) && (
+          <Section
+            id="administracion"
+            aria-labelledby="admin-heading"
+            className="border-t border-line"
+          >
+            <div className="space-y-8">
+              <div className="max-w-3xl space-y-2">
+                <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+                  Administración · Acceso controlado
+                </p>
+                <h2 id="admin-heading" className="font-serif text-3xl font-semibold text-ink">
+                  Usuarios y roles
+                </h2>
+                <p className="text-sm text-ink-muted">
+                  Registra las cuentas institucionales del personal y asigna su rol. Los permisos de
+                  cada rol los define el servicio de autorización.
+                </p>
+              </div>
+              <AdminUsuarios admin={currentUser} />
+            </div>
+          </Section>
+        )}
 
         {/* 2. INVENTARIO Y FICHAS TAXONÓMICAS */}
         <Section
@@ -457,58 +493,14 @@ export default function PanelPage() {
               </div>
 
               <div className="lg:col-span-5 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
-                      El corredor biológico
-                    </p>
-                    <p className="text-sm text-ink-muted">
-                      Ver tarjeta como:
-                    </p>
-                  </div>
+                <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+                  El corredor biológico
+                </p>
 
-                  {/* Selector local "Ver como..." que solo cambia la vista previa de esta tarjeta sin alterar la sesión del usuario */}
-                  <div
-                    role="group"
-                    aria-label="Ver ubicación geográfica como"
-                    className="inline-flex rounded-md border border-line bg-surface p-1"
-                  >
-                    <button
-                      type="button"
-                      aria-pressed={locationPreviewRole === 'public'}
-                      onClick={() => setLocationPreviewRole('public')}
-                      className={`min-h-11 rounded px-3 py-1.5 font-mono text-xs transition-colors duration-150 cursor-pointer ${
-                        locationPreviewRole === 'public'
-                          ? 'bg-forest-900 text-white'
-                          : 'text-ink-muted hover:text-ink'
-                      }`}
-                    >
-                      Visitante común
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={
-                        locationPreviewRole === 'senior' ||
-                        locationPreviewRole === 'director' ||
-                        locationPreviewRole === 'auditor'
-                      }
-                      onClick={() => setLocationPreviewRole('senior')}
-                      className={`min-h-11 rounded px-3 py-1.5 font-mono text-xs transition-colors duration-150 cursor-pointer ${
-                        locationPreviewRole === 'senior' ||
-                        locationPreviewRole === 'director' ||
-                        locationPreviewRole === 'auditor'
-                          ? 'bg-forest-900 text-white'
-                          : 'text-ink-muted hover:text-ink'
-                      }`}
-                    >
-                      Alto rango
-                    </button>
-                  </div>
-                </div>
-
-                {/* Panthera onca toma su categoría UICN (NT) directamente de la fuente única BACKEND_SEED_SPECIES */}
+                {/* La visibilidad depende del permiso ubicacion:ver_exacta de la cuenta (servicio-autorizacion) */}
                 <ProtectedLocation
-                  role={locationPreviewRole}
+                  puedeVerExacta={canViewExactCoordinates(currentUser)}
+                  nivelLabel={currentUser.roleLabel}
                   speciesCommonName={`${JAGUAR_SEED.commonName} del corredor Macarena`}
                   speciesScientificName={JAGUAR_SEED.scientificName}
                   status={JAGUAR_SEED.status}

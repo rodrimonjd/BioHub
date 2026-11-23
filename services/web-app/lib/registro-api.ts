@@ -166,31 +166,62 @@ export async function obtenerAvistamientoPorId(id: string): Promise<Avistamiento
   return res.json();
 }
 
-export async function registrarAvistamiento(
-  payload: AvistamientoRequest
-): Promise<AvistamientoResponse> {
-  const res = await fetch(`${API_BASE}/avistamientos`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+/**
+ * El servidor respondió pero rechazó la operación (sin permiso, datos inválidos, no encontrado).
+ * No tiene sentido guardarla localmente para reintentar: hay que mostrar el motivo.
+ * Cualquier otro error (sin conexión, 5xx) significa que el servidor no está disponible.
+ */
+export class ErrorRechazado extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Escritura en servicio-registro. Envía X-Usuario-Id: registro valida el permiso con servicio-autorizacion
+ * y usa ese id como investigador/autor (ignora el que venga en el cuerpo).
+ */
+async function escribir(
+  ruta: string,
+  metodo: 'POST' | 'PATCH',
+  payload: unknown,
+  usuarioId: string,
+  mensajeError: string
+): Promise<Response> {
+  const res = await fetch(`${API_BASE}${ruta}`, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': usuarioId },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'Servicio de registro no disponible'));
+  if (res.ok) return res;
+  const mensaje = await parseErrorMessage(res, mensajeError);
+  if (res.status >= 400 && res.status < 500) {
+    throw new ErrorRechazado(
+      res.status === 403 ? `Sin permiso: ${mensaje}` : mensaje,
+      res.status
+    );
   }
+  throw new Error(mensaje);
+}
+
+export async function registrarAvistamiento(
+  payload: AvistamientoRequest,
+  usuarioId: string
+): Promise<AvistamientoResponse> {
+  const res = await escribir('/avistamientos', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
   return res.json();
 }
 
 export async function registrarHallazgo(
-  payload: HallazgoRequest
+  payload: HallazgoRequest,
+  usuarioId: string
 ): Promise<{ id: string | null; hallazgo: HallazgoResponse | null }> {
-  const res = await fetch(`${API_BASE}/hallazgos`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'Servicio de registro no disponible'));
-  }
+  const res = await escribir('/hallazgos', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
   const location = res.headers.get('Location');
   const extractedId = location ? location.split('/').pop() || null : null;
   if (extractedId) {
@@ -210,30 +241,20 @@ export async function obtenerHallazgoPorId(id: string): Promise<HallazgoResponse
 
 export async function modificarHallazgo(
   id: string,
-  payload: ModificarHallazgoRequest
+  payload: ModificarHallazgoRequest,
+  usuarioId: string
 ): Promise<HallazgoResponse> {
-  const res = await fetch(`${API_BASE}/hallazgos/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'No se pudo sincronizar la modificación'));
-  }
+  const res = await escribir(`/hallazgos/${id}`, 'PATCH', payload, usuarioId,
+    'No se pudo sincronizar la modificación');
   return res.json();
 }
 
 export async function reclasificarHallazgo(
   id: string,
-  payload: ReclasificarHallazgoRequest
+  payload: ReclasificarHallazgoRequest,
+  usuarioId: string
 ): Promise<HallazgoResponse> {
-  const res = await fetch(`${API_BASE}/hallazgos/${id}/reclasificacion`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'No se pudo sincronizar la reclasificación'));
-  }
+  const res = await escribir(`/hallazgos/${id}/reclasificacion`, 'POST', payload, usuarioId,
+    'No se pudo sincronizar la reclasificación');
   return res.json();
 }

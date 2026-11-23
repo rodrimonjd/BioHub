@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
@@ -9,8 +10,12 @@ import { SiteHeader } from '@/components/biohub/SiteHeader';
 import {
   BioHubUser,
   clearStoredSession,
+  crearSesionInvitado,
   getStoredSession,
+  ID_INVITADO,
+  saveStoredSession,
 } from '@/lib/permissions';
+import { obtenerAcceso } from '@/lib/autorizacion-api';
 
 const CHALLENGES = [
   {
@@ -40,7 +45,9 @@ const CHALLENGES = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [sessionUser, setSessionUser] = useState<BioHubUser | null>(null);
+  const [entrandoInvitado, setEntrandoInvitado] = useState<boolean>(false);
 
   useEffect(() => {
     setSessionUser(getStoredSession());
@@ -49,6 +56,18 @@ export default function HomePage() {
   const handleLogout = () => {
     clearStoredSession();
     setSessionUser(null);
+  };
+
+  // Entrar sin cuenta: los permisos los da servicio-autorizacion (un usuario sin roles es CIUDADANO, solo consulta).
+  const handleInvitado = async () => {
+    setEntrandoInvitado(true);
+    try {
+      const sesion = crearSesionInvitado(await obtenerAcceso(ID_INVITADO));
+      saveStoredSession(sesion);
+      router.push('/panel');
+    } finally {
+      setEntrandoInvitado(false);
+    }
   };
 
   return (
@@ -118,6 +137,17 @@ export default function HomePage() {
                     ? 'Entrar al panel científico'
                     : 'Iniciar sesión institucional'}
                 </Link>
+                {!sessionUser && (
+                  <button
+                    type="button"
+                    onClick={handleInvitado}
+                    disabled={entrandoInvitado}
+                    title="Entrar sin cuenta, con permisos de visitante común (solo consulta)"
+                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/30 bg-forest-700/60 px-5 py-2.5 text-sm font-medium text-white hover:bg-forest-700 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sun-500 disabled:opacity-60 cursor-pointer"
+                  >
+                    {entrandoInvitado ? 'Entrando…' : 'Login como invitado'}
+                  </button>
+                )}
                 <a
                   href="#desafios"
                   className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/30 bg-forest-700/60 px-5 py-2.5 text-sm font-medium text-white hover:bg-forest-700 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sun-500"
