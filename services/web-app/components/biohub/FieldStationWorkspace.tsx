@@ -21,6 +21,7 @@ import {
   EvidenciaRequest,
   HallazgoResponse,
   listarAvistamientos,
+  listarHallazgos,
   modificarHallazgo,
   obtenerHallazgoPorId,
   reclasificarHallazgo,
@@ -223,11 +224,23 @@ export function FieldStationWorkspace({
         return [...pendingItems, ...(res.data || [])];
       });
     }
+
+    const resHallazgos = await listarHallazgos();
+    if (resHallazgos.online && resHallazgos.data) {
+      const guardados = resHallazgos.data;
+      setHallazgos((prev) => [...prev.filter((h) => h.pendingSync), ...guardados]);
+    }
   };
 
   useEffect(() => {
     syncWithBackend();
   }, []);
+
+  useEffect(() => {
+    if (hallazgos.length > 0 && !hallazgos.some((h) => h.id === targetHallazgoId)) {
+      setTargetHallazgoId(hallazgos[0].id);
+    }
+  }, [hallazgos, targetHallazgoId]);
 
   const handleDeptoSelect = (
     depto: string,
@@ -589,11 +602,33 @@ export function FieldStationWorkspace({
 
   // Buscar Hallazgo por identificador
   const handleBuscarHallazgoUuid = async () => {
-    if (!lookupUuid.trim()) return;
+    const codigo = lookupUuid.trim().toLowerCase();
+    if (!codigo) return;
     setStatusBanner(null);
+
+    if (codigo.length < 36) {
+      const coincidencias = hallazgos.filter((h) => h.id.toLowerCase().startsWith(codigo));
+      if (coincidencias.length === 1) {
+        setTargetHallazgoId(coincidencias[0].id);
+        setStatusBanner({
+          type: 'ok',
+          text: `Hallazgo ${coincidencias[0].id.slice(0, 8)} seleccionado (v${coincidencias[0].versionActual}).`,
+        });
+      } else {
+        setStatusBanner({
+          type: 'err',
+          text:
+            coincidencias.length === 0
+              ? `No hay ningún hallazgo con el código ${codigo}.`
+              : `Hay ${coincidencias.length} hallazgos que empiezan por ${codigo}; escribe más caracteres.`,
+        });
+      }
+      return;
+    }
+
     setLoading(true);
     try {
-      const found = await obtenerHallazgoPorId(lookupUuid.trim());
+      const found = await obtenerHallazgoPorId(codigo);
       setBackendOnline(true);
       setHallazgos((prev) => {
         const exists = prev.some((h) => h.id === found.id);
@@ -1499,7 +1534,7 @@ export function FieldStationWorkspace({
                 >
                   {hallazgos.map((h) => (
                     <option key={h.id} value={h.id}>
-                      [v{h.versionActual}] {h.especie} — {h.departamento} ({h.id.slice(0, 8)})
+                      [v{h.versionActual}] {h.especie} — {h.departamento} · {h.investigadorId} ({h.id.slice(0, 8)})
                     </option>
                   ))}
                 </select>
@@ -1516,7 +1551,7 @@ export function FieldStationWorkspace({
                     type="text"
                     value={lookupUuid}
                     onChange={(e) => setLookupUuid(e.target.value)}
-                    placeholder="Código UUID del hallazgo..."
+                    placeholder="Código de 8 caracteres o UUID completo"
                     className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
                   />
                 </Field>

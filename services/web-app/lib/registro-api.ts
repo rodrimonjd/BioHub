@@ -158,6 +158,20 @@ export async function listarAvistamientos(): Promise<{
   }
 }
 
+export async function listarHallazgos(): Promise<{
+  data: HallazgoResponse[] | null;
+  online: boolean;
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/hallazgos`, { cache: 'no-store' });
+    if (!res.ok) return { data: null, online: false };
+    const data: HallazgoResponse[] = await res.json();
+    return { data, online: true };
+  } catch {
+    return { data: null, online: false };
+  }
+}
+
 export async function obtenerAvistamientoPorId(id: string): Promise<AvistamientoResponse> {
   const res = await fetch(`${API_BASE}/avistamientos/${id}`, { cache: 'no-store' });
   if (!res.ok) {
