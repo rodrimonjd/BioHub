@@ -1,0 +1,44 @@
+server:
+  port: ${PUERTO_SERVIDOR:8086}
+
+spring:
+  application:
+    name: servicio-historial
+  datasource:
+    url: jdbc:mysql://${BD_HOST:localhost}:${BD_PUERTO:3306}/${BD_NOMBRE:historial_db}?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    username: ${BD_USUARIO:historial_user}
+    password: ${BD_CLAVE:historial_pass}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PUERTO:5672}
+    username: ${RABBIT_USUARIO:biohub}
+    password: ${RABBIT_CLAVE:biohub}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+        default-requeue-rejected: false
+
+historial:
+  eventos:
+    exchange: biohub.eventos
+    cola: historial.eventos
+    cola-errores: historial.eventos.dlq
+  autorizacion-url: ${AUTORIZACION_URL:http://localhost:8082}
+  permiso-consulta: historial:ver
+  cache:
+    permisos-ttl: 60s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
