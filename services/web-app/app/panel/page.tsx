@@ -141,12 +141,7 @@ export default function PanelPage() {
   const [currentUser, setCurrentUser] = useState<BioHubUser | null>(null);
   const [checkingSession, setCheckingSession] = useState<boolean>(true);
 
-<<<<<<< HEAD
   // Estado de fichas taxonómicas
-=======
-  const [locationPreviewRole, setLocationPreviewRole] = useState<UserRole>('public');
-
->>>>>>> origin/desarrollo
   const [speciesList, setSpeciesList] = useState<SpeciesCardProps[]>(
     INITIAL_SPECIES_CARDS
   );
@@ -191,9 +186,6 @@ export default function PanelPage() {
     });
   }, [router]);
 
-<<<<<<< HEAD
-  // Al cerrar sesión se vuelve a la página principal
-=======
   const recargarInventario = async () => {
     const datos = await cargarInventario();
     if (!datos) return;
@@ -211,7 +203,7 @@ export default function PanelPage() {
     recargarInventario();
   }, []);
 
->>>>>>> origin/desarrollo
+  // Al cerrar sesión se vuelve a la página principal
   const handleLogout = () => {
     clearStoredSession();
     setCurrentUser(null);
