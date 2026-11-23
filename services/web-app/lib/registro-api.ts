@@ -97,7 +97,28 @@ export interface HallazgoRequest {
   longitud: number | null;
   departamento: string;
   region: string | null;
+  /** Expedición de servicio-registro en la que se hizo el hallazgo (opcional). */
+  expedicionId?: string;
   evidencias: EvidenciaRequest[];
+}
+
+export interface Expedicion {
+  id: string;
+  nombre: string;
+  zona: string;
+  fechaInicio: string;
+  fechaFin: string | null;
+  liderId: string;
+}
+
+/** Expediciones registradas (GET /expediciones). Lista vacía si registro no responde. */
+export async function listarExpediciones(): Promise<Expedicion[]> {
+  try {
+    const res = await fetch(`${API_BASE}/expediciones`, { cache: 'no-store' });
+    return res.ok ? res.json() : [];
+  } catch {
+    return [];
+  }
 }
 
 export interface HallazgoResponse {
@@ -113,6 +134,7 @@ export interface HallazgoResponse {
   departamento: string;
   region: string | null;
   versionActual: number;
+  expedicionId?: string | null;
   creadoEn: string;
   evidencias: EvidenciaResponse[];
   pendingSync?: boolean;
@@ -219,6 +241,26 @@ async function escribir(
     );
   }
   throw new Error(mensaje);
+}
+
+export interface EspecieNueva {
+  nombreCientifico: string;
+  nombreComun: string | null;
+  estadoConservacion: ConservationStatus;
+}
+
+export interface EspecieCreada {
+  id: string;
+  nombreCientifico: string;
+  nombreComun: string | null;
+  estadoConservacion: ConservationStatus;
+}
+
+/** Agrega una especie al catálogo de servicio-registro (requiere hallazgo:crear). */
+export async function crearEspecie(payload: EspecieNueva, usuarioId: string): Promise<EspecieCreada> {
+  const res = await escribir('/especies', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
 }
 
 export async function registrarAvistamiento(
