@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -57,6 +58,14 @@ public class HallazgoServicio {
         Hallazgo guardado = hallazgos.save(builder.build());
         outbox.guardar(FabricaEventos.hallazgoRegistrado(guardado));
         return guardado;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Hallazgo> listar(String investigadorId) {
+        if (investigadorId == null || investigadorId.isBlank()) {
+            return hallazgos.findAllByOrderByCreadoEnDesc();
+        }
+        return hallazgos.findByInvestigadorIdOrderByCreadoEnDesc(investigadorId.trim());
     }
 
     @Transactional(readOnly = true)
