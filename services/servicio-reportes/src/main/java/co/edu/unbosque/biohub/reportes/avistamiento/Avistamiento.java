@@ -7,10 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/**
- * Copia de un avistamiento de servicio-registro. Se llena con el evento
- * AVISTAMIENTO_REGISTRADO; reportes nunca consulta la base de registro.
- */
 @Entity
 @Table(name = "avistamiento")
 public class Avistamiento {

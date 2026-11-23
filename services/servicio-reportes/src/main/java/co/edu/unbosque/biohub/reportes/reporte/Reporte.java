@@ -23,10 +23,6 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
-/**
- * Reporte completo de un periodo: para cada ecosistema calcula todos los indices de presion
- * (uno por cada TipoIndice) y resume los avistamientos por especie.
- */
 @Entity
 @Table(name = "reporte")
 public class Reporte {
@@ -155,7 +151,6 @@ public class Reporte {
         this.generadoEn = Instant.now();
     }
 
-    /** Ecosistemas distintos del reporte, en el orden de la tabla de indices. */
     public List<String> ecosistemas() {
         List<String> nombres = new ArrayList<>();
         for (IndicePresion i : indices) {

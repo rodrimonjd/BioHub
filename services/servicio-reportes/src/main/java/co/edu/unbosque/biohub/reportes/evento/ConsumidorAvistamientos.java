@@ -13,11 +13,6 @@ import co.edu.unbosque.biohub.reportes.avistamiento.Avistamiento;
 import co.edu.unbosque.biohub.reportes.avistamiento.AvistamientoRepositorio;
 import tools.jackson.databind.json.JsonMapper;
 
-/**
- * Recibe AVISTAMIENTO_REGISTRADO de servicio-registro y guarda una copia del avistamiento.
- * Si el evento llega repetido (mismo id) se ignora. Si el evento esta incompleto se lanza
- * una excepcion: tras los reintentos el mensaje termina en la cola de errores.
- */
 @Component
 public class ConsumidorAvistamientos {
 
@@ -78,7 +73,6 @@ public class ConsumidorAvistamientos {
         throw new IllegalArgumentException("Falta la cantidad en el evento");
     }
 
-    /** La fecha puede llegar como texto ISO (2026-11-20T10:00:00Z) o como segundos desde 1970. */
     private static Instant fecha(Object valor) {
         if (valor instanceof String textoFecha) {
             return Instant.parse(textoFecha);
