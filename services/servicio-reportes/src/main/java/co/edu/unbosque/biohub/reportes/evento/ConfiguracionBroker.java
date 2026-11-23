@@ -10,11 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Cola propia de reportes enlazada al exchange de eventos con AVISTAMIENTO_REGISTRADO.
- * Es durable: si reportes esta apagado, los avistamientos esperan en RabbitMQ.
- * Los mensajes que fallan tras los reintentos van a la cola de errores.
- */
 @Configuration
 public class ConfiguracionBroker {
 

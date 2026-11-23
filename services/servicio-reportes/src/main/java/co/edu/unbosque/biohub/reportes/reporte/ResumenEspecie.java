@@ -11,7 +11,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-/** Cuantos avistamientos e individuos tuvo una especie dentro del reporte. */
 @Entity
 @Table(name = "resumen_especie")
 public class ResumenEspecie {

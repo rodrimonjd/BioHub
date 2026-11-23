@@ -23,16 +23,10 @@ import com.lowagie.text.pdf.PdfPageEventHelper;
 import com.lowagie.text.pdf.PdfWriter;
 import com.lowagie.text.pdf.draw.LineSeparator;
 
-/**
- * Arma el informe del reporte en PDF: encabezado institucional, datos de identificacion
- * y secciones numeradas (objetivo, resumen, indices por ecosistema, especies,
- * metodologia y conclusiones).
- */
 public final class DocumentoPdfReporte {
 
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final DateTimeFormatter FECHA_HORA =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ServicioReportes.ZONA);
+    private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ServicioReportes.ZONA);
 
     private static final Color VERDE = new Color(31, 77, 58);
     private static final Color GRIS_CLARO = new Color(235, 240, 236);
@@ -234,7 +228,6 @@ public final class DocumentoPdfReporte {
         return r.getEspecieId();
     }
 
-    /** Si al titulo no le queda espacio para su contenido, empieza en la pagina siguiente. */
     private static void seccion(Document documento, PdfWriter escritor, String numero, String titulo) {
         if (escritor.getVerticalPosition(true) < documento.bottom() + 110) {
             documento.newPage();
@@ -321,7 +314,6 @@ public final class DocumentoPdfReporte {
         return String.format(java.util.Locale.US, "%.2f", valor);
     }
 
-    /** Pie de cada pagina: codigo del reporte y numero de pagina. */
     private static class PiePagina extends PdfPageEventHelper {
         private final String idReporte;
 
