@@ -8,7 +8,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration
 public class ConfiguracionClaves {
 
-    /** BCrypt: hash lento y con sal propia por contraseña. */
     @Bean
     public PasswordEncoder codificadorClaves() {
         return new BCryptPasswordEncoder();

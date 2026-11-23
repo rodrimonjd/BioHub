@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Inicio de sesión y administración de cuentas. */
 @RestController
 @RequestMapping("/api/v1/autorizacion")
 public class UsuarioControlador {
@@ -35,7 +34,6 @@ public class UsuarioControlador {
         this.roles = roles;
     }
 
-    /** Usuario (id o correo) y contraseña → datos de la cuenta con sus roles y permisos. 401 si no coinciden. */
     @PostMapping("/sesiones")
     public RespuestaSesion iniciarSesion(@Valid @RequestBody SolicitudSesion solicitud) {
         return servicio.iniciarSesion(solicitud.usuario(), solicitud.clave());
@@ -47,7 +45,6 @@ public class UsuarioControlador {
         return servicio.listar();
     }
 
-    /** Cuentas que tienen un permiso, p. ej. hallazgo:validar para elegir quién autoriza una reclasificación. */
     @GetMapping("/usuarios/con-permiso/{permiso}")
     public List<ResumenUsuario> conPermiso(@RequestHeader(value = CABECERA_USUARIO, required = false) String solicitante,
                                            @PathVariable String permiso) {
