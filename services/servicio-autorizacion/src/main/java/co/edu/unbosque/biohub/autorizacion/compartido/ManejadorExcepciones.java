@@ -28,6 +28,11 @@ public class ManejadorExcepciones extends ResponseEntityExceptionHandler {
         return construir(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
+    @ExceptionHandler(NoAutenticadoException.class)
+    public ResponseEntity<Object> noAutenticado(NoAutenticadoException e) {
+        return construir(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
     @ExceptionHandler(ProhibidoException.class)
     public ResponseEntity<Object> prohibido(ProhibidoException e) {
         return construir(HttpStatus.FORBIDDEN, e.getMessage());
