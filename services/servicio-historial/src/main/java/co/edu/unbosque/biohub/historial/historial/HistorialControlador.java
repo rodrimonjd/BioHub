@@ -1,0 +1,79 @@
+package co.edu.unbosque.biohub.historial.historial;
+
+import co.edu.unbosque.biohub.historial.cambio.TipoRegistro;
+import co.edu.unbosque.biohub.historial.historial.Vistas.VistaCambio;
+import co.edu.unbosque.biohub.historial.historial.Vistas.VistaHistorial;
+import co.edu.unbosque.biohub.historial.historial.Vistas.VistaIntegridad;
+import co.edu.unbosque.biohub.historial.historial.Vistas.VistaVersion;
+import co.edu.unbosque.biohub.historial.historial.Vistas.VistaVersiones;
+import co.edu.unbosque.biohub.historial.permiso.VerificadorPermisos;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Consulta del historial de hallazgos y fichas: {@code /api/v1/historial/{hallazgos|fichas}/{id}...}
+ * Solo lectura: el historial no expone ninguna operación para modificar ni borrar.
+ * Exige la cabecera X-Usuario-Id de un usuario con el permiso historial:ver (diagrama de secuencia 03).
+ */
+@RestController
+@RequestMapping("/api/v1/historial")
+public class HistorialControlador {
+
+    private static final String CABECERA_USUARIO = "X-Usuario-Id";
+    private static final String TIPO = "/{tipo:hallazgos|fichas}/{id}";
+
+    private final ServicioConsultaHistorial servicio;
+    private final VerificadorPermisos permisos;
+
+    public HistorialControlador(ServicioConsultaHistorial servicio, VerificadorPermisos permisos) {
+        this.servicio = servicio;
+        this.permisos = permisos;
+    }
+
+    /** Lista cronológica de cambios con su responsable. */
+    @GetMapping(TIPO)
+    public VistaHistorial historial(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                    @PathVariable String tipo, @PathVariable String id) {
+        permisos.exigir(usuario);
+        return servicio.historial(tipoRegistro(tipo), id);
+    }
+
+    /** Detalle de un cambio: campo, valores anterior y nuevo, autor y autorizador. */
+    @GetMapping(TIPO + "/cambios/{version}")
+    public VistaCambio cambio(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                              @PathVariable String tipo, @PathVariable String id, @PathVariable int version) {
+        permisos.exigir(usuario);
+        return servicio.cambio(tipoRegistro(tipo), id, version);
+    }
+
+    /** Versiones conservadas en orden cronológico. */
+    @GetMapping(TIPO + "/versiones")
+    public VistaVersiones versiones(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                    @PathVariable String tipo, @PathVariable String id) {
+        permisos.exigir(usuario);
+        return servicio.versiones(tipoRegistro(tipo), id);
+    }
+
+    /** Estado completo del registro en una versión. */
+    @GetMapping(TIPO + "/versiones/{version}")
+    public VistaVersion version(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                @PathVariable String tipo, @PathVariable String id, @PathVariable int version) {
+        permisos.exigir(usuario);
+        return servicio.version(tipoRegistro(tipo), id, version);
+    }
+
+    /** Verifica que ningún cambio haya sido alterado ni borrado. */
+    @GetMapping(TIPO + "/integridad")
+    public VistaIntegridad integridad(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                      @PathVariable String tipo, @PathVariable String id) {
+        permisos.exigir(usuario);
+        return servicio.integridad(tipoRegistro(tipo), id);
+    }
+
+    private static TipoRegistro tipoRegistro(String tipo) {
+        return "hallazgos".equals(tipo) ? TipoRegistro.HALLAZGO : TipoRegistro.FICHA;
+    }
+}
