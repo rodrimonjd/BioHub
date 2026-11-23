@@ -10,10 +10,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos;
 import jakarta.validation.Valid;
 
 @RestController
@@ -21,13 +23,18 @@ import jakarta.validation.Valid;
 public class ExpedicionControlador {
 
     private final ExpedicionServicio servicio;
+    private final VerificadorPermisos permisos;
 
-    public ExpedicionControlador(ExpedicionServicio servicio) {
+    public ExpedicionControlador(ExpedicionServicio servicio, VerificadorPermisos permisos) {
         this.servicio = servicio;
+        this.permisos = permisos;
     }
 
     @PostMapping
-    public ResponseEntity<RespuestaExpedicion> crear(@Valid @RequestBody SolicitudExpedicion request) {
+    public ResponseEntity<RespuestaExpedicion> crear(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @Valid @RequestBody SolicitudExpedicion request) {
+        permisos.exigir(usuario, VerificadorPermisos.GESTIONAR_EQUIPOS);
         Expedicion creada = servicio.crear(request);
         return ResponseEntity.created(URI.create("/expediciones/" + creada.getId())).body(RespuestaExpedicion.de(creada));
     }
@@ -47,7 +54,10 @@ public List<RespuestaExpedicion> listar(@RequestParam(required = false) String l
     }
 
     @PostMapping("/{id}/equipos")
-    public RespuestaExpedicion asignarEquipo(@PathVariable UUID id, @Valid @RequestBody SolicitudAsignarEquipo request) {
+    public RespuestaExpedicion asignarEquipo(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @PathVariable UUID id, @Valid @RequestBody SolicitudAsignarEquipo request) {
+        permisos.exigir(usuario, VerificadorPermisos.GESTIONAR_EQUIPOS);
         return RespuestaExpedicion.de(servicio.asignarEquipo(id, request.equipoId()));
     }
 }
