@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
+import { useNotificar } from '@/components/ui/Notificaciones';
+import { avisoDeError } from '@/lib/avisos';
 import {
   ConservationBadge,
   ConservationStatus,
@@ -120,18 +122,28 @@ export function SpeciesCard({
   const [confirmando, setConfirmando] = useState<boolean>(false);
   const [motivo, setMotivo] = useState<string>('');
   const [desactivando, setDesactivando] = useState<boolean>(false);
-  const [errorDesactivar, setErrorDesactivar] = useState<string | null>(null);
+  const notificar = useNotificar();
 
   const handleDesactivar = async () => {
     if (!onDesactivar) return;
     setDesactivando(true);
-    setErrorDesactivar(null);
     try {
       await onDesactivar(motivo);
+      notificar({
+        tipo: 'ok',
+        titulo: 'Ficha desactivada',
+        detalle: `${commonName} ya no tiene una ficha activa. El cambio está en el historial.`,
+      });
       setConfirmando(false);
       setMotivo('');
     } catch (error) {
-      setErrorDesactivar(error instanceof Error ? error.message : 'No se pudo desactivar la ficha.');
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se desactivó la ficha',
+          sinConexion: 'La ficha sigue activa',
+          accion: 'desactivar fichas',
+        })
+      );
     } finally {
       setDesactivando(false);
     }
@@ -201,10 +213,7 @@ export function SpeciesCard({
             {!confirmando ? (
               <button
                 type="button"
-                onClick={() => {
-                  setConfirmando(true);
-                  setErrorDesactivar(null);
-                }}
+                onClick={() => setConfirmando(true)}
                 className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-md border border-iucn-cr/50 px-3.5 py-2 text-xs font-medium text-ink transition-colors duration-150 hover:bg-iucn-cr/10"
               >
                 Desactivar ficha
@@ -226,11 +235,6 @@ export function SpeciesCard({
                     className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   />
                 </label>
-                {errorDesactivar && (
-                  <p role="alert" className="rounded-md border border-iucn-cr bg-iucn-cr/10 px-3 py-2 font-mono text-xs text-ink">
-                    {errorDesactivar}
-                  </p>
-                )}
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"

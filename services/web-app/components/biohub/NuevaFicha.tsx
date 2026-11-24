@@ -3,8 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ErrorFormulario } from '@/components/ui/ErrorFormulario';
 import { Field } from '@/components/ui/Field';
-import { Aviso, CLASE_INPUT, Encabezado, MensajeAviso } from './campo-ui';
+import { useNotificar } from '@/components/ui/Notificaciones';
+import { avisoDeError } from '@/lib/avisos';
+import { CLASE_INPUT, Encabezado } from './campo-ui';
 import {
   AtributoTaxonomico,
   crearAtributo,
@@ -63,7 +66,8 @@ export function NuevaFicha({ usuarioId, especies, fichas, onCreada }: NuevaFicha
   const [filas, setFilas] = useState<FilaAtributo[]>([filaVacia(1)]);
   const [siguienteClave, setSiguienteClave] = useState<number>(2);
   const [guardando, setGuardando] = useState<boolean>(false);
-  const [aviso, setAviso] = useState<Aviso>(null);
+  const notificar = useNotificar();
+  const [problema, setProblema] = useState<string | null>(null);
 
   const especiesSinFicha = especies.filter((e) => !fichas.some((f) => f.activa && f.especieId === e.id));
   const especie = especiesSinFicha.find((e) => e.id === especieId) ?? especiesSinFicha[0];
@@ -125,12 +129,9 @@ export function NuevaFicha({ usuarioId, especies, fichas, onCreada }: NuevaFicha
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!especie) return;
-    const problema = buscarProblema();
-    if (problema) {
-      setAviso({ tipo: 'err', texto: problema });
-      return;
-    }
-    setAviso(null);
+    const encontrado = buscarProblema();
+    setProblema(encontrado);
+    if (encontrado) return;
     setGuardando(true);
     try {
       for (const fila of filas) {
@@ -142,19 +143,25 @@ export function NuevaFicha({ usuarioId, especies, fichas, onCreada }: NuevaFicha
       }
       const atributos = filas.map((fila) => ({ nombre: definicion(fila).nombre, valor: fila.valor.trim() }));
       const ficha = await crearFicha(especie.id, atributos, usuarioId);
-      setAviso({
+      notificar({
         tipo: 'ok',
-        texto: `Ficha de ${nombreEspecie(especie)} creada con ${ficha.atributos.length} atributo(s).`,
+        titulo: 'Ficha creada',
+        detalle: `${especie.nombreComun ?? especie.nombreCientifico}, con ${ficha.atributos.length} ${
+          ficha.atributos.length === 1 ? 'atributo' : 'atributos'
+        }.`,
       });
       setFilas([filaVacia(siguienteClave)]);
       setSiguienteClave((clave) => clave + 1);
       setEspecieId('');
       await onCreada();
     } catch (error) {
-      setAviso({
-        tipo: 'err',
-        texto: error instanceof Error ? error.message : 'No se pudo crear la ficha.',
-      });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se creó la ficha',
+          sinConexion: 'La ficha no se guardó',
+          accion: 'crear fichas taxonómicas',
+        })
+      );
     } finally {
       setGuardando(false);
     }
@@ -166,7 +173,6 @@ export function NuevaFicha({ usuarioId, especies, fichas, onCreada }: NuevaFicha
         titulo="Crear ficha taxonómica"
         descripcion="Elige la especie y llena sus atributos. Puedes usar los del catálogo o definir nuevos, cada uno con su tipo de dato."
       />
-      <MensajeAviso aviso={aviso} />
 
       {!especie ? (
         <p className="text-xs text-ink-muted">
@@ -320,6 +326,8 @@ export function NuevaFicha({ usuarioId, especies, fichas, onCreada }: NuevaFicha
               </fieldset>
             );
           })}
+
+          <ErrorFormulario texto={problema} />
 
           <div className="flex flex-wrap gap-3">
             <Button variant="ghost" className="text-xs" onClick={agregarFila} disabled={guardando}>

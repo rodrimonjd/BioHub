@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { useNotificar } from '@/components/ui/Notificaciones';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
 import { SiteHeader } from '@/components/biohub/SiteHeader';
@@ -45,6 +46,7 @@ import {
   listarAtributos,
 } from '@/lib/taxonomia-api';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
+import { avisoDeError } from '@/lib/avisos';
 
 // Opción del catálogo de atributos para escribir uno nuevo a mano
 const ATRIBUTO_OTRO = '__otro__';
@@ -139,8 +141,7 @@ export default function PanelPage() {
   );
   const [newAttrLabel, setNewAttrLabel] = useState<string>('');
   const [newAttrValue, setNewAttrValue] = useState<string>('');
-  const [attrSavedNotice, setAttrSavedNotice] = useState<string | null>(null);
-  const [attrError, setAttrError] = useState<string | null>(null);
+  const notificar = useNotificar();
   const [guardandoAtributo, setGuardandoAtributo] = useState<boolean>(false);
   // Catálogo de atributos ya existentes (servicio-taxonomia); "Otro" permite escribir uno nuevo
   const [catalogoAtributos, setCatalogoAtributos] = useState<AtributoTaxonomico[]>([]);
@@ -228,8 +229,6 @@ export default function PanelPage() {
   const handleAddDynamicAttribute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAttrLabel.trim() || !newAttrValue.trim()) return;
-    setAttrError(null);
-    setAttrSavedNotice(null);
 
     const especie = inventario?.especies.find((sp) => codigoFicha(sp.id) === selectedCardIdForAttr);
     if (inventario && especie && currentUser) {
@@ -243,15 +242,23 @@ export default function PanelPage() {
           valor: newAttrValue.trim(),
           autor: currentUser.id,
         });
-        setAttrSavedNotice(
-          `Atributo "${newAttrLabel.trim()}" guardado en la ficha de ${especie.nombreComun ?? especie.nombreCientifico} (versión ${ficha.version}).`
-        );
+        notificar({
+          tipo: 'ok',
+          titulo: 'Atributo guardado',
+          detalle: `${newAttrLabel.trim()} en la ficha de ${especie.nombreComun ?? especie.nombreCientifico}, versión ${ficha.version}.`,
+        });
         setNewAttrLabel('');
         setNewAttrValue('');
         setAtributoOtro(false);
         await recargarInventario();
       } catch (error) {
-        setAttrError(error instanceof Error ? error.message : 'No se pudo guardar el atributo.');
+        notificar(
+          avisoDeError(error, {
+            titulo: 'No se guardó el atributo',
+            sinConexion: 'El atributo no se guardó',
+            accion: 'editar fichas taxonómicas',
+          })
+        );
       } finally {
         setGuardandoAtributo(false);
       }
@@ -271,9 +278,11 @@ export default function PanelPage() {
           : card
       )
     );
-    setAttrSavedNotice(
-      `Atributo "${newAttrLabel.trim()}" incorporado a la ficha #${selectedCardIdForAttr}.`
-    );
+    notificar({
+      tipo: 'aviso',
+      titulo: 'Atributo agregado solo en esta pantalla',
+      detalle: 'No hay conexión con el servidor, así que se perderá al recargar la página.',
+    });
     setNewAttrLabel('');
     setNewAttrValue('');
   };
@@ -488,7 +497,6 @@ export default function PanelPage() {
                       ficha && canDeactivateFichas(currentUser)
                         ? async (motivo: string) => {
                             await desactivarFicha(ficha.id, motivo, currentUser.id);
-                            setAttrSavedNotice(`Ficha de ${species.commonName} desactivada.`);
                             await recargarInventario();
                           }
                         : undefined;
@@ -517,19 +525,6 @@ export default function PanelPage() {
                     Incorpora un nuevo parámetro de medición a cualquiera de las fichas
                     existentes sin alterar la estructura de las demás especies.
                   </p>
-                </div>
-
-                <div aria-live="polite" className="space-y-2">
-                  {attrSavedNotice && (
-                    <p className="rounded-md border border-iucn-lc bg-iucn-lc/10 px-3 py-2 font-mono text-xs text-ink">
-                      {attrSavedNotice}
-                    </p>
-                  )}
-                  {attrError && (
-                    <p role="alert" className="rounded-md border border-iucn-cr bg-iucn-cr/10 px-3 py-2 font-mono text-xs text-ink">
-                      {attrError}
-                    </p>
-                  )}
                 </div>
 
                 <form

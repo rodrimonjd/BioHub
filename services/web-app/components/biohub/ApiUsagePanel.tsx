@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { useNotificar } from '@/components/ui/Notificaciones';
+import { avisoDeError } from '@/lib/avisos';
 import { cambiarLimite, consultarInventario, obtenerConsumo, ResumenConsumo } from '@/lib/gateway-api';
 
 const INTERVALO_CONSULTA_MS = 2000;
@@ -36,7 +38,7 @@ export function ApiUsagePanel({ usuarioId, puedeConfigurar }: ApiUsagePanelProps
   const [resultado, setResultado] = useState<string | null>(null);
   const [nuevoLimite, setNuevoLimite] = useState<string>('');
   const [guardandoLimite, setGuardandoLimite] = useState<boolean>(false);
-  const [avisoLimite, setAvisoLimite] = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
+  const notificar = useNotificar();
 
   const recargar = async () => {
     const datos = await obtenerConsumo(usuarioId);
@@ -79,21 +81,24 @@ export function ApiUsagePanel({ usuarioId, puedeConfigurar }: ApiUsagePanelProps
 
   const handleCambiarLimite = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAvisoLimite(null);
     setGuardandoLimite(true);
     try {
       const actualizado = await cambiarLimite(Number(nuevoLimite), usuarioId);
       setResumen(actualizado);
       setNuevoLimite('');
-      setAvisoLimite({
+      notificar({
         tipo: 'ok',
-        texto: `Límite actualizado a ${actualizado.consumidores[0]?.limitePorMinuto} solicitudes por minuto.`,
+        titulo: 'Límite actualizado',
+        detalle: `Cada consumidor puede hacer ${actualizado.consumidores[0]?.limitePorMinuto} solicitudes por minuto.`,
       });
     } catch (error) {
-      setAvisoLimite({
-        tipo: 'err',
-        texto: error instanceof Error ? error.message : 'No se pudo cambiar el límite.',
-      });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se cambió el límite',
+          sinConexion: 'El límite sigue igual',
+          accion: 'cambiar el límite de la API',
+        })
+      );
     } finally {
       setGuardandoLimite(false);
     }
@@ -187,16 +192,6 @@ export function ApiUsagePanel({ usuarioId, puedeConfigurar }: ApiUsagePanelProps
               {guardandoLimite ? 'Guardando...' : 'Guardar límite'}
             </Button>
           </div>
-          {avisoLimite && (
-            <p
-              role={avisoLimite.tipo === 'err' ? 'alert' : 'status'}
-              className={`rounded-md border px-3 py-2 font-mono text-xs text-ink ${
-                avisoLimite.tipo === 'ok' ? 'border-iucn-lc bg-iucn-lc/10' : 'border-iucn-cr bg-iucn-cr/10'
-              }`}
-            >
-              {avisoLimite.texto}
-            </p>
-          )}
         </form>
       )}
 
