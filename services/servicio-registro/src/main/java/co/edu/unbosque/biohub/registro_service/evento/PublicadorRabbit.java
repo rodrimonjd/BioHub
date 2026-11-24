@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
+import co.edu.unbosque.biohub.registro_service.configuracion.PropiedadesRegistro;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,9 +14,9 @@ public class PublicadorRabbit implements PublicadorEventos {
     private final RabbitTemplate rabbit;
     private final String exchange;
 
-    public PublicadorRabbit(RabbitTemplate rabbit, @Value("${biohub.eventos.exchange}") String exchange) {
+    public PublicadorRabbit(RabbitTemplate rabbit, PropiedadesRegistro propiedades) {
         this.rabbit = rabbit;
-        this.exchange = exchange;
+        this.exchange = propiedades.eventos().exchange();
     }
 
     @Override

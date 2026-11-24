@@ -4,7 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import co.edu.unbosque.biohub.taxonomia.configuracion.PropiedadesTaxonomia;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -23,13 +23,13 @@ public class ClienteAutorizacionHttp implements ClienteAutorizacion {
     private final RestClient cliente;
     private final Cache<String, Boolean> cache;
 
-    public ClienteAutorizacionHttp(@Value("${biohub.autorizacion.url}") String autorizacionUrl,
-                                   @Value("${biohub.autorizacion.cache-ttl}") Duration ttl) {
+    public ClienteAutorizacionHttp(PropiedadesTaxonomia propiedades) {
+        PropiedadesTaxonomia.Autorizacion config = propiedades.autorizacion();
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(Duration.ofSeconds(2));
         fabrica.setReadTimeout(Duration.ofSeconds(3));
-        this.cliente = RestClient.builder().baseUrl(autorizacionUrl).requestFactory(fabrica).build();
-        this.cache = Caffeine.newBuilder().expireAfterWrite(ttl).maximumSize(10_000).build();
+        this.cliente = RestClient.builder().baseUrl(config.url().toString()).requestFactory(fabrica).build();
+        this.cache = Caffeine.newBuilder().expireAfterWrite(config.cacheTtl()).maximumSize(10_000).build();
     }
 
     @Override

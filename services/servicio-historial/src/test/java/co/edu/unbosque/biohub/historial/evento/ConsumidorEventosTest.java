@@ -1,5 +1,6 @@
 package co.edu.unbosque.biohub.historial.evento;
 
+import co.edu.unbosque.biohub.historial.configuracion.PropiedadesHistorial;
 import co.edu.unbosque.biohub.historial.historial.ServicioRegistroHistorial;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
@@ -7,7 +8,9 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,7 +31,10 @@ class ConsumidorEventosTest {
     private final ServicioRegistroHistorial servicio = mock(ServicioRegistroHistorial.class);
     private final RabbitTemplate rabbit = mock(RabbitTemplate.class);
     private final ConsumidorEventos consumidor =
-            new ConsumidorEventos(JsonMapper.builder().build(), servicio, rabbit, DLQ);
+            new ConsumidorEventos(JsonMapper.builder().build(), servicio, rabbit, new PropiedadesHistorial(
+                    new PropiedadesHistorial.Eventos("biohub.eventos", "historial.eventos", DLQ),
+                    URI.create("http://localhost:8082"), "historial:ver",
+                    new PropiedadesHistorial.Cache(Duration.ofSeconds(60))));
 
     private static Message mensaje(String cuerpo) {
         return new Message(cuerpo.getBytes(StandardCharsets.UTF_8), new MessageProperties());

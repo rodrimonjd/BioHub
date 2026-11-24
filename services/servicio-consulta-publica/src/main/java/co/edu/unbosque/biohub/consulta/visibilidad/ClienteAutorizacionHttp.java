@@ -4,7 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import co.edu.unbosque.biohub.consulta.configuracion.PropiedadesConsulta;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -23,13 +23,12 @@ public class ClienteAutorizacionHttp implements ClienteAutorizacion {
     private final RestClient cliente;
     private final Cache<String, NivelVisibilidad> cache;
 
-    public ClienteAutorizacionHttp(@Value("${consulta.autorizacion-url}") String autorizacionUrl,
-                                   @Value("${consulta.cache.visibilidad-ttl}") Duration ttl) {
+    public ClienteAutorizacionHttp(PropiedadesConsulta propiedades) {
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
         fabrica.setConnectTimeout(Duration.ofSeconds(2));
         fabrica.setReadTimeout(Duration.ofSeconds(3));
-        this.cliente = RestClient.builder().baseUrl(autorizacionUrl).requestFactory(fabrica).build();
-        this.cache = Caffeine.newBuilder().expireAfterWrite(ttl).maximumSize(10_000).build();
+        this.cliente = RestClient.builder().baseUrl(propiedades.autorizacionUrl().toString()).requestFactory(fabrica).build();
+        this.cache = Caffeine.newBuilder().expireAfterWrite(propiedades.cache().visibilidadTtl()).maximumSize(10_000).build();
     }
 
     @Override

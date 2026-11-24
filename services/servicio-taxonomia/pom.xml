@@ -19,6 +19,12 @@
 	</properties>
 
 	<dependencies>
+		<!-- Genera la metadata de las propiedades @ConfigurationProperties (autocompletado y documentacion en el IDE) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-configuration-processor</artifactId>
+			<optional>true</optional>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>

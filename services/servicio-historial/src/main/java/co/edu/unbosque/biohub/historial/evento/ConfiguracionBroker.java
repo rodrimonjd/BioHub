@@ -6,9 +6,10 @@ import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import co.edu.unbosque.biohub.historial.configuracion.PropiedadesHistorial;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,9 +18,10 @@ import java.util.List;
 public class ConfiguracionBroker {
 
     @Bean
-    public Declarables declaracionesEventos(@Value("${historial.eventos.exchange}") String nombreExchange,
-                                            @Value("${historial.eventos.cola}") String nombreCola,
-                                            @Value("${historial.eventos.cola-errores}") String nombreColaErrores) {
+    public Declarables declaracionesEventos(PropiedadesHistorial propiedades) {
+        String nombreExchange = propiedades.eventos().exchange();
+        String nombreCola = propiedades.eventos().cola();
+        String nombreColaErrores = propiedades.eventos().colaErrores();
         TopicExchange exchange = new TopicExchange(nombreExchange, true, false);
         Queue colaErrores = QueueBuilder.durable(nombreColaErrores).build();
         Queue cola = QueueBuilder.durable(nombreCola)
