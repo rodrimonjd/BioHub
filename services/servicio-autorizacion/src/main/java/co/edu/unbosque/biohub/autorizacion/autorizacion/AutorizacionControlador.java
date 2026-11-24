@@ -37,7 +37,6 @@ public class AutorizacionControlador {
 
     @PostMapping("/visibilidad-ubicacion")
     public RespuestaVisibilidad visibilidad(@RequestBody SolicitudVisibilidad solicitud) {
-        // La autoridad ambiental puede haberle dado al usuario acceso exacto a esta especie en particular
         NivelVisibilidad nivel = accesosUbicacion.puedeVerEspecie(solicitud.usuarioId(), solicitud.especieId())
                 ? NivelVisibilidad.EXACTA
                 : autorizacion.visibilidadUbicacion(solicitud.usuarioId(), solicitud.categoriaConservacion());

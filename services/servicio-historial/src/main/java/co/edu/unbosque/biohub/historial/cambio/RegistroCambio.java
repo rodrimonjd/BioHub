@@ -78,7 +78,6 @@ public class RegistroCambio {
         this.hash = hash;
     }
 
-    /** Texto que describe el cambio en una línea (lo que muestra la lista del historial). */
     public String describir() {
         String quien = autorizador == null ? autor : autor + " (autorizado por " + autorizador + ")";
         return switch (tipoCambio) {

@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Guardado y consulta del historial juntos, sobre el almacén en memoria. */
 class ServicioHistorialTest {
 
     private final AlmacenEnMemoria almacen = new AlmacenEnMemoria();
@@ -108,21 +107,21 @@ class ServicioHistorialTest {
     @Test
     void eventoRepetidoOVersionYaConocidaSeIgnora() {
         assertEquals(Resultado.GUARDADO, registrado("e1"));
-        assertEquals(Resultado.IGNORADO, registrado("e1"));      // mismo evento
-        assertEquals(Resultado.IGNORADO, registrado("e1-bis"));  // otro evento con la misma versión
+        assertEquals(Resultado.IGNORADO, registrado("e1"));
+        assertEquals(Resultado.IGNORADO, registrado("e1-bis"));
         assertEquals(1, almacen.cambios.size());
     }
 
     @Test
     void huecoDeVersionesSeGuardaYSeAvisa() {
         registrado("e1");
-        modificado("e4", "region", "X", "Y", 4, null, null); // faltan la 2 y la 3
+        modificado("e4", "region", "X", "Y", 4, null, null);
 
         VistaHistorial h = consulta.historial(TipoRegistro.HALLAZGO, H);
         assertFalse(h.completo());
         assertEquals(List.of(2, 3), h.versionesFaltantes());
         VistaVersion v4 = consulta.version(TipoRegistro.HALLAZGO, H, 4);
-        assertNull(v4.estado()); // no se inventa un estado sin conocer la versión 3
+        assertNull(v4.estado());
         assertFalse(consulta.integridad(TipoRegistro.HALLAZGO, H).integro());
     }
 
@@ -142,7 +141,6 @@ class ServicioHistorialTest {
         assertTrue(ok.integro());
         assertEquals(2, ok.cambiosVerificados());
 
-        // alguien cambia a mano el estado guardado de la versión 2
         VersionRegistro original = almacen.versiones.get(1);
         almacen.versiones.set(1, new VersionRegistro(original.getIdEvento(), original.getTipoRegistro(),
                 original.getIdRegistro(), 2, "{\"region\":\"Otra\"}", original.getAutor(), original.getCreadaEn()));
@@ -156,7 +154,7 @@ class ServicioHistorialTest {
         registrado("e1");
         modificado("e2", "region", "Llanos", "A", 2, null, null);
         modificado("e3", "region", "A", "B", 3, null, null);
-        almacen.cambios.remove(1); // se borra la versión 2
+        almacen.cambios.remove(1);
 
         VistaIntegridad r = consulta.integridad(TipoRegistro.HALLAZGO, H);
         assertFalse(r.integro());

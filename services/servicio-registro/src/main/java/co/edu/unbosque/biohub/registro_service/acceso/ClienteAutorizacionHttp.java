@@ -16,10 +16,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Cliente de POST /api/v1/autorizacion/verificar con caché por (usuario, permiso).
- * Si autorización no responde NO se permite la escritura (falla cerrado): responde 503.
- */
 @Component
 public class ClienteAutorizacionHttp implements ClienteAutorizacion {
 

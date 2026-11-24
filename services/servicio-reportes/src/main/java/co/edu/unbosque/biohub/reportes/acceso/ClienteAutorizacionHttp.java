@@ -15,10 +15,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Duration;
 import java.util.Map;
 
-/**
- * Cliente de POST /api/v1/autorizacion/verificar con caché por (usuario, permiso).
- * Si autorización no responde no se entrega ningún reporte (falla cerrado): responde 503.
- */
 @Component
 public class ClienteAutorizacionHttp implements ClienteAutorizacion {
 

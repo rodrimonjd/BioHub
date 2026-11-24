@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 
 import java.time.Instant;
 
-/** Entrada del historial de accesos a ubicaciones. Solo se inserta: la base de datos rechaza modificarla o borrarla. */
 @Entity
 @Table(name = "historial_acceso_ubicacion")
 public class CambioAccesoUbicacion {

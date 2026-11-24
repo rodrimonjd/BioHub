@@ -35,7 +35,7 @@ class ServicioUsuariosTest {
     private final UsuarioRepositorio repo = mock(UsuarioRepositorio.class);
     private final ServicioAutorizacion autorizacion = mock(ServicioAutorizacion.class);
     private final RolServicio roles = mock(RolServicio.class);
-    private final PasswordEncoder claves = new BCryptPasswordEncoder(4); // costo bajo: tests rápidos
+    private final PasswordEncoder claves = new BCryptPasswordEncoder(4);
     private ServicioUsuarios servicio;
 
     @BeforeEach

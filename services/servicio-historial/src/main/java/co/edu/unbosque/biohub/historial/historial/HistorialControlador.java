@@ -28,7 +28,6 @@ public class HistorialControlador {
         this.permisos = permisos;
     }
 
-    /** Lista cronológica de cambios con su responsable. */
     @GetMapping(TIPO)
     public VistaHistorial historial(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                                     @PathVariable String tipo, @PathVariable String id) {
@@ -36,7 +35,6 @@ public class HistorialControlador {
         return servicio.historial(tipoRegistro(tipo), id);
     }
 
-    /** Detalle de un cambio: campo, valores anterior y nuevo, autor y autorizador. */
     @GetMapping(TIPO + "/cambios/{version}")
     public VistaCambio cambio(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                               @PathVariable String tipo, @PathVariable String id, @PathVariable int version) {
@@ -44,7 +42,6 @@ public class HistorialControlador {
         return servicio.cambio(tipoRegistro(tipo), id, version);
     }
 
-    /** Versiones conservadas en orden cronológico. */
     @GetMapping(TIPO + "/versiones")
     public VistaVersiones versiones(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                                     @PathVariable String tipo, @PathVariable String id) {
@@ -52,7 +49,6 @@ public class HistorialControlador {
         return servicio.versiones(tipoRegistro(tipo), id);
     }
 
-    /** Estado completo del registro en una versión. */
     @GetMapping(TIPO + "/versiones/{version}")
     public VistaVersion version(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                                 @PathVariable String tipo, @PathVariable String id, @PathVariable int version) {
@@ -60,7 +56,6 @@ public class HistorialControlador {
         return servicio.version(tipoRegistro(tipo), id, version);
     }
 
-    /** Verifica que ningún cambio haya sido alterado ni borrado. */
     @GetMapping(TIPO + "/integridad")
     public VistaIntegridad integridad(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                                       @PathVariable String tipo, @PathVariable String id) {

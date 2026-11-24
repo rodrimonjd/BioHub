@@ -23,7 +23,6 @@ public class ServicioConsulta {
 
     public static final int TAMANO_MAXIMO = 100;
 
-    /** Las fechas de búsqueda se interpretan como días completos en Colombia. */
     private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     private final HallazgoLecturaRepositorio repositorio;
@@ -37,10 +36,6 @@ public class ServicioConsulta {
         this.autorizacion = autorizacion;
     }
 
-    /**
-     * @param fechaDesde primer día incluido (hora de Colombia), o null
-     * @param fechaHasta último día incluido (hora de Colombia), o null
-     */
     public PaginaHallazgos listar(String usuarioId, String especieId, String departamento, String especie,
                                   LocalDate fechaDesde, LocalDate fechaHasta, int pagina, int tamano) {
         if (pagina < 0) throw new IllegalArgumentException("pagina debe ser 0 o mayor");

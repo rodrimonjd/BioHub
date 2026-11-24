@@ -17,12 +17,10 @@ public class VerificadorPermisos {
         this.autorizacion = autorizacion;
     }
 
-    /** Crear fichas, agregar atributos y cambiar valores. @return el id del usuario, listo para usarse como autor */
     public String exigirEdicion(String usuarioId) {
         return exigir(usuarioId, EDITAR_FICHA);
     }
 
-    /** Desactivar una ficha. @return el id del usuario, listo para usarse como autor */
     public String exigirDesactivacion(String usuarioId) {
         return exigir(usuarioId, DESACTIVAR_FICHA);
     }

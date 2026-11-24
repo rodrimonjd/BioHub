@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 
 import java.time.Instant;
 
-/** Acceso vigente de un usuario a la ubicación exacta de una especie. */
 @Entity
 @Table(name = "acceso_ubicacion", uniqueConstraints = @UniqueConstraint(columnNames = {"usuario_id", "especie_id"}))
 public class AccesoUbicacion {

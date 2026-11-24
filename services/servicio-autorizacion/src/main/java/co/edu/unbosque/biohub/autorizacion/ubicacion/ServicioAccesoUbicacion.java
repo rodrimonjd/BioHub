@@ -21,11 +21,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Accesos a la ubicación exacta por especie. Quien tiene ubicacion:ver_exacta ve todas las especies;
- * a los demás la autoridad ambiental (ubicacion:administrar) les da o les quita especies una por una.
- * Cada cambio queda en un historial de solo inserción.
- */
 @Service
 @Transactional
 public class ServicioAccesoUbicacion {
@@ -51,7 +46,6 @@ public class ServicioAccesoUbicacion {
     public record VistaCambio(Long id, String usuarioId, String nombreUsuario, String especieId, Accion accion,
                               String realizadoPor, Instant realizadoEn) {}
 
-    /** @param todas true si el usuario tiene ubicacion:ver_exacta y ve las coordenadas de cualquier especie */
     public record AccesoDeUsuario(String usuarioId, boolean todas, Set<String> especies) {}
 
     @Transactional(readOnly = true)
@@ -124,7 +118,6 @@ public class ServicioAccesoUbicacion {
                 .toList();
     }
 
-    /** Cuentas activas a las que se les puede dar acceso. */
     @Transactional(readOnly = true)
     public List<ResumenUsuario> usuarios(String solicitante) {
         exigirAdministrador(solicitante);

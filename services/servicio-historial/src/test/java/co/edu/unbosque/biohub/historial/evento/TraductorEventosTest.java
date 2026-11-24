@@ -49,7 +49,7 @@ class TraductorEventosTest {
         Map<String, Object> nuevo = c.estadoResultante(anterior);
         assertEquals("Llanos", nuevo.get("region"));
         assertEquals("Meta", nuevo.get("departamento"));
-        assertEquals("Macarena", anterior.get("region")); // la versión anterior no se toca
+        assertEquals("Macarena", anterior.get("region"));
     }
 
     @Test
@@ -96,13 +96,13 @@ class TraductorEventosTest {
     @Test
     void eventosIncompletosSonInvalidos() {
         assertThrows(EventoInvalidoException.class, () -> traductor.traducir(
-                evento(EventoEntrante.HALLAZGO_REGISTRADO, null, datos("especie", "X"))));            // sin versión
+                evento(EventoEntrante.HALLAZGO_REGISTRADO, null, datos("especie", "X"))));
         assertThrows(EventoInvalidoException.class, () -> traductor.traducir(
                 new EventoEntrante("ev", EventoEntrante.HALLAZGO_REGISTRADO, "h1", FECHA, null, null,
-                        datos("version", 1))));                                                           // sin autor
+                        datos("version", 1))));
         assertThrows(EventoInvalidoException.class, () -> traductor.traducir(
-                evento(EventoEntrante.HALLAZGO_MODIFICADO, null, datos("valorNuevo", "x", "version", 2)))); // sin campo
+                evento(EventoEntrante.HALLAZGO_MODIFICADO, null, datos("valorNuevo", "x", "version", 2))));
         assertThrows(EventoInvalidoException.class, () -> traductor.traducir(
-                evento("AVISTAMIENTO_REGISTRADO", null, datos("version", 1))));                          // no soportado
+                evento("AVISTAMIENTO_REGISTRADO", null, datos("version", 1))));
     }
 }

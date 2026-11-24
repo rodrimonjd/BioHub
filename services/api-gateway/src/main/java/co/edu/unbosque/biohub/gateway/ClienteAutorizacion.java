@@ -9,11 +9,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-
 @Component
 public class ClienteAutorizacion {
 
-    /** Cuánto se recuerda la respuesta de un permiso: el panel de consumo se consulta cada 2 s. */
     private static final Duration DURACION_CACHE = Duration.ofSeconds(30);
 
     private final RestClient http;
@@ -23,11 +21,6 @@ public class ClienteAutorizacion {
         this.http = RestClient.create(propiedades.autorizacionUrl());
     }
 
-    /**
-     * Pregunta a servicio-autorizacion si el usuario tiene el permiso.
-     *
-     * @throws org.springframework.web.client.RestClientException si autorización no responde
-     */
     public boolean tienePermiso(String usuarioId, String permiso) {
         String clave = usuarioId + "|" + permiso;
         Instant ahora = Instant.now();

@@ -57,11 +57,6 @@ public class Evidencia {
         this.atributoTaxonomico = atributoTaxonomico;
     }
 
-    /**
-     * Revisa que la evidencia tenga los datos que exige su tipo:
-     * TEMPERATURA un valor numerico y una unidad, ADN el codigo de la muestra
-     * y AUDIO la URL del archivo.
-     */
     public boolean validarFormato() {
         if (tipo == null) {
             return false;
@@ -152,5 +147,4 @@ public class Evidencia {
         this.atributoTaxonomico = atributoTaxonomico;
     }
 
-    
 }

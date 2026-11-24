@@ -19,7 +19,6 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 public class GatewayController {
 
-    /** Permiso para ver el consumo de la API externa; el público general (CIUDADANO) no lo tiene. */
     public static final String PERMISO_MONITOREO = "api_externa:monitorear";
     public static final String PERMISO_CONFIGURAR = "api_externa:configurar";
 

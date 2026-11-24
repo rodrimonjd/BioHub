@@ -41,7 +41,6 @@ public final class Dtos {
 
     public record SolicitudSesion(@NotBlank(message = "es obligatorio") String usuario,
                                   @NotBlank(message = "es obligatoria") String clave) {}
-    /** Nunca incluye la contraseña ni su hash. */
     public record RespuestaSesion(String usuarioId, String nombre, String correo,
                                   Set<String> roles, Set<String> permisos) {}
 

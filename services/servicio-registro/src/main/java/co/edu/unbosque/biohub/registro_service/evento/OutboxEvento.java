@@ -123,5 +123,4 @@ public class OutboxEvento {
         this.intentos = intentos;
     }
 
-    
 }

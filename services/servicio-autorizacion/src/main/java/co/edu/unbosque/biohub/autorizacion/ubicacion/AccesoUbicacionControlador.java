@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Quién ve la ubicación exacta de cada especie. Administrarlo exige ubicacion:administrar. */
 @RestController
 @RequestMapping("/api/v1/autorizacion")
 public class AccesoUbicacionControlador {
@@ -35,7 +34,6 @@ public class AccesoUbicacionControlador {
     public record SolicitudAcceso(@NotBlank(message = "es obligatorio") String usuarioId,
                                   @NotBlank(message = "es obligatorio") String especieId) {}
 
-    /** Qué especies puede ver con coordenadas exactas un usuario (lo consultan los demás servicios). */
     @GetMapping("/usuarios/{usuarioId}/ubicacion")
     public AccesoDeUsuario acceso(@PathVariable String usuarioId) {
         return servicio.accesoDe(usuarioId);

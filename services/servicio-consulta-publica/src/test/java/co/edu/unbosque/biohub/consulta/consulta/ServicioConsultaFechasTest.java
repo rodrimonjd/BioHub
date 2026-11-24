@@ -31,7 +31,6 @@ class ServicioConsultaFechasTest {
 
         servicio.listar(null, null, null, null, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-30"), 0, 20);
 
-        // Colombia es UTC-5: el 1 de noviembre empieza a las 05:00 UTC y el 30 termina antes del 1 de diciembre 05:00 UTC
         verify(repositorio).buscar(isNull(), isNull(), isNull(),
                 eq(Instant.parse("2026-11-01T05:00:00Z")), eq(Instant.parse("2026-12-01T05:00:00Z")), any(Pageable.class));
     }

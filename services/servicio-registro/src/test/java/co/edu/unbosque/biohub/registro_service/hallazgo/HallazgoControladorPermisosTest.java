@@ -27,7 +27,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Las escrituras de hallazgos exigen permisos de servicio-autorizacion y toman el autor de la cabecera. */
 @WebMvcTest(HallazgoControlador.class)
 @Import(VerificadorPermisos.class)
 class HallazgoControladorPermisosTest {

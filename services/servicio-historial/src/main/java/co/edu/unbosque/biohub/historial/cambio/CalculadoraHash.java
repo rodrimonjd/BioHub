@@ -7,7 +7,7 @@ import java.util.HexFormat;
 
 public final class CalculadoraHash {
 
-    private static final char SEPARADOR = '\u001F'; // separador de unidad: no aparece en datos normales
+    private static final char SEPARADOR = '\u001F';
 
     private CalculadoraHash() {}
 
