@@ -96,4 +96,21 @@ class ApiGatewayTest {
 
         assertThat(gateway.resolverDestino("/api/v1/inventario")).isEqualTo("http://consulta-nueva/hallazgos");
     }
+
+    @Test
+    void elResumenDeConsumoMuestraSolicitudesYRechazadasPorConsumidor() {
+        ApiGateway gateway = gateway(2);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(true);
+        for (int i = 0; i < 3; i++) {
+            gateway.enrutar("/api/v1/no-existe", null, "clave-unal");
+        }
+
+        List<ApiGateway.ConsumoConsumidor> consumo = gateway.consumo();
+
+        assertThat(consumo).hasSize(1);
+        assertThat(consumo.get(0).id()).isEqualTo("consumidor-unal");
+        assertThat(consumo.get(0).solicitudes()).isEqualTo(2);
+        assertThat(consumo.get(0).rechazadas()).isEqualTo(1);
+        assertThat(consumo.get(0).limitePorMinuto()).isEqualTo(2);
+    }
 }

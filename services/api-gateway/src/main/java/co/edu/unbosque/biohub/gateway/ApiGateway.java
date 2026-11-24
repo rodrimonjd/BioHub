@@ -70,6 +70,22 @@ public class ApiGateway {
         return reenviar(destino, consumidor.getId());
     }
 
+    public record ConsumoConsumidor(String id, String organizacion, int solicitudes, int rechazadas,
+                                    int limitePorMinuto, long segundosParaReiniciar) { }
+
+    public List<ConsumoConsumidor> consumo() {
+        return consumo(Instant.now());
+    }
+
+    List<ConsumoConsumidor> consumo(Instant ahora) {
+        List<ConsumoConsumidor> resultado = new ArrayList<>();
+        for (ConsumidorExterno c : consumidores) {
+            resultado.add(new ConsumoConsumidor(c.getId(), c.getOrganizacion(), c.solicitudesEn(ahora),
+                    c.rechazadasEn(ahora), c.getLimitePorMinuto(), ConsumidorExterno.segundosParaSiguienteMinuto(ahora)));
+        }
+        return resultado;
+    }
+
     public void actualizarRuta(String ruta, String destino) {
         rutas.put(ruta, destino);
     }
