@@ -21,6 +21,7 @@ import {
 } from '@/lib/registro-api';
 import { avisoDeError } from '@/lib/avisos';
 import { CLASE_INPUT, Encabezado } from './campo-ui';
+import { ExpedicionesConEquipos } from './ExpedicionesConEquipos';
 
 export interface GestionCampoProps {
   currentUser: BioHubUser;
@@ -42,6 +43,10 @@ export function GestionCampo({
   const notificar = useNotificar();
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [lideres, setLideres] = useState<ResumenUsuario[]>([]);
+  const [expedicionAbierta, setExpedicionAbierta] = useState<string | null>(null);
+
+  const nombreDe = (id: string) =>
+    id === currentUser.id ? currentUser.name : lideres.find((l) => l.id === id)?.nombre ?? id;
 
   const recargarEquipos = async () => setEquipos(await listarEquipos());
 
@@ -130,11 +135,10 @@ export function GestionCampo({
       notificar({
         tipo: 'ok',
         titulo: 'Equipo asignado',
-        detalle: `Va a ${expedicion.nombre}. Responsable: ${
-          lideres.find((l) => l.id === expedicion.liderId)?.nombre ?? expedicion.liderId
-        }.`,
+        detalle: `Va a ${expedicion.nombre}. Responsable: ${nombreDe(expedicion.liderId)}.`,
       });
       await Promise.all([onExpedicionesCambiaron(), recargarEquipos()]);
+      setExpedicionAbierta(expedicion.id);
     } catch (error) {
       notificar(
         avisoDeError(error, {
@@ -313,6 +317,16 @@ export function GestionCampo({
           </Card>
         )}
       </div>
+
+      {puedeGestionarEquipos && (
+        <ExpedicionesConEquipos
+          usuarioId={currentUser.id}
+          expediciones={expediciones}
+          nombreDe={nombreDe}
+          abierta={expedicionAbierta}
+          onAbrir={setExpedicionAbierta}
+        />
+      )}
     </div>
   );
 }
