@@ -46,7 +46,7 @@ public class ProyectorHallazgos {
         int version = entero(d.get("version"), 1);
         Optional<HallazgoLectura> existente = repositorio.findById(evento.idAgregado());
         if (existente.isPresent() && existente.get().getVersion() >= version) {
-            return Resultado.IGNORADO; // ya aplicado
+            return Resultado.IGNORADO;
         }
         HallazgoLectura h = existente.orElseGet(() -> new HallazgoLectura(evento.idAgregado()));
         h.registrar(texto(d.get("especieId")), requerido(d, "especie"), instante(d.get("fecha")),
@@ -66,7 +66,7 @@ public class ProyectorHallazgos {
         HallazgoLectura h = existente.get();
         int version = entero(d.get("version"), h.getVersion() + 1);
         if (h.getVersion() >= version) {
-            return Resultado.IGNORADO; // ya aplicado
+            return Resultado.IGNORADO;
         }
         String campo = texto(d.get("campo"));
         String valor = texto(d.get("valorNuevo"));

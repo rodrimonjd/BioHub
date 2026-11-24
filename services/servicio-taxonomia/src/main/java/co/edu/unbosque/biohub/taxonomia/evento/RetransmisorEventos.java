@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaRepositorio;
 import co.edu.unbosque.biohub.taxonomia.ficha.FichaTaxonomica;
 
-
 @Component
 public class RetransmisorEventos {
 

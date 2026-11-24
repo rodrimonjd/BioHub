@@ -76,7 +76,6 @@ class ConstructorRegistroCambioTest {
 
         assertEquals(primero.getHash(), segundo.getHashAnterior());
         assertEquals(segundo.getHash(), ConstructorRegistroCambio.calcularHash(segundo, "{\"a\":2}"));
-        // si cambia el estado guardado, el hash ya no coincide
         assertNotEquals(segundo.getHash(), ConstructorRegistroCambio.calcularHash(segundo, "{\"a\":3}"));
     }
 

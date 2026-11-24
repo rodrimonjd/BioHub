@@ -5,14 +5,16 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { ReportStatus, BackgroundReportState } from '@/components/biohub/ReportStatus';
+import { SeccionBloqueada } from '@/components/biohub/SeccionBloqueada';
 import { BioHubUser, canGenerateReports } from '@/lib/permissions';
+import { EspecieRegistro } from '@/lib/taxonomia-api';
 import {
   Reporte,
+  descargarPdf,
   obtenerReporte,
   sigueEnProceso,
   solicitarReporte,
   ultimoReporteDe,
-  urlDescargaPdf,
 } from '@/lib/reportes-api';
 
 const DEPARTAMENTOS = ['Vichada', 'Meta', 'Casanare', 'Amazonas', 'Caquetá', 'Chocó', 'Antioquia'];
@@ -38,7 +40,14 @@ function haceUnMes(): string {
   return fecha.toISOString().slice(0, 10);
 }
 
-export function ReportesPanel({ currentUser }: { currentUser: BioHubUser }) {
+export interface ReportesPanelProps {
+  currentUser: BioHubUser;
+  /** Catálogo de especies para filtrar el reporte por una de ellas. */
+  especies?: EspecieRegistro[];
+}
+
+export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps) {
+  const [especieId, setEspecieId] = useState<string>('');
   const [fechaInicio, setFechaInicio] = useState<string>(haceUnMes());
   const [fechaFin, setFechaFin] = useState<string>(hoy());
   const [departamento, setDepartamento] = useState<string>('');
@@ -58,13 +67,22 @@ export function ReportesPanel({ currentUser }: { currentUser: BioHubUser }) {
     if (!reporte || !sigueEnProceso(reporte.estado)) return;
     const temporizador = setTimeout(async () => {
       try {
-        setReporte(await obtenerReporte(reporte.id));
+        setReporte(await obtenerReporte(reporte.id, currentUser.id));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'No se pudo consultar el reporte');
       }
     }, INTERVALO_CONSULTA_MS);
     return () => clearTimeout(temporizador);
-  }, [reporte]);
+  }, [reporte, currentUser.id]);
+
+  async function handleDescargar(id: string) {
+    setError(null);
+    try {
+      await descargarPdf(id, currentUser.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo descargar el reporte');
+    }
+  }
 
   async function handleSolicitar(e: React.FormEvent) {
     e.preventDefault();
@@ -79,6 +97,7 @@ export function ReportesPanel({ currentUser }: { currentUser: BioHubUser }) {
         fechaInicio,
         fechaFin,
         departamento: departamento || undefined,
+        especieId: especieId || undefined,
         solicitadoPor: currentUser.id,
       });
       setReporte(nuevo);
@@ -134,6 +153,21 @@ export function ReportesPanel({ currentUser }: { currentUser: BioHubUser }) {
                   ))}
                 </select>
               </Field>
+              <Field id="reporte-especie" label="Especie" className="sm:col-span-3">
+                <select
+                  id="reporte-especie"
+                  value={especieId}
+                  onChange={(e) => setEspecieId(e.target.value)}
+                  className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
+                >
+                  <option value="">Todas las especies</option>
+                  {especies.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nombreComun ?? e.nombreCientifico} ({e.nombreCientifico})
+                    </option>
+                  ))}
+                </select>
+              </Field>
             </div>
             <Button type="submit" disabled={enviando || (reporte !== null && sigueEnProceso(reporte.estado))}>
               {enviando ? 'Solicitando...' : 'Generar reporte'}
@@ -146,38 +180,32 @@ export function ReportesPanel({ currentUser }: { currentUser: BioHubUser }) {
           </form>
         </Card>
       ) : (
-        <Card className="flex items-center gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-paper text-ink">
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-          </div>
-          <div>
-            <p className="font-serif text-sm font-semibold text-ink">Generación de reportes bloqueada</p>
-            <p className="text-xs text-ink-muted">
-              Requiere el permiso para solicitar reportes (autoridad ambiental o administrador).
-            </p>
-          </div>
-        </Card>
+        <SeccionBloqueada
+          titulo="Generación de reportes bloqueada"
+          descripcion="Requiere el permiso para solicitar reportes (investigador, autoridad ambiental o administrador)."
+        />
+      )}
+
+      {!puedeGenerar && error && (
+        <p role="alert" className="rounded-md border border-iucn-cr/40 bg-iucn-cr/10 px-3 py-2 text-xs text-iucn-cr">
+          {error}
+        </p>
       )}
 
       {reporte && (
         <ReportStatus
-          reportTitle={`Índice de presión sobre ecosistemas · ${reporte.departamento ?? 'Todo el país'}`}
+          reportTitle={`Índice de presión sobre ecosistemas · ${reporte.departamento ?? 'Todo el país'}${
+            reporte.especieId
+              ? ` · ${(() => {
+                  const e = especies.find((x) => x.id === reporte.especieId);
+                  return e ? e.nombreComun ?? e.nombreCientifico : 'una especie';
+                })()}`
+              : ''
+          }`}
           reportId={reporte.id.slice(0, 8).toUpperCase()}
           recordsProcessed={`${reporte.totalAvistamientos} avistamientos · ${reporte.totalIndividuos} individuos`}
           state={ESTADO_EN_TARJETA[reporte.estado]}
-          downloadUrl={urlDescargaPdf(reporte.id)}
+          onDownload={() => handleDescargar(reporte.id)}
           message={reporte.estado === 'ERROR' ? reporte.mensaje : null}
         />
       )}

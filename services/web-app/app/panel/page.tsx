@@ -11,15 +11,21 @@ import { Section } from '@/components/ui/Section';
 import { SiteHeader } from '@/components/biohub/SiteHeader';
 import { SpeciesCard, SpeciesCardProps } from '@/components/biohub/SpeciesCard';
 import { HistorialRegistros } from '@/components/biohub/HistorialRegistros';
-import { ProtectedLocation } from '@/components/biohub/ProtectedLocation';
+import { UbicacionPorEspecie } from '@/components/biohub/UbicacionPorEspecie';
+import { AccesoUbicaciones } from '@/components/biohub/AccesoUbicaciones';
 import { ApiUsagePanel } from '@/components/biohub/ApiUsagePanel';
 import { ReportesPanel } from '@/components/biohub/ReportesPanel';
+import { SeccionBloqueada } from '@/components/biohub/SeccionBloqueada';
 import { FieldStationWorkspace } from '@/components/biohub/FieldStationWorkspace';
 import {
   actualizarAcceso,
   BioHubUser,
+  canDeactivateFichas,
   canEditFichas,
-  canViewExactCoordinates,
+  canConfigureApi,
+  canManageLocationAccess,
+  canViewApiUsage,
+  canViewReports,
   clearStoredSession,
   getStoredSession,
   PERMISOS,
@@ -28,16 +34,21 @@ import {
 } from '@/lib/permissions';
 import { obtenerAcceso } from '@/lib/autorizacion-api';
 import { AdminUsuarios } from '@/components/biohub/AdminUsuarios';
-import { BACKEND_SEED_SPECIES } from '@/lib/registro-api';
+import { NuevaFicha } from '@/components/biohub/NuevaFicha';
 import {
+  AtributoTaxonomico,
   cargarInventario,
+  desactivarFicha,
   EspecieRegistro,
   FichaTaxonomica,
   guardarAtributoEnFicha,
+  listarAtributos,
 } from '@/lib/taxonomia-api';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 
-const JAGUAR_SEED = BACKEND_SEED_SPECIES[1];
+// Opción del catálogo de atributos para escribir uno nuevo a mano
+const ATRIBUTO_OTRO = '__otro__';
+
 
 const INITIAL_SPECIES_CARDS: SpeciesCardProps[] = [
   {
@@ -131,6 +142,9 @@ export default function PanelPage() {
   const [attrSavedNotice, setAttrSavedNotice] = useState<string | null>(null);
   const [attrError, setAttrError] = useState<string | null>(null);
   const [guardandoAtributo, setGuardandoAtributo] = useState<boolean>(false);
+  // Catálogo de atributos ya existentes (servicio-taxonomia); "Otro" permite escribir uno nuevo
+  const [catalogoAtributos, setCatalogoAtributos] = useState<AtributoTaxonomico[]>([]);
+  const [atributoOtro, setAtributoOtro] = useState<boolean>(false);
 
   const [inventario, setInventario] = useState<{
     especies: EspecieRegistro[];
@@ -161,6 +175,9 @@ export default function PanelPage() {
   }, [router]);
 
   const recargarInventario = async () => {
+    listarAtributos().then((lista) =>
+      setCatalogoAtributos([...lista].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))
+    );
     const datos = await cargarInventario();
     if (!datos) return;
     setInventario(datos);
@@ -168,8 +185,10 @@ export default function PanelPage() {
       tarjetaDesde(especie, datos.fichas.find((f) => f.especieId === especie.id))
     );
     setSpeciesList(tarjetas);
+    const codigosConFicha = datos.fichas.map((f) => codigoFicha(f.especieId));
+    const tarjetasConFicha = tarjetas.filter((t) => codigosConFicha.includes(t.id));
     setSelectedCardIdForAttr((actual) =>
-      tarjetas.some((t) => t.id === actual) ? actual : tarjetas[0]?.id ?? actual
+      codigosConFicha.includes(actual) ? actual : tarjetasConFicha[0]?.id ?? ''
     );
   };
 
@@ -198,6 +217,14 @@ export default function PanelPage() {
     return matchesText && matchesStatus;
   });
 
+  const atributoElegido = atributoOtro
+    ? undefined
+    : catalogoAtributos.find((a) => a.nombre === newAttrLabel);
+
+  const tarjetasConFicha = inventario
+    ? speciesList.filter((sp) => inventario.fichas.some((f) => codigoFicha(f.especieId) === sp.id))
+    : speciesList;
+
   const handleAddDynamicAttribute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAttrLabel.trim() || !newAttrValue.trim()) return;
@@ -221,6 +248,7 @@ export default function PanelPage() {
         );
         setNewAttrLabel('');
         setNewAttrValue('');
+        setAtributoOtro(false);
         await recargarInventario();
       } catch (error) {
         setAttrError(error instanceof Error ? error.message : 'No se pudo guardar el atributo.');
@@ -453,10 +481,29 @@ export default function PanelPage() {
                 </Card>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {filteredSpecies.map((species) => (
-                    <SpeciesCard key={species.id} {...species} />
-                  ))}
+                  {filteredSpecies.map((species) => {
+                    // Solo las especies con ficha activa, y si la cuenta tiene ficha:desactivar
+                    const ficha = inventario?.fichas.find((f) => codigoFicha(f.especieId) === species.id);
+                    const onDesactivar =
+                      ficha && canDeactivateFichas(currentUser)
+                        ? async (motivo: string) => {
+                            await desactivarFicha(ficha.id, motivo, currentUser.id);
+                            setAttrSavedNotice(`Ficha de ${species.commonName} desactivada.`);
+                            await recargarInventario();
+                          }
+                        : undefined;
+                    return <SpeciesCard key={species.id} {...species} onDesactivar={onDesactivar} />;
+                  })}
                 </div>
+              )}
+
+              {inventario && canEditFichas(currentUser) && (
+                <NuevaFicha
+                  usuarioId={currentUser.id}
+                  especies={inventario.especies}
+                  fichas={inventario.fichas}
+                  onCreada={recargarInventario}
+                />
               )}
 
               {/* Agregar atributo a una ficha: solo con el permiso ficha:editar (el invitado no lo ve) */}
@@ -500,7 +547,8 @@ export default function PanelPage() {
                       onChange={(e) => setSelectedCardIdForAttr(e.target.value)}
                       className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                     >
-                      {speciesList.map((sp) => (
+                      {tarjetasConFicha.length === 0 && <option value="">Aún no hay fichas creadas</option>}
+                      {tarjetasConFicha.map((sp) => (
                         <option key={sp.id} value={sp.id}>
                           #{sp.id} — {sp.commonName}
                         </option>
@@ -508,36 +556,82 @@ export default function PanelPage() {
                     </select>
                   </Field>
 
-                  <Field
-                    id="attr-label-input"
-                    label="Nombre del atributo"
-                    className="md:col-span-4"
-                  >
-                    <input
-                      id="attr-label-input"
-                      type="text"
-                      required
-                      value={newAttrLabel}
-                      onChange={(e) => setNewAttrLabel(e.target.value)}
-                      placeholder="Ej. pH del agua / Nivel de oxígeno"
-                      className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
-                    />
-                  </Field>
+                  <div className="md:col-span-4 space-y-3">
+                    <Field id="attr-catalogo-select" label="Atributo">
+                      <select
+                        id="attr-catalogo-select"
+                        required
+                        value={atributoOtro ? ATRIBUTO_OTRO : newAttrLabel}
+                        onChange={(e) => {
+                          const otro = e.target.value === ATRIBUTO_OTRO;
+                          setAtributoOtro(otro);
+                          setNewAttrLabel(otro ? '' : e.target.value);
+                          setNewAttrValue('');
+                        }}
+                        className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                      >
+                        <option value="">Elegir del catálogo...</option>
+                        {catalogoAtributos.map((a) => (
+                          <option key={a.id} value={a.nombre}>
+                            {a.nombre}
+                            {a.unidad ? ` (${a.unidad})` : ''}
+                          </option>
+                        ))}
+                        <option value={ATRIBUTO_OTRO}>Otro (escribir un atributo nuevo)</option>
+                      </select>
+                    </Field>
+                    {atributoOtro && (
+                      <Field id="attr-label-input" label="Nombre del atributo nuevo">
+                        <input
+                          id="attr-label-input"
+                          type="text"
+                          required
+                          autoFocus
+                          value={newAttrLabel}
+                          onChange={(e) => setNewAttrLabel(e.target.value)}
+                          placeholder="Ej. pH del agua / Nivel de oxígeno"
+                          className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                        />
+                      </Field>
+                    )}
+                  </div>
 
                   <Field
                     id="attr-value-input"
                     label="Valor registrado"
                     className="md:col-span-3"
                   >
-                    <input
-                      id="attr-value-input"
-                      type="text"
-                      required
-                      value={newAttrValue}
-                      onChange={(e) => setNewAttrValue(e.target.value)}
-                      placeholder="Ej. 6.8 pH"
-                      className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
-                    />
+                    {atributoElegido?.tipoDato === 'LISTA' && atributoElegido.opciones?.length ? (
+                      <select
+                        id="attr-value-input"
+                        required
+                        value={newAttrValue}
+                        onChange={(e) => setNewAttrValue(e.target.value)}
+                        className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                      >
+                        <option value="">Elegir...</option>
+                        {atributoElegido.opciones.map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="attr-value-input"
+                        type="text"
+                        required
+                        inputMode={atributoElegido?.tipoDato === 'NUMERICO' ? 'decimal' : undefined}
+                        value={newAttrValue}
+                        onChange={(e) => setNewAttrValue(e.target.value)}
+                        placeholder={
+                          atributoElegido?.tipoDato === 'NUMERICO'
+                            ? `Número${atributoElegido.unidad ? ` en ${atributoElegido.unidad}` : ''}`
+                            : 'Ej. 6.8 pH'
+                        }
+                        className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                      />
+                    )}
                   </Field>
 
                   <div className="md:col-span-2">
@@ -545,7 +639,7 @@ export default function PanelPage() {
                       type="submit"
                       variant="ghost"
                       className="w-full text-xs"
-                      disabled={guardandoAtributo}
+                      disabled={guardandoAtributo || tarjetasConFicha.length === 0}
                     >
                       {guardandoAtributo ? 'Guardando...' : '+ Agregar atributo'}
                     </Button>
@@ -580,23 +674,36 @@ export default function PanelPage() {
               </div>
 
               <div className="lg:col-span-5 space-y-4">
-                <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
-                  El corredor biológico
-                </p>
+                <div className="space-y-1">
+                  <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+                    El corredor biológico
+                  </p>
+                  <p className="text-sm text-ink-muted">Ubicación geográfica sensible</p>
+                </div>
 
                 {/* La visibilidad depende del permiso ubicacion:ver_exacta de la cuenta (servicio-autorizacion) */}
-                <ProtectedLocation
-                  puedeVerExacta={canViewExactCoordinates(currentUser)}
-                  nivelLabel={currentUser.roleLabel}
-                  speciesCommonName={`${JAGUAR_SEED.commonName} del corredor Macarena`}
-                  speciesScientificName={JAGUAR_SEED.scientificName}
-                  status={JAGUAR_SEED.status}
-                  regionLabel="Región: Meta"
-                  exactCoordinates="02° 42' 45.0&quot; N · 73° 54' 15.1&quot; W"
-                  altitude="485 msnm"
+                <UbicacionPorEspecie
+                  usuario={currentUser}
+                  especies={inventario?.especies ?? []}
+                  recarga={recargaHistorial}
                 />
               </div>
             </div>
+
+            {/* Acceso a ubicaciones exactas por especie: solo con ubicacion:administrar (autoridad ambiental) */}
+            {canManageLocationAccess(currentUser) && (
+              <div id="accesos-ubicacion" className="space-y-4 pt-8 border-t border-line">
+                <div className="space-y-1">
+                  <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+                    Protección de ubicaciones
+                  </p>
+                  <p className="text-sm text-ink-muted">
+                    Decide qué cuentas ven las coordenadas exactas de cada especie y revisa el historial de esos cambios.
+                  </p>
+                </div>
+                <AccesoUbicaciones usuario={currentUser} especies={inventario?.especies ?? []} />
+              </div>
+            )}
 
             {/* 4. PLATAFORMA ABIERTA Y REPORTES EN SEGUNDO PLANO (sin botones de simulación falsos) */}
             <div
@@ -607,19 +714,30 @@ export default function PanelPage() {
                 <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
                   Plataforma abierta con límite de peticiones
                 </p>
-                <ApiUsagePanel
-                  consumerName="Universidad & ONG — Modelo Climático Regional"
-                  endpointUrl="https://api.biohub.gov.co/v1/inventario"
-                  requestsPerMinute={36}
-                  limitPerMinute={60}
-                />
+                {/* El consumo de la API exige api_externa:monitorear; el invitado (CIUDADANO) no lo tiene */}
+                {canViewApiUsage(currentUser) ? (
+                  <ApiUsagePanel usuarioId={currentUser.id} puedeConfigurar={canConfigureApi(currentUser)} />
+                ) : (
+                  <SeccionBloqueada
+                    titulo="Plataforma abierta bloqueada"
+                    descripcion="Tu rol no tiene acceso al consumo de la API externa ni a sus pruebas."
+                  />
+                )}
               </div>
 
               <div className="space-y-3">
                 <p className="font-mono text-xs uppercase tracking-wider text-water-600 font-semibold">
                   Reportes analíticos sin bloqueo de campo
                 </p>
-                <ReportesPanel currentUser={currentUser} />
+                {/* Ver reportes exige reporte:ver; el invitado (CIUDADANO) no lo tiene */}
+                {canViewReports(currentUser) ? (
+                  <ReportesPanel currentUser={currentUser} especies={inventario?.especies ?? []} />
+                ) : (
+                  <SeccionBloqueada
+                    titulo="Reportes bloqueados"
+                    descripcion="Tu rol no tiene permiso para consultar ni generar reportes científicos."
+                  />
+                )}
               </div>
             </div>
           </div>

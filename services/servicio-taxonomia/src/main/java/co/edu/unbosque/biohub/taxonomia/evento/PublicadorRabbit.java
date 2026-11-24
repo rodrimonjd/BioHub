@@ -8,7 +8,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import co.edu.unbosque.biohub.taxonomia.configuracion.PropiedadesTaxonomia;
 import org.springframework.stereotype.Component;
 
-
 @Component
 public class PublicadorRabbit implements PublicadorEventos {
 

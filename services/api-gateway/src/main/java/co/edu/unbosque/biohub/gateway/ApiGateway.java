@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-
 @Service
 public class ApiGateway {
 
@@ -22,6 +21,7 @@ public class ApiGateway {
     public static final String CABECERA_USUARIO = "X-Usuario-Id";
 
     private final String urlPublica;
+    private final int limiteMaximo;
     private final Map<String, String> rutas = new LinkedHashMap<>();
     private final List<ConsumidorExterno> consumidores = new ArrayList<>();
     private final ClienteAutorizacion autorizacion;
@@ -29,6 +29,7 @@ public class ApiGateway {
 
     public ApiGateway(GatewayProperties propiedades, ClienteAutorizacion autorizacion) {
         this.urlPublica = propiedades.urlPublica();
+        this.limiteMaximo = propiedades.limitePorMinuto();
         this.autorizacion = autorizacion;
         for (Map.Entry<String, String> ruta : propiedades.rutas().entrySet()) {
             actualizarRuta(ruta.getKey(), ruta.getValue());
@@ -68,6 +69,31 @@ public class ApiGateway {
             destino = destino + "?" + consulta;
         }
         return reenviar(destino, consumidor.getId());
+    }
+
+    public record ConsumoConsumidor(String id, String organizacion, int solicitudes, int rechazadas,
+                                    int limitePorMinuto, long segundosParaReiniciar) { }
+
+    public List<ConsumoConsumidor> consumo() {
+        return consumo(Instant.now());
+    }
+
+    List<ConsumoConsumidor> consumo(Instant ahora) {
+        List<ConsumoConsumidor> resultado = new ArrayList<>();
+        for (ConsumidorExterno c : consumidores) {
+            resultado.add(new ConsumoConsumidor(c.getId(), c.getOrganizacion(), c.solicitudesEn(ahora),
+                    c.rechazadasEn(ahora), c.getLimitePorMinuto(), ConsumidorExterno.segundosParaSiguienteMinuto(ahora)));
+        }
+        return resultado;
+    }
+
+    public void cambiarLimite(int limitePorMinuto) {
+        if (limitePorMinuto < 1 || limitePorMinuto > limiteMaximo) {
+            throw new IllegalArgumentException("El limite debe estar entre 1 y " + limiteMaximo + " solicitudes por minuto");
+        }
+        for (ConsumidorExterno consumidor : consumidores) {
+            consumidor.cambiarLimite(limitePorMinuto);
+        }
     }
 
     public void actualizarRuta(String ruta, String destino) {
@@ -122,4 +148,5 @@ public class ApiGateway {
     }
 
     public String getUrlPublica() { return urlPublica; }
+    public int getLimiteMaximo() { return limiteMaximo; }
 }

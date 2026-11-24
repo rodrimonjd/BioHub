@@ -15,8 +15,14 @@ const REPORTES_URL = process.env.REPORTES_URL ?? 'http://localhost:8085';
 // URL de servicio-historial (cambios y versiones inmutables). Por defecto :8086.
 const HISTORIAL_URL = process.env.HISTORIAL_URL ?? 'http://localhost:8086';
 
+const GATEWAY_URL = process.env.GATEWAY_URL ?? 'http://localhost:8080';
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Genera un servidor autocontenido (.next/standalone) para la imagen de Docker
+  output: 'standalone',
+  // Oculta el botón "N" de herramientas de desarrollo de Next en la esquina inferior izquierda
+  devIndicators: false,
   // El navegador llama a /api/<servicio>/... (mismo origen, sin CORS) y Next lo reenvia al servicio.
   async rewrites() {
     return [
@@ -43,6 +49,18 @@ const nextConfig: NextConfig = {
       {
         source: '/api/reportes',
         destination: `${REPORTES_URL}/reportes`,
+      },
+      {
+        source: '/api/gateway/consumo',
+        destination: `${GATEWAY_URL}/gateway/consumo`,
+      },
+      {
+        source: '/api/gateway/limite',
+        destination: `${GATEWAY_URL}/gateway/limite`,
+      },
+      {
+        source: '/api/externa/:path*',
+        destination: `${GATEWAY_URL}/api/v1/:path*`,
       },
     ];
   },

@@ -24,12 +24,24 @@ public class RolControlador {
         return servicio.listarRoles().stream().map(VistaRol::desde).toList();
     }
 
+    public record VistaCambioRol(Long id, CambioRol.Accion accion, String usuarioId, String rol, String detalle,
+                                 String realizadoPor, java.time.Instant realizadoEn) {}
+
+    @GetMapping("/roles/historial")
+    public List<VistaCambioRol> historial(@RequestHeader(value = CABECERA_USUARIO, required = false) String solicitante) {
+        servicio.exigirAdmin(solicitante);
+        return servicio.historial().stream()
+                .map(c -> new VistaCambioRol(c.getId(), c.getAccion(), c.getUsuarioId(), c.getRol(), c.getDetalle(),
+                        c.getRealizadoPor(), c.getRealizadoEn()))
+                .toList();
+    }
+
     @PostMapping("/roles")
     @ResponseStatus(HttpStatus.CREATED)
     public VistaRol crear(@RequestHeader(value = CABECERA_USUARIO, required = false) String solicitante,
                           @Valid @RequestBody SolicitudCrearRol solicitud) {
         servicio.exigirAdmin(solicitante);
-        return VistaRol.desde(servicio.crearRol(solicitud.nombre(), solicitud.descripcion(), solicitud.permisos()));
+        return VistaRol.desde(servicio.crearRol(solicitud.nombre(), solicitud.descripcion(), solicitud.permisos(), solicitante.trim()));
     }
 
     @PutMapping("/roles/{nombre}/permisos")
@@ -37,7 +49,7 @@ public class RolControlador {
                                     @PathVariable String nombre,
                                     @RequestBody SolicitudPermisos solicitud) {
         servicio.exigirAdmin(solicitante);
-        return VistaRol.desde(servicio.definirPermisos(nombre, solicitud.permisos()));
+        return VistaRol.desde(servicio.definirPermisos(nombre, solicitud.permisos(), solicitante.trim()));
     }
 
     @PostMapping("/usuarios/{usuarioId}/roles/{nombreRol}")
@@ -45,7 +57,7 @@ public class RolControlador {
     public void asignar(@RequestHeader(value = CABECERA_USUARIO, required = false) String solicitante,
                         @PathVariable String usuarioId, @PathVariable String nombreRol) {
         servicio.exigirAdmin(solicitante);
-        servicio.asignarRol(usuarioId, nombreRol);
+        servicio.asignarRol(usuarioId, nombreRol, solicitante.trim());
     }
 
     @DeleteMapping("/usuarios/{usuarioId}/roles/{nombreRol}")
@@ -53,6 +65,6 @@ public class RolControlador {
     public void revocar(@RequestHeader(value = CABECERA_USUARIO, required = false) String solicitante,
                         @PathVariable String usuarioId, @PathVariable String nombreRol) {
         servicio.exigirAdmin(solicitante);
-        servicio.revocarRol(usuarioId, nombreRol);
+        servicio.revocarRol(usuarioId, nombreRol, solicitante.trim());
     }
 }

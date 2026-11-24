@@ -1,6 +1,7 @@
 package co.edu.unbosque.biohub.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -95,5 +96,46 @@ class ApiGatewayTest {
         gateway.actualizarRuta("/api/v1/inventario", "http://consulta-nueva/hallazgos");
 
         assertThat(gateway.resolverDestino("/api/v1/inventario")).isEqualTo("http://consulta-nueva/hallazgos");
+    }
+
+    @Test
+    void elResumenDeConsumoMuestraSolicitudesYRechazadasPorConsumidor() {
+        ApiGateway gateway = gateway(2);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(true);
+        for (int i = 0; i < 3; i++) {
+            gateway.enrutar("/api/v1/no-existe", null, "clave-unal");
+        }
+
+        List<ApiGateway.ConsumoConsumidor> consumo = gateway.consumo();
+
+        assertThat(consumo).hasSize(1);
+        assertThat(consumo.get(0).id()).isEqualTo("consumidor-unal");
+        assertThat(consumo.get(0).solicitudes()).isEqualTo(2);
+        assertThat(consumo.get(0).rechazadas()).isEqualTo(1);
+        assertThat(consumo.get(0).limitePorMinuto()).isEqualTo(2);
+    }
+
+    @Test
+    void alBajarElLimiteSeRechazaEnElMismoMinuto() {
+        ApiGateway gateway = gateway(60);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(true);
+        gateway.cambiarLimite(1);
+
+        assertThat(gateway.enrutar("/api/v1/no-existe", null, "clave-unal").getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        ResponseEntity<String> segunda = gateway.enrutar("/api/v1/no-existe", null, "clave-unal");
+
+        assertThat(segunda.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(segunda.getBody()).contains("1 solicitudes por minuto");
+    }
+
+    @Test
+    void elLimiteSoloPuedeEstarEntreUnoYElMaximo() {
+        ApiGateway gateway = gateway(60);
+
+        assertThatThrownBy(() -> gateway.cambiarLimite(0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gateway.cambiarLimite(61)).isInstanceOf(IllegalArgumentException.class);
+        gateway.cambiarLimite(60);
+        assertThat(gateway.consumo().get(0).limitePorMinuto()).isEqualTo(60);
     }
 }

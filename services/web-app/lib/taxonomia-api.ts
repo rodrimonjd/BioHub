@@ -77,6 +77,55 @@ async function asegurarAtributo(nombre: string, autor: string): Promise<void> {
   }
 }
 
+export interface AtributoNuevo {
+  nombre: string;
+  tipoDato: TipoDato;
+  unidad: string;
+  opciones: string[];
+}
+
+export async function listarAtributos(): Promise<AtributoTaxonomico[]> {
+  try {
+    const res = await fetch(`${API_BASE}/atributos`, { cache: 'no-store' });
+    return res.ok ? res.json() : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function crearAtributo(atributo: AtributoNuevo, autor: string): Promise<AtributoTaxonomico> {
+  const res = await fetch(`${API_BASE}/atributos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    body: JSON.stringify({
+      nombre: atributo.nombre,
+      tipoDato: atributo.tipoDato,
+      unidad: atributo.tipoDato === 'NUMERICO' && atributo.unidad ? atributo.unidad : undefined,
+      opciones: atributo.tipoDato === 'LISTA' ? atributo.opciones : undefined,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await mensajeDeError(res, `No se pudo crear el atributo "${atributo.nombre}"`));
+  }
+  return res.json();
+}
+
+export async function crearFicha(
+  especieId: string,
+  atributos: { nombre: string; valor: string }[],
+  autor: string
+): Promise<FichaTaxonomica> {
+  const res = await fetch(`${API_BASE}/fichas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    body: JSON.stringify({ especieId, atributos }),
+  });
+  if (!res.ok) {
+    throw new Error(await mensajeDeError(res, 'No se pudo crear la ficha'));
+  }
+  return res.json();
+}
+
 export async function guardarAtributoEnFicha(params: {
   especieId: string;
   ficha: FichaTaxonomica | null;
@@ -112,6 +161,19 @@ export async function guardarAtributoEnFicha(params: {
   }
   if (!res.ok) {
     throw new Error(await mensajeDeError(res, 'No se pudo guardar el atributo en la ficha'));
+  }
+  return res.json();
+}
+
+/** Desactiva una ficha (permiso ficha:desactivar). No se borra: queda inactiva y el cambio va al historial. */
+export async function desactivarFicha(fichaId: string, motivo: string, autor: string): Promise<FichaTaxonomica> {
+  const res = await fetch(`${API_BASE}/fichas/${encodeURIComponent(fichaId)}/desactivacion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    body: JSON.stringify({ motivo: motivo.trim() || undefined }),
+  });
+  if (!res.ok) {
+    throw new Error(await mensajeDeError(res, 'No se pudo desactivar la ficha'));
   }
   return res.json();
 }

@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 
 class ProyectorHallazgosTest {
 
-    /** Repositorio en memoria para no depender de la base de datos. */
     private final Map<String, HallazgoLectura> tabla = new HashMap<>();
     private final CatalogoEspecies catalogo = mock(CatalogoEspecies.class);
     private ProyectorHallazgos proyector;

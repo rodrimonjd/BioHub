@@ -27,12 +27,16 @@ export const PERMISOS = {
   EDITAR_HALLAZGO: 'hallazgo:editar',
   VALIDAR_HALLAZGO: 'hallazgo:validar',
   VER_UBICACION_EXACTA: 'ubicacion:ver_exacta',
+  ADMINISTRAR_UBICACIONES: 'ubicacion:administrar',
   VER_HISTORIAL: 'historial:ver',
   VER_REPORTES: 'reporte:ver',
   GENERAR_REPORTES: 'reporte:generar',
   GESTIONAR_EQUIPOS: 'equipo:gestionar',
   ADMINISTRAR_ROLES: 'roles:administrar',
   EDITAR_FICHA: 'ficha:editar',
+  DESACTIVAR_FICHA: 'ficha:desactivar',
+  MONITOREAR_API: 'api_externa:monitorear',
+  CONFIGURAR_API: 'api_externa:configurar',
 } as const;
 
 const ETIQUETAS_ROL: Record<string, string> = {
@@ -145,6 +149,11 @@ export function canViewExactCoordinates(user: BioHubUser | null | undefined): bo
   return tienePermiso(user, PERMISOS.VER_UBICACION_EXACTA);
 }
 
+/** Decidir quién ve la ubicación exacta de cada especie: permiso ubicacion:administrar (autoridad ambiental). */
+export function canManageLocationAccess(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.ADMINISTRAR_UBICACIONES);
+}
+
 /** Registrar avistamientos y hallazgos: permiso hallazgo:crear. */
 export function canRegisterFieldData(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.CREAR_HALLAZGO);
@@ -160,9 +169,28 @@ export function canEditFichas(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.EDITAR_FICHA);
 }
 
+/** Desactivar fichas taxonómicas: permiso ficha:desactivar (admin, autoridad ambiental e investigador). */
+export function canDeactivateFichas(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.DESACTIVAR_FICHA);
+}
+
 /** Autorizar reclasificaciones: permiso hallazgo:validar. */
 export function canAuthorizeReclassification(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.VALIDAR_HALLAZGO);
+}
+
+/** Ver reportes científicos: permiso reporte:ver (el invitado no lo tiene). */
+export function canViewReports(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.VER_REPORTES);
+}
+
+/** Ver el consumo de la API externa: permiso api_externa:monitorear (el invitado no lo tiene). */
+export function canViewApiUsage(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.MONITOREAR_API);
+}
+
+export function canConfigureApi(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.CONFIGURAR_API);
 }
 
 /** Solicitar reportes científicos: permiso reporte:generar. */

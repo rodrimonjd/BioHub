@@ -45,4 +45,18 @@ class ConsumidorExternoTest {
     void calculaLosSegundosHastaElSiguienteMinuto() {
         assertThat(ConsumidorExterno.segundosParaSiguienteMinuto(Instant.parse("2026-11-22T10:00:45Z"))).isEqualTo(15);
     }
+
+    @Test
+    void cuentaLasRechazadasYLasReiniciaConElMinuto() {
+        Instant ahora = Instant.parse("2026-11-22T10:00:05Z");
+        for (int i = 0; i < 62; i++) {
+            consumidor.registrarSolicitud(ahora);
+        }
+
+        assertThat(consumidor.solicitudesEn(ahora)).isEqualTo(60);
+        assertThat(consumidor.rechazadasEn(ahora)).isEqualTo(2);
+        Instant minutoSiguiente = Instant.parse("2026-11-22T10:01:00Z");
+        assertThat(consumidor.solicitudesEn(minutoSiguiente)).isZero();
+        assertThat(consumidor.rechazadasEn(minutoSiguiente)).isZero();
+    }
 }

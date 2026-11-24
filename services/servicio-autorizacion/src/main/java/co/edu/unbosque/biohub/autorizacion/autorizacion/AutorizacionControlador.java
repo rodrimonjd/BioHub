@@ -1,6 +1,7 @@
 package co.edu.unbosque.biohub.autorizacion.autorizacion;
 
 import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.*;
+import co.edu.unbosque.biohub.autorizacion.ubicacion.ServicioAccesoUbicacion;
 import co.edu.unbosque.biohub.autorizacion.visibilidad.NivelVisibilidad;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -10,9 +11,11 @@ import org.springframework.web.bind.annotation.*;
 public class AutorizacionControlador {
 
     private final ServicioAutorizacion autorizacion;
+    private final ServicioAccesoUbicacion accesosUbicacion;
 
-    public AutorizacionControlador(ServicioAutorizacion autorizacion) {
+    public AutorizacionControlador(ServicioAutorizacion autorizacion, ServicioAccesoUbicacion accesosUbicacion) {
         this.autorizacion = autorizacion;
+        this.accesosUbicacion = accesosUbicacion;
     }
 
     @PostMapping("/verificar")
@@ -34,7 +37,9 @@ public class AutorizacionControlador {
 
     @PostMapping("/visibilidad-ubicacion")
     public RespuestaVisibilidad visibilidad(@RequestBody SolicitudVisibilidad solicitud) {
-        NivelVisibilidad nivel = autorizacion.visibilidadUbicacion(solicitud.usuarioId(), solicitud.categoriaConservacion());
+        NivelVisibilidad nivel = accesosUbicacion.puedeVerEspecie(solicitud.usuarioId(), solicitud.especieId())
+                ? NivelVisibilidad.EXACTA
+                : autorizacion.visibilidadUbicacion(solicitud.usuarioId(), solicitud.categoriaConservacion());
         return new RespuestaVisibilidad(nivel, nivel == NivelVisibilidad.EXACTA);
     }
 }

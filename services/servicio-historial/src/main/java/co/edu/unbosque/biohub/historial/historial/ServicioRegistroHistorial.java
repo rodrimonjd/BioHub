@@ -43,14 +43,10 @@ public class ServicioRegistroHistorial {
         this.json = json;
     }
 
-    /**
-     * @param cargaUtil el evento original en JSON, que se guarda tal cual como evidencia
-     * @throws EventoInvalidoException si el evento no tiene los datos que exige la trazabilidad
-     */
     @Transactional
     public Resultado registrar(EventoEntrante evento, String cargaUtil) {
         if (evento.idEvento() != null && cambios.existsByIdEvento(evento.idEvento())) {
-            return Resultado.IGNORADO; // evento repetido
+            return Resultado.IGNORADO;
         }
         CambioPropuesto propuesto = traductor.traducir(evento);
 

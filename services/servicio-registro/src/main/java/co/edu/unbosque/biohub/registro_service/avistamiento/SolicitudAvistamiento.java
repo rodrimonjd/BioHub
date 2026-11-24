@@ -5,7 +5,6 @@ import java.util.UUID;
 
 import jakarta.validation.constraints.*;
 
-/** investigadorId se toma de la cabecera X-Usuario-Id: el valor que venga en el cuerpo se ignora. */
 public record SolicitudAvistamiento(
         String investigadorId,
         @NotNull UUID especieId,

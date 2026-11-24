@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -75,6 +76,30 @@ class UbicacionExactaTest {
 
         mvc.perform(get("/avistamientos").header("X-Usuario-Id", "investigador.campo"))
                 .andExpect(jsonPath("$[0].latitud").doesNotExist());
+        mvc.perform(get("/hallazgos").header("X-Usuario-Id", "investigador.campo"))
+                .andExpect(jsonPath("$[0].latitud").doesNotExist());
+    }
+
+    @Test
+    void conAccesoALaEspecieSeEnvianSusCoordenadasAunqueNoTengaElPermisoGeneral() throws Exception {
+        hayDatosConCoordenadas();
+        when(autorizacion.tienePermiso("investigador.campo", "ubicacion:ver_exacta")).thenReturn(false);
+        when(autorizacion.especiesConUbicacionExacta("investigador.campo"))
+                .thenReturn(Set.of(CAIMAN.getId().toString()));
+
+        mvc.perform(get("/avistamientos").header("X-Usuario-Id", "investigador.campo"))
+                .andExpect(jsonPath("$[0].latitud").value(5.5412));
+        mvc.perform(get("/hallazgos").header("X-Usuario-Id", "investigador.campo"))
+                .andExpect(jsonPath("$[0].latitud").value(5.5412));
+    }
+
+    @Test
+    void conAccesoAOtraEspecieNoSeEnvianLasCoordenadas() throws Exception {
+        hayDatosConCoordenadas();
+        when(autorizacion.tienePermiso("investigador.campo", "ubicacion:ver_exacta")).thenReturn(false);
+        when(autorizacion.especiesConUbicacionExacta("investigador.campo"))
+                .thenReturn(Set.of("22222222-2222-2222-2222-222222222222"));
+
         mvc.perform(get("/hallazgos").header("X-Usuario-Id", "investigador.campo"))
                 .andExpect(jsonPath("$[0].latitud").doesNotExist());
     }

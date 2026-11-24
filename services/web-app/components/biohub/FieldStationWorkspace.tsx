@@ -11,9 +11,9 @@ import {
   canAuthorizeReclassification,
   canEditFindings,
   canManageEquipment,
-  canViewExactCoordinates,
   PERMISOS,
 } from '@/lib/permissions';
+import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
 import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
 import { FichaTaxonomica } from '@/lib/taxonomia-api';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
@@ -37,6 +37,8 @@ import {
 } from '@/lib/registro-api';
 import { SpeciesCardProps } from './SpeciesCard';
 import { GestionCampo } from './GestionCampo';
+import { AgregarEvidencia } from './AgregarEvidencia';
+import { NuevaEspecie } from './NuevaEspecie';
 import { ListaHallazgos } from './ListaHallazgos';
 import { HistoryEventItem } from './HistoryTimeline';
 
@@ -153,7 +155,6 @@ export function FieldStationWorkspace({
   const [activeTab, setActiveTab] = useState<
     'avistamientos' | 'hallazgos' | 'reclasificacion' | 'gestion'
   >('avistamientos');
-  const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [statusBanner, setStatusBanner] = useState<{
     type: 'ok' | 'warn' | 'err';
     text: string;
@@ -243,6 +244,8 @@ export function FieldStationWorkspace({
 
   const canWrite = canRegisterFieldData(currentUser);
   const canEdit = canEditFindings(currentUser);
+  // Coordenadas exactas por especie: ubicacion:ver_exacta o acceso dado por la autoridad ambiental
+  const puedeVerExacta = useAccesoUbicacion(currentUser);
 
   useEffect(() => {
     listarUsuariosConPermiso(currentUser.id, PERMISOS.VALIDAR_HALLAZGO).then((lista) => {
@@ -257,7 +260,6 @@ export function FieldStationWorkspace({
 
   const syncWithBackend = async () => {
     const res = await listarAvistamientos(currentUser.id);
-    setBackendOnline(res.online);
     if (res.online && res.data) {
       setAvistamientos((prev) => {
         const pendingItems = prev.filter((item) => item.pendingSync);
@@ -299,7 +301,6 @@ export function FieldStationWorkspace({
     setStatusBanner(null);
     try {
       const saved = await registrarAvistamiento(item.originalPayload, currentUser.id);
-      setBackendOnline(true);
       setAvistamientos((prev) =>
         prev.map((av) => (av.id === item.id ? { ...saved, pendingSync: false } : av))
       );
@@ -312,7 +313,6 @@ export function FieldStationWorkspace({
         setStatusBanner({ type: 'err', text: error.message });
         return;
       }
-      setBackendOnline(false);
       setStatusBanner({
         type: 'warn',
         text: 'El servidor central aún no responde. El registro continúa guardado en este equipo.',
@@ -352,7 +352,6 @@ export function FieldStationWorkspace({
 
     try {
       const saved = await registrarAvistamiento(payload, currentUser.id);
-      setBackendOnline(true);
       setAvistamientos((prev) => [{ ...saved, pendingSync: false }, ...prev]);
       setStatusBanner({
         type: 'ok',
@@ -366,7 +365,6 @@ export function FieldStationWorkspace({
         setStatusBanner({ type: 'err', text: error.message });
         return;
       }
-      setBackendOnline(false);
       const espObj = catalogo.find((s) => s.id === avEspecieId);
       const localSaved: AvistamientoResponse = {
         id: crypto.randomUUID(),
@@ -501,7 +499,6 @@ export function FieldStationWorkspace({
 
     try {
       const result = await registrarHallazgo(payload, currentUser.id);
-      setBackendOnline(true);
       const created: HallazgoResponse = result.hallazgo || {
         id: result.id || crypto.randomUUID(),
         investigadorId: payload.investigadorId,
@@ -571,7 +568,6 @@ export function FieldStationWorkspace({
         setStatusBanner({ type: 'err', text: error.message });
         return;
       }
-      setBackendOnline(false);
       const localCreated: HallazgoResponse = {
         id: crypto.randomUUID(),
         investigadorId: payload.investigadorId,
@@ -691,7 +687,6 @@ export function FieldStationWorkspace({
         valor: modValor.trim(),
         autor: currentUser.id,
       }, currentUser.id);
-      setBackendOnline(true);
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
       );
@@ -815,7 +810,6 @@ export function FieldStationWorkspace({
         autor: currentUser.id,
         autorizador: recAutorizador,
       }, currentUser.id);
-      setBackendOnline(true);
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
       );
@@ -882,39 +876,12 @@ export function FieldStationWorkspace({
 
   return (
     <div className="space-y-6">
-      {/* Estado de sincronización con el servidor central */}
-      <Card className="flex flex-wrap items-center justify-between gap-4 bg-surface">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                backendOnline ? 'bg-iucn-lc' : 'bg-sun-500'
-              }`}
-              aria-hidden="true"
-            />
-            <span className="font-mono text-xs font-semibold text-ink">
-              {backendOnline
-                ? 'SERVIDOR DE REGISTRO EN LÍNEA'
-                : 'MODO LOCAL · SIN CONEXIÓN AL SERVIDOR DE REGISTRO'}
-            </span>
-          </div>
-          <p className="text-xs text-ink-muted">
-            {backendOnline
-              ? 'Los registros se almacenan directamente en la base de datos institucional.'
-              : 'Si el servidor no está disponible, tus registros se marcarán como "Guardado solo en este equipo, sin sincronizar" para que puedas reintentar su envío.'}
-          </p>
-        </div>
-
-        <Button variant="ghost" onClick={syncWithBackend} className="text-xs">
-          Verificar conexión
-        </Button>
-      </Card>
-
       {/* Pestañas cortas en una sola fila con role="tablist" */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3">
       <div
         role="tablist"
         aria-label="Módulos de estación de campo"
-        className="flex flex-wrap gap-2 border-b border-line pb-3"
+        className="flex flex-wrap gap-2"
       >
         <button
           type="button"
@@ -964,7 +931,7 @@ export function FieldStationWorkspace({
         >
           Reclasificación
         </button>
-        {(canWrite || canEdit || canManageEquipment(currentUser)) && (
+        {canManageEquipment(currentUser) && (
           <button
             type="button"
             role="tab"
@@ -979,9 +946,21 @@ export function FieldStationWorkspace({
                 : 'bg-surface text-ink border border-line hover:border-forest-700'
             }`}
           >
-            Especies, equipos y expediciones
+            Equipos y expediciones
           </button>
         )}
+      </div>
+        {/* Lleva a la sección "Inventario y fichas por especie" del panel */}
+        <a
+          href="#inventario"
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById('inventario')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="inline-flex min-h-11 items-center rounded-md border border-line bg-surface px-5 py-2.5 font-mono text-xs font-semibold text-ink transition-colors hover:border-forest-700"
+        >
+          Fichas Taxonómicas
+        </a>
       </div>
 
       {/* Aviso accesible con aria-live */}
@@ -1005,19 +984,21 @@ export function FieldStationWorkspace({
       {activeTab === 'gestion' && (
         <GestionCampo
           currentUser={currentUser}
-          hallazgos={hallazgos.filter((h) => !h.pendingSync)}
           expediciones={expediciones}
           onExpedicionesCambiaron={recargarExpediciones}
-          onHallazgoActualizado={(actualizado) =>
-            setHallazgos((prev) => prev.map((h) => (h.id === actualizado.id ? actualizado : h)))
-          }
-          onEspecieCreada={onEspecieCreada}
         />
       )}
 
       {/* PESTAÑA 1: AVISTAMIENTOS */}
       {activeTab === 'avistamientos' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Agregar una especie nueva al catálogo, al inicio de la sección (solo con hallazgo:crear) */}
+          {canWrite && onEspecieCreada && (
+            <div className="lg:col-span-12">
+              <NuevaEspecie usuario={currentUser} onCreada={onEspecieCreada} />
+            </div>
+          )}
+
           {/* El formulario solo aparece si la cuenta puede registrar (hallazgo:crear); el invitado no lo ve */}
           {canWrite && (
           <Card as="section" className="lg:col-span-5 space-y-4">
@@ -1189,7 +1170,7 @@ export function FieldStationWorkspace({
                         {av.departamento}
                         {av.region ? ` · Región ${av.region}` : ''}
                       </span>
-                      {!canViewExactCoordinates(currentUser) ? (
+                      {!puedeVerExacta(av.especieId) ? (
                         <span className="font-mono ml-2">· Coordenadas exactas ocultas</span>
                       ) : (
                         av.latitud !== null &&
@@ -1591,13 +1572,24 @@ export function FieldStationWorkspace({
         </Card>
         )}
 
+        {/* Sumar evidencias a un hallazgo ya registrado (solo con hallazgo:editar) */}
+        {canEdit && (
+          <AgregarEvidencia
+            currentUser={currentUser}
+            hallazgos={hallazgos.filter((h) => !h.pendingSync)}
+            onHallazgoActualizado={(actualizado) =>
+              setHallazgos((prev) => prev.map((h) => (h.id === actualizado.id ? actualizado : h)))
+            }
+          />
+        )}
+
         {/* Hallazgos guardados en la base de datos, con búsqueda por nombre */}
         <ListaHallazgos
           hallazgos={hallazgos}
           catalogo={catalogo}
           fichas={fichas ?? []}
           expediciones={expediciones}
-          puedeVerExacta={canViewExactCoordinates(currentUser)}
+          puedeVerExacta={puedeVerExacta}
           onModificar={
             canEdit
               ? (id) => {
@@ -1618,7 +1610,6 @@ export function FieldStationWorkspace({
               <Field
                 id="buscar-hallazgo-input"
                 label="Buscar hallazgo por nombre"
-                hint={`${hallazgosFiltrados.length} de ${hallazgos.length} hallazgos`}
                 className="md:col-span-5"
               >
                 <input

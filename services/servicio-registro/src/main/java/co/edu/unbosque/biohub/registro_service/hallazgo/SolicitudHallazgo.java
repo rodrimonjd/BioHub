@@ -9,7 +9,6 @@ import java.util.UUID;
 
 import co.edu.unbosque.biohub.registro_service.evidencia.SolicitudEvidencia;
 
-/** investigadorId se toma de la cabecera X-Usuario-Id: el valor que venga en el cuerpo se ignora. */
 public record SolicitudHallazgo(
         String investigadorId,
         @NotNull UUID especieId,

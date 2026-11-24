@@ -92,7 +92,6 @@ class HistorialControladorTest {
     void tipoDeRegistroDesconocidoYEscrituraNoExisten() throws Exception {
         mvc.perform(get("/api/v1/historial/avistamientos/x").header("X-Usuario-Id", "auditor-1"))
                 .andExpect(status().isNotFound());
-        // el historial es de solo lectura: no hay POST/PUT/DELETE
         mvc.perform(post(URL).header("X-Usuario-Id", "auditor-1"))
                 .andExpect(status().isMethodNotAllowed());
     }

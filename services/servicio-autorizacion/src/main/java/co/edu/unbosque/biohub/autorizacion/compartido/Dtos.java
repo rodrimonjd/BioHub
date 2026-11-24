@@ -23,7 +23,7 @@ public final class Dtos {
     public record SolicitudConsumidor(@NotBlank(message = "es obligatorio") String consumidorId) {}
     public record RespuestaConsumidor(String consumidorId, boolean valido) {}
 
-    public record SolicitudVisibilidad(String usuarioId, String categoriaConservacion) {}
+    public record SolicitudVisibilidad(String usuarioId, String categoriaConservacion, String especieId) {}
     public record RespuestaVisibilidad(NivelVisibilidad nivel, boolean coordenadasExactas) {}
 
     public record SolicitudCrearRol(@NotBlank(message = "es obligatorio") @Size(max = 60, message = "máximo 60 caracteres") String nombre,
@@ -41,7 +41,6 @@ public final class Dtos {
 
     public record SolicitudSesion(@NotBlank(message = "es obligatorio") String usuario,
                                   @NotBlank(message = "es obligatoria") String clave) {}
-    /** Nunca incluye la contraseña ni su hash. */
     public record RespuestaSesion(String usuarioId, String nombre, String correo,
                                   Set<String> roles, Set<String> permisos) {}
 

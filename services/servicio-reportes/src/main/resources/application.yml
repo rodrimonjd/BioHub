@@ -13,7 +13,7 @@ spring:
     password: ${BD_CLAVE:reportes_pass}
   jpa:
     hibernate:
-      ddl-auto: validate      # el esquema lo maneja Flyway
+      ddl-auto: validate
     open-in-view: false
   flyway:
     enabled: true
@@ -24,8 +24,6 @@ spring:
     password: ${RABBIT_CLAVE:biohub}
     listener:
       simple:
-        # Politica de reintentos: 1 intento + 2 reintentos con espera creciente (1 s, 2 s).
-        # Si sigue fallando, el mensaje va a la cola de errores (dead-letter).
         retry:
           enabled: true
           max-retries: 2
@@ -35,11 +33,13 @@ spring:
 
 reportes:
   eventos:
-    exchange: biohub.eventos                     # mismo exchange que declara servicio-registro
+    exchange: biohub.eventos
     cola: reportes.avistamientos
     cola-errores: reportes.avistamientos.dlq
-  # Cada cuanto se revisan los reportes en cola para generarlos
   intervalo-generacion-ms: 3000
+  autorizacion:
+    url: ${AUTORIZACION_URL:http://localhost:8082}
+    cache-ttl: 60s
 
 management:
   endpoints:

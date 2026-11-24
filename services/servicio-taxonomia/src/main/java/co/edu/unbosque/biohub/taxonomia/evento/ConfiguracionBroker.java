@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 
 import co.edu.unbosque.biohub.taxonomia.configuracion.PropiedadesTaxonomia;
 
-/** Declara el exchange topic donde taxonomía publica los eventos de fichas. */
 @Configuration
 public class ConfiguracionBroker {
 

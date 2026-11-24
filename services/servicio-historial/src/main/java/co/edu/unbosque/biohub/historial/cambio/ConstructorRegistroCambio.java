@@ -62,13 +62,11 @@ public class ConstructorRegistroCambio {
         return this;
     }
 
-    /** Hash del cambio anterior del mismo registro (null si es el primero). */
     public ConstructorRegistroCambio encadenarCon(String hashAnterior) {
         this.hashAnterior = hashAnterior;
         return this;
     }
 
-    /** Estado del registro después del cambio (JSON); entra en el hash para proteger también la versión. */
     public ConstructorRegistroCambio estadoResultante(String estadoJson) {
         this.estadoResultante = estadoJson;
         return this;
@@ -98,7 +96,6 @@ public class ConstructorRegistroCambio {
             }
             case CREACION, DESACTIVACION -> { }
         }
-        // la base de datos guarda microsegundos: se recorta aquí para que el hash se pueda recalcular igual
         Instant fecha = ocurrioEn.truncatedTo(ChronoUnit.MICROS);
         String hash = calcularHash(hashAnterior, idEvento, tipoRegistro, idRegistro, version, tipoCambio, campo,
                 valorAnterior, valorNuevo, motivo, autor, autorizador, fecha, estadoResultante);
@@ -106,7 +103,6 @@ public class ConstructorRegistroCambio {
                 valorNuevo, motivo, autor, autorizador, fecha, cargaUtil, hashAnterior, hash);
     }
 
-    /** Misma fórmula que usa la verificación de integridad. */
     public static String calcularHash(RegistroCambio c, String estadoResultante) {
         return calcularHash(c.getHashAnterior(), c.getIdEvento(), c.getTipoRegistro(), c.getIdRegistro(),
                 c.getVersion(), c.getTipoCambio(), c.getCampo(), c.getValorAnterior(), c.getValorNuevo(),
