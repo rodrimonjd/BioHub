@@ -142,6 +142,20 @@ public class Hallazgo {
         return new CambioHallazgo("especie", anterior, nueva.getNombreCientifico(), autor, autorizador, motivo);
     }
 
+    public CambioHallazgo registrarEvidencia(Evidencia evidencia, String autor) {
+        agregarEvidencia(evidencia);
+        this.versionActual++;
+        return new CambioHallazgo("evidencia", null, describir(evidencia), autor, null, null);
+    }
+
+    private static String describir(Evidencia evidencia) {
+        String detalle = evidencia.getUrlArchivo() != null ? evidencia.getUrlArchivo() : evidencia.getValor();
+        if (evidencia.getUnidad() != null) {
+            detalle = detalle + " " + evidencia.getUnidad();
+        }
+        return evidencia.getTipo() + ": " + detalle;
+    }
+
     private String valorActual(String campo) {
         return switch (campo) {
             case "descripcion" -> descripcion;
