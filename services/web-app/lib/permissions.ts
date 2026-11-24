@@ -30,6 +30,7 @@ export const PERMISOS = {
   VER_HISTORIAL: 'historial:ver',
   VER_REPORTES: 'reporte:ver',
   GENERAR_REPORTES: 'reporte:generar',
+  GESTIONAR_EQUIPOS: 'equipo:gestionar',
   ADMINISTRAR_ROLES: 'roles:administrar',
   EDITAR_FICHA: 'ficha:editar',
 } as const;
@@ -167,4 +168,8 @@ export function canAuthorizeReclassification(user: BioHubUser | null | undefined
 /** Solicitar reportes científicos: permiso reporte:generar. */
 export function canGenerateReports(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.GENERAR_REPORTES);
+}
+
+export function canManageEquipment(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.GESTIONAR_EQUIPOS);
 }
