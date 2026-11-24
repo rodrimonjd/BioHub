@@ -6,6 +6,7 @@ import { ConservationStatus } from '@/components/ui/ConservationBadge';
 import { ProtectedLocation } from './ProtectedLocation';
 import { BioHubUser, canViewExactCoordinates } from '@/lib/permissions';
 import { HallazgoResponse, listarHallazgos } from '@/lib/registro-api';
+import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
 import { EspecieRegistro } from '@/lib/taxonomia-api';
 
 export interface UbicacionPorEspecieProps {
@@ -30,10 +31,11 @@ function aGrados(valor: number, positivo: string, negativo: string): string {
   }`;
 }
 
-/** Ubicación del hallazgo más reciente de la especie elegida, según el permiso ubicacion:ver_exacta. */
+/** Ubicación del hallazgo más reciente de la especie elegida: exacta con ubicacion:ver_exacta o con acceso a esa especie. */
 export function UbicacionPorEspecie({ usuario, especies, recarga = 0 }: UbicacionPorEspecieProps) {
   const [hallazgos, setHallazgos] = useState<HallazgoResponse[]>([]);
   const [especieId, setEspecieId] = useState('');
+  const puedeVer = useAccesoUbicacion(usuario);
 
   useEffect(() => {
     listarHallazgos(usuario.id).then(({ data }) => {
@@ -86,14 +88,14 @@ export function UbicacionPorEspecie({ usuario, especies, recarga = 0 }: Ubicacio
 
   return (
     <ProtectedLocation
-      puedeVerExacta={canViewExactCoordinates(usuario)}
+      puedeVerExacta={puedeVer(elegida.id)}
       nivelLabel={usuario.roleLabel}
       speciesCommonName={elegida.nombreComun ?? elegida.nombreCientifico}
       speciesScientificName={elegida.nombreCientifico}
       status={estado}
       regionLabel={region}
       exactCoordinates={coordenadas ?? ''}
-      sinHallazgos={!hallazgo || (canViewExactCoordinates(usuario) && coordenadas === null)}
+      sinHallazgos={!hallazgo || (puedeVer(elegida.id) && coordenadas === null)}
       selector={
         <Field id="ubicacion-especie" label="Especie a consultar">
           <select

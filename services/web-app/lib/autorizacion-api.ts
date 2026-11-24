@@ -154,3 +154,86 @@ export async function listarUsuariosConPermiso(
     return [];
   }
 }
+
+// --- Acceso a la ubicación exacta por especie (ubicacion:administrar) ---
+
+/** Especies que un usuario ve con coordenadas exactas: todas (ubicacion:ver_exacta) o las que se le dieron. */
+export interface AccesoUbicacion {
+  usuarioId: string | null;
+  todas: boolean;
+  especies: string[];
+}
+
+export interface AccesoUbicacionVigente {
+  usuarioId: string;
+  nombreUsuario: string;
+  especieId: string;
+  otorgadoPor: string;
+  otorgadoEn: string;
+}
+
+export interface CambioAccesoUbicacion {
+  id: number;
+  usuarioId: string;
+  nombreUsuario: string;
+  especieId: string;
+  accion: 'OTORGADO' | 'REVOCADO';
+  realizadoPor: string;
+  realizadoEn: string;
+}
+
+/** Si autorización no responde se asume el acceso más restrictivo (ninguna especie). */
+export async function obtenerAccesoUbicacion(usuarioId: string): Promise<AccesoUbicacion> {
+  try {
+    const res = await fetch(`${API_BASE}/usuarios/${encodeURIComponent(usuarioId)}/ubicacion`, {
+      cache: 'no-store',
+    });
+    if (res.ok) return res.json();
+  } catch {
+    // servicio caído
+  }
+  return { usuarioId, todas: false, especies: [] };
+}
+
+export function listarAccesosUbicacion(solicitanteId: string): Promise<AccesoUbicacionVigente[]> {
+  return pedirComoAdmin<AccesoUbicacionVigente[]>(solicitanteId, '/ubicacion/accesos');
+}
+
+export function historialAccesosUbicacion(solicitanteId: string): Promise<CambioAccesoUbicacion[]> {
+  return pedirComoAdmin<CambioAccesoUbicacion[]>(solicitanteId, '/ubicacion/historial');
+}
+
+export function usuariosParaUbicacion(solicitanteId: string): Promise<ResumenUsuario[]> {
+  return pedirComoAdmin<ResumenUsuario[]>(solicitanteId, '/ubicacion/usuarios');
+}
+
+export function otorgarAccesoUbicacion(
+  solicitanteId: string,
+  usuarioId: string,
+  especieId: string
+): Promise<AccesoUbicacionVigente> {
+  return pedirComoAdmin<AccesoUbicacionVigente>(solicitanteId, '/ubicacion/accesos', {
+    method: 'POST',
+    body: JSON.stringify({ usuarioId, especieId }),
+  });
+}
+
+/** DELETE responde 204 sin cuerpo, por eso no usa pedirComoAdmin. */
+export async function revocarAccesoUbicacion(
+  solicitanteId: string,
+  usuarioId: string,
+  especieId: string
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(
+      `${API_BASE}/ubicacion/accesos/${encodeURIComponent(usuarioId)}/${encodeURIComponent(especieId)}`,
+      { method: 'DELETE', headers: { 'X-Usuario-Id': solicitanteId }, cache: 'no-store' }
+    );
+  } catch {
+    throw new ErrorAdministracion('No se pudo conectar con el servicio de autorización.');
+  }
+  if (!res.ok) {
+    throw new ErrorAdministracion(await leerMensaje(res, 'No se pudo quitar el acceso.'));
+  }
+}

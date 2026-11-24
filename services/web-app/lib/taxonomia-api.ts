@@ -164,3 +164,16 @@ export async function guardarAtributoEnFicha(params: {
   }
   return res.json();
 }
+
+/** Desactiva una ficha (permiso ficha:desactivar). No se borra: queda inactiva y el cambio va al historial. */
+export async function desactivarFicha(fichaId: string, motivo: string, autor: string): Promise<FichaTaxonomica> {
+  const res = await fetch(`${API_BASE}/fichas/${encodeURIComponent(fichaId)}/desactivacion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    body: JSON.stringify({ motivo: motivo.trim() || undefined }),
+  });
+  if (!res.ok) {
+    throw new Error(await mensajeDeError(res, 'No se pudo desactivar la ficha'));
+  }
+  return res.json();
+}
