@@ -1040,9 +1040,9 @@ export function FieldStationWorkspace({
                 <input
                   id="av-investigador"
                   type="text"
-                  readOnly
+                  disabled
                   value={`${currentUser.name} (${currentUser.id})`}
-                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
+                  className="pointer-events-none min-h-11 w-full select-none rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
                 />
               </Field>
 
