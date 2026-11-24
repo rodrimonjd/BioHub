@@ -11,7 +11,11 @@ export interface ProtectedLocationProps {
   status: ConservationStatus;
   regionLabel?: string;
   exactCoordinates: string;
-  altitude: string;
+  altitude?: string;
+  /** Control para elegir la especie, mostrado bajo el encabezado. */
+  selector?: React.ReactNode;
+  /** La especie aún no tiene hallazgos: no hay ubicación que mostrar. */
+  sinHallazgos?: boolean;
 }
 
 export function ProtectedLocation({
@@ -23,6 +27,8 @@ export function ProtectedLocation({
   regionLabel = 'Región: Meta',
   exactCoordinates,
   altitude,
+  selector,
+  sinHallazgos = false,
 }: ProtectedLocationProps) {
   const isAuthorized = puedeVerExacta;
 
@@ -42,6 +48,8 @@ export function ProtectedLocation({
         </div>
         <ConservationBadge status={status} />
       </div>
+
+      {selector}
 
       {/* Mapa real con contorno cartográfico de departamentos de la Orinoquía/Meta, ríos y polígono regional */}
       <div className="relative h-64 w-full overflow-hidden rounded-lg border border-line bg-paper">
@@ -105,7 +113,7 @@ export function ProtectedLocation({
           </text>
 
           {/* Si está autorizado muestra el marcador exacto; si es público muestra zona de amortiguación difuminada */}
-          {isAuthorized ? (
+          {sinHallazgos ? null : isAuthorized ? (
             <g>
               <circle
                 cx="188"
@@ -157,7 +165,7 @@ export function ProtectedLocation({
               </div>
               <div>
                 <p className="font-serif text-sm font-semibold text-ink">
-                  {regionLabel} (Polígono regional difuminado)
+                  {sinHallazgos ? 'Sin hallazgos registrados' : `${regionLabel} (Polígono regional difuminado)`}
                 </p>
                 <p className="text-xs text-ink-muted">
                   Coordenadas exactas ocultas al público general para proteger a la especie de la caza ilegal.
@@ -170,10 +178,19 @@ export function ProtectedLocation({
                 <span className="h-2 w-2 rounded-full bg-moss-500" aria-hidden="true" />
                 Coordenadas exactas verificadas
               </div>
-              <p className="font-mono text-sm font-bold text-ink">{exactCoordinates}</p>
-              <p className="font-mono text-xs text-ink-muted">
-                {regionLabel} · Serranía de la Macarena · Altitud: {altitude}
-              </p>
+              {sinHallazgos ? (
+                <p className="text-xs text-ink-muted">
+                  Aún no hay hallazgos registrados de esta especie, así que no hay ubicación que mostrar.
+                </p>
+              ) : (
+                <>
+                  <p className="font-mono text-sm font-bold text-ink">{exactCoordinates}</p>
+                  <p className="font-mono text-xs text-ink-muted">
+                    {regionLabel}
+                    {altitude ? ` · Altitud: ${altitude}` : ''}
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
