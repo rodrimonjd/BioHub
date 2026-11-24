@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -14,6 +16,13 @@ public class GatewayController {
 
     public GatewayController(ApiGateway gateway) {
         this.gateway = gateway;
+    }
+
+    public record ResumenConsumo(String urlPublica, List<ApiGateway.ConsumoConsumidor> consumidores) { }
+
+    @GetMapping("/gateway/consumo")
+    public ResumenConsumo consumo() {
+        return new ResumenConsumo(gateway.getUrlPublica(), gateway.consumo());
     }
 
     @GetMapping("/api/v1/**")
