@@ -237,3 +237,52 @@ export async function revocarAccesoUbicacion(
     throw new ErrorAdministracion(await leerMensaje(res, 'No se pudo quitar el acceso.'));
   }
 }
+
+// --- Roles de las cuentas e historial de cambios (roles:administrar) ---
+
+export type AccionRol = 'ROL_ASIGNADO' | 'ROL_QUITADO' | 'ROL_CREADO' | 'PERMISOS_CAMBIADOS';
+
+export interface CambioRol {
+  id: number;
+  accion: AccionRol;
+  usuarioId: string | null;
+  rol: string;
+  detalle: string | null;
+  realizadoPor: string;
+  realizadoEn: string;
+}
+
+/** POST y DELETE de roles responden 204 sin cuerpo, por eso no usan pedirComoAdmin. */
+async function cambiarRolDeUsuario(
+  metodo: 'POST' | 'DELETE',
+  adminId: string,
+  usuarioId: string,
+  rol: string
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(
+      `${API_BASE}/usuarios/${encodeURIComponent(usuarioId)}/roles/${encodeURIComponent(rol)}`,
+      { method: metodo, headers: { 'X-Usuario-Id': adminId }, cache: 'no-store' }
+    );
+  } catch {
+    throw new ErrorAdministracion('No se pudo conectar con el servicio de autorización.');
+  }
+  if (!res.ok) {
+    throw new ErrorAdministracion(
+      await leerMensaje(res, metodo === 'POST' ? 'No se pudo asignar el rol.' : 'No se pudo quitar el rol.')
+    );
+  }
+}
+
+export function asignarRol(adminId: string, usuarioId: string, rol: string): Promise<void> {
+  return cambiarRolDeUsuario('POST', adminId, usuarioId, rol);
+}
+
+export function quitarRol(adminId: string, usuarioId: string, rol: string): Promise<void> {
+  return cambiarRolDeUsuario('DELETE', adminId, usuarioId, rol);
+}
+
+export function historialRoles(adminId: string): Promise<CambioRol[]> {
+  return pedirComoAdmin<CambioRol[]>(adminId, '/roles/historial');
+}

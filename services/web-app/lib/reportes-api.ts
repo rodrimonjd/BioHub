@@ -21,6 +21,8 @@ export interface SolicitudReporte {
   fechaInicio: string;
   fechaFin: string;
   departamento?: string;
+  /** Solo los avistamientos de esta especie; sin ella el reporte incluye todas. */
+  especieId?: string;
   solicitadoPor: string;
 }
 

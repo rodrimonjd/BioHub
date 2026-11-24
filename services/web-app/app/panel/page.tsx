@@ -731,7 +731,7 @@ export default function PanelPage() {
                 </p>
                 {/* Ver reportes exige reporte:ver; el invitado (CIUDADANO) no lo tiene */}
                 {canViewReports(currentUser) ? (
-                  <ReportesPanel currentUser={currentUser} />
+                  <ReportesPanel currentUser={currentUser} especies={inventario?.especies ?? []} />
                 ) : (
                   <SeccionBloqueada
                     titulo="Reportes bloqueados"

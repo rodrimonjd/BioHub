@@ -6,13 +6,29 @@ import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { BioHubUser, etiquetaRoles } from '@/lib/permissions';
 import {
+  AccionRol,
+  asignarRol,
+  CambioRol,
   crearUsuario,
   ErrorAdministracion,
+  historialRoles,
   listarRoles,
   listarUsuarios,
+  quitarRol,
   VistaRol,
   VistaUsuario,
 } from '@/lib/autorizacion-api';
+
+const ETIQUETA_ACCION: Record<AccionRol, string> = {
+  ROL_ASIGNADO: 'Rol asignado',
+  ROL_QUITADO: 'Rol quitado',
+  ROL_CREADO: 'Rol creado',
+  PERMISOS_CAMBIADOS: 'Permisos del rol cambiados',
+};
+
+function fechaHora(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 export interface AdminUsuariosProps {
   /** Usuario con el permiso roles:administrar: sus peticiones van con su X-Usuario-Id. */
@@ -41,15 +57,22 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
   const [clave, setClave] = useState<string>('');
   const [rol, setRol] = useState<string>('INVESTIGADOR');
 
+  // Cambios de roles de las cuentas existentes
+  const [historial, setHistorial] = useState<CambioRol[]>([]);
+  const [rolPorAsignar, setRolPorAsignar] = useState<Record<string, string>>({});
+  const [cambiando, setCambiando] = useState<string | null>(null);
+
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [listaRoles, listaUsuarios] = await Promise.all([
+      const [listaRoles, listaUsuarios, cambios] = await Promise.all([
         listarRoles(admin.id),
         listarUsuarios(admin.id),
+        historialRoles(admin.id),
       ]);
       setRoles(listaRoles);
       setUsuarios(listaUsuarios);
+      setHistorial(cambios);
     } catch (error) {
       setAviso({
         tipo: 'err',
@@ -92,6 +115,41 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
       });
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const nombreDe = (usuarioId: string | null) =>
+    usuarioId ? usuarios.find((u) => u.id === usuarioId)?.nombre ?? usuarioId : null;
+
+  const handleAsignar = async (u: VistaUsuario) => {
+    const nuevo = rolPorAsignar[u.id];
+    if (!nuevo) return;
+    setAviso(null);
+    setCambiando(u.id);
+    try {
+      await asignarRol(admin.id, u.id, nuevo);
+      setAviso({ tipo: 'ok', texto: `${u.nombre} ahora tiene el rol ${etiquetaRoles([nuevo])}.` });
+      setRolPorAsignar((prev) => ({ ...prev, [u.id]: '' }));
+      await cargar();
+    } catch (error) {
+      setAviso({ tipo: 'err', texto: error instanceof Error ? error.message : 'No se pudo asignar el rol.' });
+    } finally {
+      setCambiando(null);
+    }
+  };
+
+  const handleQuitar = async (u: VistaUsuario, r: string) => {
+    if (!window.confirm(`¿Quitar el rol ${etiquetaRoles([r])} a ${u.nombre}?`)) return;
+    setAviso(null);
+    setCambiando(u.id);
+    try {
+      await quitarRol(admin.id, u.id, r);
+      setAviso({ tipo: 'ok', texto: `Se quitó el rol ${etiquetaRoles([r])} a ${u.nombre}.` });
+      await cargar();
+    } catch (error) {
+      setAviso({ tipo: 'err', texto: error instanceof Error ? error.message : 'No se pudo quitar el rol.' });
+    } finally {
+      setCambiando(null);
     }
   };
 
@@ -216,35 +274,132 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
             <p className="text-sm text-ink-muted">No hay cuentas registradas.</p>
           ) : (
             <ul className="divide-y divide-line">
-              {usuarios.map((u) => (
-                <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                  <div className="min-w-0">
-                    <p className="font-serif text-base font-semibold text-ink">{u.nombre}</p>
-                    <p className="font-mono text-xs text-ink-muted break-all">
-                      {u.id} · {u.correo}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {u.roles.map((r) => (
-                      <span
-                        key={r}
-                        className="font-mono text-xs px-2.5 py-0.5 rounded bg-forest-900 text-white"
-                      >
-                        {etiquetaRoles([r])}
-                      </span>
-                    ))}
-                    {!u.activo && (
-                      <span className="font-mono text-xs px-2.5 py-0.5 rounded border border-line text-ink-muted">
-                        Inactiva
-                      </span>
+              {usuarios.map((u) => {
+                // Sin roles asignados la cuenta es CIUDADANO por defecto: ese rol no se puede quitar
+                const soloPorDefecto = u.roles.length === 1 && u.roles[0] === 'CIUDADANO';
+                const disponibles = roles.filter((r) => !u.roles.includes(r.nombre));
+                const ocupado = cambiando === u.id;
+                return (
+                  <li key={u.id} className="space-y-2 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-serif text-base font-semibold text-ink">{u.nombre}</p>
+                        <p className="font-mono text-xs text-ink-muted break-all">
+                          {u.id} · {u.correo}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {u.roles.map((r) => {
+                          const sePuedeQuitar = !soloPorDefecto && !(r === 'ADMIN' && u.id === admin.id);
+                          return (
+                            <span
+                              key={r}
+                              className="inline-flex items-center gap-1 font-mono text-xs pl-2.5 pr-1 py-0.5 rounded bg-forest-900 text-white"
+                            >
+                              {etiquetaRoles([r])}
+                              {soloPorDefecto && <span className="opacity-75 pr-1.5"> (por defecto)</span>}
+                              {sePuedeQuitar && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuitar(u, r)}
+                                  disabled={ocupado}
+                                  aria-label={`Quitar el rol ${etiquetaRoles([r])} a ${u.nombre}`}
+                                  title="Quitar rol"
+                                  className="ml-0.5 flex h-5 w-5 cursor-pointer items-center justify-center rounded hover:bg-white/20 disabled:opacity-50"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })}
+                        {!u.activo && (
+                          <span className="font-mono text-xs px-2.5 py-0.5 rounded border border-line text-ink-muted">
+                            Inactiva
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {disponibles.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          aria-label={`Rol para asignar a ${u.nombre}`}
+                          value={rolPorAsignar[u.id] ?? ''}
+                          onChange={(e) => setRolPorAsignar((prev) => ({ ...prev, [u.id]: e.target.value }))}
+                          className="min-h-9 rounded-md border border-line bg-paper px-2 py-1 text-xs text-ink"
+                        >
+                          <option value="">Agregar rol...</option>
+                          {disponibles.map((r) => (
+                            <option key={r.nombre} value={r.nombre}>
+                              {etiquetaRoles([r.nombre])}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          variant="ghost"
+                          className="text-xs"
+                          disabled={ocupado || !rolPorAsignar[u.id]}
+                          onClick={() => handleAsignar(u)}
+                        >
+                          {ocupado ? 'Guardando…' : 'Asignar rol'}
+                        </Button>
+                      </div>
                     )}
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
       </div>
+
+      <Card as="section" aria-labelledby="historial-roles-heading" className="space-y-4">
+        <div className="border-b border-line pb-3">
+          <span className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+            Trazabilidad de accesos
+          </span>
+          <h3 id="historial-roles-heading" className="mt-1 font-serif text-xl font-semibold text-ink">
+            Historial de cambios de roles ({historial.length})
+          </h3>
+          <p className="text-xs text-ink-muted">
+            Cada rol asignado o quitado, y cada rol creado o con permisos cambiados, con quién lo hizo y cuándo. No
+            se puede modificar ni borrar.
+          </p>
+        </div>
+        {historial.length === 0 ? (
+          <p className="text-sm text-ink-muted">Todavía no hay cambios de roles registrados.</p>
+        ) : (
+          <ol className="max-h-96 space-y-2 overflow-y-auto">
+            {historial.map((c) => (
+              <li key={c.id} className="rounded-md border border-line px-3 py-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    className={`rounded px-2 py-0.5 font-mono text-[11px] font-semibold text-ink ${
+                      c.accion === 'ROL_QUITADO' ? 'bg-iucn-cr/15' : 'bg-iucn-lc/15'
+                    }`}
+                  >
+                    {ETIQUETA_ACCION[c.accion] ?? c.accion}
+                  </span>
+                  <span className="font-mono text-[11px] text-ink-muted">{fechaHora(c.realizadoEn)}</span>
+                </div>
+                <p className="mt-1 text-ink">
+                  {c.usuarioId ? (
+                    <>
+                      <span className="font-semibold">{nombreDe(c.usuarioId)}</span> · {etiquetaRoles([c.rol])}
+                    </>
+                  ) : (
+                    <>Rol {etiquetaRoles([c.rol])}</>
+                  )}
+                </p>
+                {c.detalle && <p className="font-mono text-[11px] text-ink-muted break-all">{c.detalle}</p>}
+                <p className="font-mono text-[11px] text-ink-muted">
+                  Por {c.realizadoPor === 'sin registro' ? 'autor no registrado (cambio anterior al historial)' : c.realizadoPor}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </Card>
     </div>
   );
 }
