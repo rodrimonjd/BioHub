@@ -4,8 +4,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Field } from '@/components/ui/Field';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 import { ProtectedLocation } from './ProtectedLocation';
+import { listarHallazgosPublicos, RECONSULTAS_MS } from '@/lib/consulta-api';
 import { BioHubUser, canViewExactCoordinates } from '@/lib/permissions';
-import { HallazgoResponse, listarHallazgos } from '@/lib/registro-api';
+import { HallazgoResponse } from '@/lib/registro-api';
 import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
 import { EspecieRegistro } from '@/lib/taxonomia-api';
 
@@ -31,16 +32,27 @@ function aGrados(valor: number, positivo: string, negativo: string): string {
   }`;
 }
 
-/** Ubicación del hallazgo más reciente de la especie elegida: exacta con ubicacion:ver_exacta o con acceso a esa especie. */
+/**
+ * Ubicación del hallazgo más reciente de la especie elegida (HU-06 y HU-07), leída de servicio-consulta-publica:
+ * exacta con ubicacion:ver_exacta o con acceso a esa especie; si no, solo la región o el departamento.
+ */
 export function UbicacionPorEspecie({ usuario, especies, recarga = 0 }: UbicacionPorEspecieProps) {
   const [hallazgos, setHallazgos] = useState<HallazgoResponse[]>([]);
   const [especieId, setEspecieId] = useState('');
   const puedeVer = useAccesoUbicacion(usuario);
 
   useEffect(() => {
-    listarHallazgos(usuario.id).then(({ data }) => {
-      if (data) setHallazgos(data);
-    });
+    let vigente = true;
+    const consultar = () =>
+      listarHallazgosPublicos(usuario.id).then(({ data }) => {
+        if (vigente && data) setHallazgos(data);
+      });
+    consultar();
+    const esperas = recarga > 0 ? RECONSULTAS_MS.map((ms) => setTimeout(consultar, ms)) : [];
+    return () => {
+      vigente = false;
+      esperas.forEach(clearTimeout);
+    };
   }, [usuario.id, recarga]);
 
   // Hallazgo más reciente de cada especie
@@ -83,7 +95,9 @@ export function UbicacionPorEspecie({ usuario, especies, recarga = 0 }: Ubicacio
       ? `${aGrados(hallazgo.latitud, 'N', 'S')} · ${aGrados(hallazgo.longitud, 'E', 'W')}`
       : null;
   const region = hallazgo
-    ? `Región: ${hallazgo.departamento}${hallazgo.region ? ` · ${hallazgo.region}` : ''}`
+    ? hallazgo.region
+      ? `Región: ${hallazgo.departamento} · ${hallazgo.region}`
+      : `Departamento: ${hallazgo.departamento}`
     : undefined;
 
   return (
