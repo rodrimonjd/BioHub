@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class PoliticaVisibilidadUbicacionTest {
 
@@ -28,7 +29,11 @@ class PoliticaVisibilidadUbicacionTest {
     }
 
     @Test
-    void especiesDeBajoRiesgoSeMuestranExactas() {
-        assertEquals(NivelVisibilidad.EXACTA, politica.resolver(Set.of(), "LC"));
+    void sinPermisoNuncaVeCoordenadasExactas() {
+        for (String categoria : new String[]{"LC", "NT", "VU", "EN", "CR", "lc", "", "DD"}) {
+            assertNotEquals(NivelVisibilidad.EXACTA, politica.resolver(Set.of("hallazgo:ver"), categoria));
+        }
+        assertEquals(NivelVisibilidad.REGION, politica.resolver(Set.of(), "LC"));
+        assertEquals(NivelVisibilidad.REGION, politica.resolver(Set.of(), "NT"));
     }
 }

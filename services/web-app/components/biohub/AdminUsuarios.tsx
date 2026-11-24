@@ -1,21 +1,23 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { CambioDeRol } from '@/components/biohub/CambioDeRol';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { ListaDesplazable } from '@/components/ui/ListaDesplazable';
 import { useNotificar } from '@/components/ui/Notificaciones';
 import { avisoDeError } from '@/lib/avisos';
+import { tituloDeDia } from '@/lib/fechas';
 import { BioHubUser, etiquetaRoles } from '@/lib/permissions';
 import {
   AccionRol,
-  asignarRol,
+  cambiarRol,
   CambioRol,
   crearUsuario,
   historialRoles,
   listarRoles,
   listarUsuarios,
-  quitarRol,
   VistaRol,
   VistaUsuario,
 } from '@/lib/autorizacion-api';
@@ -27,12 +29,15 @@ const ETIQUETA_ACCION: Record<AccionRol, string> = {
   PERMISOS_CAMBIADOS: 'Permisos del rol cambiados',
 };
 
+const claveDeCambio = (c: CambioRol) => String(c.id);
+const diaDeCambio = (c: CambioRol) => tituloDeDia(c.realizadoEn);
+
 function fechaHora(iso: string): string {
   return new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export interface AdminUsuariosProps {
-  /** Usuario con el permiso roles:administrar: sus peticiones van con su X-Usuario-Id. */
+  /** Usuario con el permiso roles:administrar. */
   admin: BioHubUser;
 }
 
@@ -58,16 +63,15 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
 
   // Cambios de roles de las cuentas existentes
   const [historial, setHistorial] = useState<CambioRol[]>([]);
-  const [rolPorAsignar, setRolPorAsignar] = useState<Record<string, string>>({});
   const [cambiando, setCambiando] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
       const [listaRoles, listaUsuarios, cambios] = await Promise.all([
-        listarRoles(admin.id),
-        listarUsuarios(admin.id),
-        historialRoles(admin.id),
+        listarRoles(),
+        listarUsuarios(),
+        historialRoles(),
       ]);
       setRoles(listaRoles);
       setUsuarios(listaUsuarios);
@@ -83,7 +87,7 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
     } finally {
       setCargando(false);
     }
-  }, [admin.id, notificar]);
+  }, [notificar]);
 
   useEffect(() => {
     cargar();
@@ -93,7 +97,7 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
     e.preventDefault();
     setGuardando(true);
     try {
-      const creado = await crearUsuario(admin.id, {
+      const creado = await crearUsuario({
         id: id.trim(),
         nombre: nombre.trim(),
         correo: correo.trim(),
@@ -126,54 +130,31 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
   const nombreDe = (usuarioId: string | null) =>
     usuarioId ? usuarios.find((u) => u.id === usuarioId)?.nombre ?? usuarioId : null;
 
-  const handleAsignar = async (u: VistaUsuario) => {
-    const nuevo = rolPorAsignar[u.id];
-    if (!nuevo) return;
+  const handleCambiarRol = async (u: VistaUsuario, nuevo: string): Promise<boolean> => {
     setCambiando(u.id);
+    let guardado = false;
     try {
-      await asignarRol(admin.id, u.id, nuevo);
+      await cambiarRol(u.id, nuevo);
       notificar({
         tipo: 'ok',
-        titulo: 'Rol asignado',
-        detalle: `${u.nombre} ahora tiene el rol ${etiquetaRoles([nuevo])}.`,
+        titulo: 'Rol cambiado',
+        detalle: `${u.nombre} ahora es ${etiquetaRoles([nuevo])}.`,
       });
-      setRolPorAsignar((prev) => ({ ...prev, [u.id]: '' }));
-      await cargar();
+      guardado = true;
     } catch (error) {
       notificar(
         avisoDeError(error, {
-          titulo: 'No se asignó el rol',
-          sinConexion: 'El rol no cambió',
+          titulo: 'No se cambió el rol',
+          sinConexion: 'El cambio de rol no se completó',
           accion: 'cambiar roles',
         })
       );
     } finally {
-      setCambiando(null);
-    }
-  };
-
-  const handleQuitar = async (u: VistaUsuario, r: string) => {
-    if (!window.confirm(`¿Quitar el rol ${etiquetaRoles([r])} a ${u.nombre}?`)) return;
-    setCambiando(u.id);
-    try {
-      await quitarRol(admin.id, u.id, r);
-      notificar({
-        tipo: 'ok',
-        titulo: 'Rol quitado',
-        detalle: `${u.nombre} ya no tiene el rol ${etiquetaRoles([r])}.`,
-      });
+      // También si falló: así la lista muestra el rol que quedó guardado de verdad
       await cargar();
-    } catch (error) {
-      notificar(
-        avisoDeError(error, {
-          titulo: 'No se quitó el rol',
-          sinConexion: 'El rol no cambió',
-          accion: 'cambiar roles',
-        })
-      );
-    } finally {
       setCambiando(null);
     }
+    return guardado;
   };
 
   return (
@@ -276,86 +257,41 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
             </div>
           </div>
 
-          {cargando ? (
+          {cargando && usuarios.length === 0 ? (
             <p className="text-sm text-ink-muted">Cargando cuentas…</p>
           ) : usuarios.length === 0 ? (
             <p className="text-sm text-ink-muted">No hay cuentas registradas.</p>
           ) : (
             <ul className="divide-y divide-line">
-              {usuarios.map((u) => {
-                // Sin roles asignados la cuenta es CIUDADANO por defecto: ese rol no se puede quitar
-                const soloPorDefecto = u.roles.length === 1 && u.roles[0] === 'CIUDADANO';
-                const disponibles = roles.filter((r) => !u.roles.includes(r.nombre));
-                const ocupado = cambiando === u.id;
-                return (
-                  <li key={u.id} className="space-y-2 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-serif text-base font-semibold text-ink">{u.nombre}</p>
-                        <p className="font-mono text-xs text-ink-muted break-all">
-                          {u.id} · {u.correo}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {u.roles.map((r) => {
-                          const sePuedeQuitar = !soloPorDefecto && !(r === 'ADMIN' && u.id === admin.id);
-                          return (
-                            <span
-                              key={r}
-                              className="inline-flex items-center gap-1 font-mono text-xs pl-2.5 pr-1 py-0.5 rounded bg-forest-900 text-white"
-                            >
-                              {etiquetaRoles([r])}
-                              {soloPorDefecto && <span className="opacity-75 pr-1.5"> (por defecto)</span>}
-                              {sePuedeQuitar && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuitar(u, r)}
-                                  disabled={ocupado}
-                                  aria-label={`Quitar el rol ${etiquetaRoles([r])} a ${u.nombre}`}
-                                  title="Quitar rol"
-                                  className="ml-0.5 flex h-5 w-5 cursor-pointer items-center justify-center rounded hover:bg-white/20 disabled:opacity-50"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </span>
-                          );
-                        })}
-                        {!u.activo && (
-                          <span className="font-mono text-xs px-2.5 py-0.5 rounded border border-line text-ink-muted">
-                            Inactiva
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {disponibles.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <select
-                          aria-label={`Rol para asignar a ${u.nombre}`}
-                          value={rolPorAsignar[u.id] ?? ''}
-                          onChange={(e) => setRolPorAsignar((prev) => ({ ...prev, [u.id]: e.target.value }))}
-                          className="min-h-9 rounded-md border border-line bg-paper px-2 py-1 text-xs text-ink"
-                        >
-                          <option value="">Agregar rol...</option>
-                          {disponibles.map((r) => (
-                            <option key={r.nombre} value={r.nombre}>
-                              {etiquetaRoles([r.nombre])}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          variant="ghost"
-                          className="text-xs"
-                          disabled={ocupado || !rolPorAsignar[u.id]}
-                          onClick={() => handleAsignar(u)}
-                        >
-                          {ocupado ? 'Guardando…' : 'Asignar rol'}
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
+              {usuarios.map((u) => (
+                <li
+                  key={u.id}
+                  className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="font-serif text-base font-semibold text-ink">
+                      {u.nombre}
+                      {!u.activo && (
+                        <span className="ml-2 rounded border border-line px-2 py-0.5 font-mono text-xs font-normal text-ink-muted">
+                          Inactiva
+                        </span>
+                      )}
+                    </p>
+                    <p className="font-mono text-xs text-ink-muted break-all">{u.id}</p>
+                    <p className="font-mono text-xs text-ink-muted break-all">{u.correo}</p>
+                  </div>
+                  <div className="min-w-0 sm:w-72 sm:shrink-0">
+                    <CambioDeRol
+                      usuario={u}
+                      roles={roles}
+                      // Nadie se quita a sí mismo el rol de administrador: lo rechaza servicio-autorizacion
+                      bloqueado={u.id === admin.id && u.roles.includes('ADMIN')}
+                      ocupado={cambiando !== null}
+                      onCambiar={(rol) => handleCambiarRol(u, rol)}
+                    />
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </Card>
@@ -377,9 +313,15 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
         {historial.length === 0 ? (
           <p className="text-sm text-ink-muted">Todavía no hay cambios de roles registrados.</p>
         ) : (
-          <ol className="max-h-96 space-y-2 overflow-y-auto">
-            {historial.map((c) => (
-              <li key={c.id} className="rounded-md border border-line px-3 py-2 text-xs">
+          <ListaDesplazable
+            items={historial}
+            etiqueta="Historial de cambios de roles"
+            clave={claveDeCambio}
+            grupo={diaDeCambio}
+            className="max-h-96"
+          >
+            {(c) => (
+              <div className="rounded-md border border-line bg-paper px-3 py-2 text-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span
                     className={`rounded px-2 py-0.5 font-mono text-[11px] font-semibold text-ink ${
@@ -403,9 +345,9 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
                 <p className="font-mono text-[11px] text-ink-muted">
                   Por {c.realizadoPor === 'sin registro' ? 'autor no registrado (cambio anterior al historial)' : c.realizadoPor}
                 </p>
-              </li>
-            ))}
-          </ol>
+              </div>
+            )}
+          </ListaDesplazable>
         )}
       </Card>
     </div>

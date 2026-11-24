@@ -1,3 +1,5 @@
+import { pedir } from '@/lib/pedir';
+
 const API_BASE = '/api/taxonomia';
 
 export type TipoDato = 'TEXTO' | 'NUMERICO' | 'LISTA';
@@ -50,8 +52,8 @@ export async function cargarInventario(): Promise<{
 } | null> {
   try {
     const [resEspecies, resFichas] = await Promise.all([
-      fetch('/api/registro/especies', { cache: 'no-store' }),
-      fetch(`${API_BASE}/fichas`, { cache: 'no-store' }),
+      pedir('/api/registro/especies', { cache: 'no-store' }),
+      pedir(`${API_BASE}/fichas`, { cache: 'no-store' }),
     ]);
     if (!resEspecies.ok || !resFichas.ok) return null;
     return { especies: await resEspecies.json(), fichas: await resFichas.json() };
@@ -60,16 +62,16 @@ export async function cargarInventario(): Promise<{
   }
 }
 
-// Las escrituras van con X-Usuario-Id: taxonomía exige el permiso ficha:editar y usa ese id como autor.
-async function asegurarAtributo(nombre: string, autor: string): Promise<void> {
-  const resCatalogo = await fetch(`${API_BASE}/atributos`, { cache: 'no-store' });
+// Taxonomía exige una sesión con ficha:editar para escribir y toma de ella el autor.
+async function asegurarAtributo(nombre: string): Promise<void> {
+  const resCatalogo = await pedir(`${API_BASE}/atributos`, { cache: 'no-store' });
   if (resCatalogo.ok) {
     const catalogo: AtributoTaxonomico[] = await resCatalogo.json();
     if (catalogo.some((a) => a.nombre.toLowerCase() === nombre.toLowerCase())) return;
   }
-  const res = await fetch(`${API_BASE}/atributos`, {
+  const res = await pedir(`${API_BASE}/atributos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nombre, tipoDato: 'TEXTO' }),
   });
   if (!res.ok && res.status !== 409) {
@@ -86,17 +88,17 @@ export interface AtributoNuevo {
 
 export async function listarAtributos(): Promise<AtributoTaxonomico[]> {
   try {
-    const res = await fetch(`${API_BASE}/atributos`, { cache: 'no-store' });
+    const res = await pedir(`${API_BASE}/atributos`, { cache: 'no-store' });
     return res.ok ? res.json() : [];
   } catch {
     return [];
   }
 }
 
-export async function crearAtributo(atributo: AtributoNuevo, autor: string): Promise<AtributoTaxonomico> {
-  const res = await fetch(`${API_BASE}/atributos`, {
+export async function crearAtributo(atributo: AtributoNuevo): Promise<AtributoTaxonomico> {
+  const res = await pedir(`${API_BASE}/atributos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       nombre: atributo.nombre,
       tipoDato: atributo.tipoDato,
@@ -112,12 +114,11 @@ export async function crearAtributo(atributo: AtributoNuevo, autor: string): Pro
 
 export async function crearFicha(
   especieId: string,
-  atributos: { nombre: string; valor: string }[],
-  autor: string
+  atributos: { nombre: string; valor: string }[]
 ): Promise<FichaTaxonomica> {
-  const res = await fetch(`${API_BASE}/fichas`, {
+  const res = await pedir(`${API_BASE}/fichas`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ especieId, atributos }),
   });
   if (!res.ok) {
@@ -134,13 +135,13 @@ export async function guardarAtributoEnFicha(params: {
   autor: string;
 }): Promise<FichaTaxonomica> {
   const { especieId, ficha, nombre, valor, autor } = params;
-  await asegurarAtributo(nombre, autor);
+  await asegurarAtributo(nombre);
 
   let res: Response;
   if (!ficha) {
-    res = await fetch(`${API_BASE}/fichas`, {
+    res = await pedir(`${API_BASE}/fichas`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ especieId, autor, atributos: [{ nombre, valor }] }),
     });
   } else {
@@ -148,14 +149,14 @@ export async function guardarAtributoEnFicha(params: {
       (a) => a.atributo?.nombre.toLowerCase() === nombre.toLowerCase()
     );
     res = yaLoTiene
-      ? await fetch(`${API_BASE}/fichas/${ficha.id}/atributos/${encodeURIComponent(nombre)}`, {
+      ? await pedir(`${API_BASE}/fichas/${ficha.id}/atributos/${encodeURIComponent(nombre)}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ valor, autor }),
         })
-      : await fetch(`${API_BASE}/fichas/${ficha.id}/atributos`, {
+      : await pedir(`${API_BASE}/fichas/${ficha.id}/atributos`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nombre, valor, autor }),
         });
   }
@@ -166,10 +167,10 @@ export async function guardarAtributoEnFicha(params: {
 }
 
 /** Desactiva una ficha (permiso ficha:desactivar). No se borra: queda inactiva y el cambio va al historial. */
-export async function desactivarFicha(fichaId: string, motivo: string, autor: string): Promise<FichaTaxonomica> {
-  const res = await fetch(`${API_BASE}/fichas/${encodeURIComponent(fichaId)}/desactivacion`, {
+export async function desactivarFicha(fichaId: string, motivo: string): Promise<FichaTaxonomica> {
+  const res = await pedir(`${API_BASE}/fichas/${encodeURIComponent(fichaId)}/desactivacion`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ motivo: motivo.trim() || undefined }),
   });
   if (!res.ok) {

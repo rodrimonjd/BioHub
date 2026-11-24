@@ -6,6 +6,8 @@ const REGISTRO_URL =
   process.env.REGISTRO_SERVICE_URL ??
   'http://localhost:8081';
 const AUTORIZACION_URL = process.env.AUTORIZACION_URL ?? 'http://localhost:8082';
+// servicio-consulta-publica (búsqueda de hallazgos, HU-05). Por defecto :8083.
+const CONSULTA_URL = process.env.CONSULTA_URL ?? 'http://localhost:8083';
 // servicio-taxonomia (fichas y atributos).
 const TAXONOMIA_URL = process.env.TAXONOMIA_URL ?? 'http://localhost:8084';
 
@@ -33,6 +35,10 @@ const nextConfig: NextConfig = {
       {
         source: '/api/autorizacion/:path*',
         destination: `${AUTORIZACION_URL}/api/v1/autorizacion/:path*`,
+      },
+      {
+        source: '/api/consulta/:path*',
+        destination: `${CONSULTA_URL}/api/v1/consulta/:path*`,
       },
       {
         source: '/api/taxonomia/:path*',

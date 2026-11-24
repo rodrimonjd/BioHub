@@ -5,8 +5,6 @@ services:
     image: mysql:8.4
     container_name: biohub-mysql
     restart: unless-stopped
-    # Permite que los usuarios de cada servicio creen triggers con Flyway aunque el binlog esté activo
-    # (servicio-historial usa triggers para que su historial sea de solo inserción).
     command: ["--log-bin-trust-function-creators=1"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
@@ -63,7 +61,10 @@ services:
       BD_NOMBRE: auth_db
       BD_USUARIO: auth_user
       BD_CLAVE: auth_pass
+      SECRETO_SERVICIOS: ${SECRETO_SERVICIOS:-biohub-desarrollo}
       TZ: America/Bogota
+    volumes:
+      - auth_claves:/app/claves
     ports:
       - "8082:8082"
 
@@ -207,11 +208,11 @@ services:
     environment:
       AUTORIZACION_URL: http://servicio-autorizacion:8082
       CONSULTA_URL: http://servicio-consulta-publica:8083
+      SECRETO_SERVICIOS: ${SECRETO_SERVICIOS:-biohub-desarrollo}
       TZ: America/Bogota
     ports:
       - "8080:8080"
 
-  # Front (Next.js). Las URLs de los servicios se fijan al compilar la imagen (ver services/web-app/Dockerfile).
   web-app:
     build:
       context: ../services/web-app
@@ -220,6 +221,7 @@ services:
     depends_on:
       - servicio-autorizacion
       - servicio-registro
+      - servicio-consulta-publica
       - servicio-taxonomia
       - servicio-reportes
       - servicio-historial
@@ -230,6 +232,7 @@ services:
       - "3000:3000"
 
 volumes:
+  auth_claves:
   mysql_data:
   mongo_data:
   rabbitmq_data:

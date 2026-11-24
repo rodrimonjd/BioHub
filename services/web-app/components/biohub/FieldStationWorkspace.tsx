@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { ErrorFormulario } from '@/components/ui/ErrorFormulario';
+import { ListaDesplazable } from '@/components/ui/ListaDesplazable';
 import { useNotificar } from '@/components/ui/Notificaciones';
+import { idDePestana, Pestana, Pestanas } from '@/components/ui/Pestanas';
 import { ConservationBadge } from '@/components/ui/ConservationBadge';
 import {
   BioHubUser,
@@ -17,6 +19,8 @@ import {
 } from '@/lib/permissions';
 import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
 import { avisoDeError } from '@/lib/avisos';
+import { tituloDeDia } from '@/lib/fechas';
+import { listarHallazgosPublicos } from '@/lib/consulta-api';
 import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
 import { FichaTaxonomica } from '@/lib/taxonomia-api';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
@@ -143,7 +147,20 @@ const INITIAL_LOCAL_HALLAZGOS: HallazgoResponse[] = [
   },
 ];
 
-const PAGE_SIZE = 3;
+type ModuloCampo = 'avistamientos' | 'hallazgos' | 'reclasificacion' | 'gestion';
+
+const ID_PANEL_CAMPO = 'modulo-estacion-campo';
+
+const MODULOS: Pestana<ModuloCampo>[] = [
+  { id: 'avistamientos', label: 'Avistamientos' },
+  { id: 'hallazgos', label: 'Hallazgos' },
+  { id: 'reclasificacion', label: 'Reclasificación' },
+];
+
+const MODULO_GESTION: Pestana<ModuloCampo> = { id: 'gestion', label: 'Equipos y expediciones' };
+
+const claveDeAvistamiento = (av: AvistamientoResponse) => av.id;
+const diaDeAvistamiento = (av: AvistamientoResponse) => tituloDeDia(av.fechaHora);
 
 export function FieldStationWorkspace({
   currentUser,
@@ -155,9 +172,7 @@ export function FieldStationWorkspace({
 }: FieldStationWorkspaceProps) {
   // Especies de la base de datos; si registro no responde, el catálogo base para trabajar sin conexión
   const catalogo = especies && especies.length > 0 ? especies : BACKEND_SEED_SPECIES;
-  const [activeTab, setActiveTab] = useState<
-    'avistamientos' | 'hallazgos' | 'reclasificacion' | 'gestion'
-  >('avistamientos');
+  const [activeTab, setActiveTab] = useState<ModuloCampo>('avistamientos');
   const notificar = useNotificar();
   // Errores de un dato del formulario; los demás avisos son flotantes
   const [errorFormulario, setErrorFormulario] = useState<{
@@ -166,14 +181,16 @@ export function FieldStationWorkspace({
   } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Bitácora con paginación incremental
+  // Bitácora de avistamientos
   const [avistamientos, setAvistamientos] = useState<AvistamientoResponse[]>(
     INITIAL_LOCAL_AVISTAMIENTOS
   );
-  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
   const [hallazgos, setHallazgos] = useState<HallazgoResponse[]>(
     INITIAL_LOCAL_HALLAZGOS
   );
+  // Cuándo se guardó el último hallazgo, para que la consulta pública lo vuelva a pedir
+  const [ultimoCambio, setUltimoCambio] = useState<number>(0);
+  const recargarConsulta = () => setUltimoCambio(Date.now());
 
   // Formulario Avistamiento
   const [avEspecieId, setAvEspecieId] = useState(catalogo[0].id);
@@ -253,7 +270,7 @@ export function FieldStationWorkspace({
   const puedeVerExacta = useAccesoUbicacion(currentUser);
 
   useEffect(() => {
-    listarUsuariosConPermiso(currentUser.id, PERMISOS.VALIDAR_HALLAZGO).then((lista) => {
+    listarUsuariosConPermiso(PERMISOS.VALIDAR_HALLAZGO).then((lista) => {
       setAutorizadores(lista);
       const propio = lista.find((u) => u.id === currentUser.id);
       setRecAutorizador((propio ?? lista[0])?.id ?? '');
@@ -264,7 +281,7 @@ export function FieldStationWorkspace({
     autorizadores.find((u) => u.id === id)?.nombre ?? id;
 
   const syncWithBackend = async () => {
-    const res = await listarAvistamientos(currentUser.id);
+    const res = await listarAvistamientos();
     if (res.online && res.data) {
       setAvistamientos((prev) => {
         const pendingItems = prev.filter((item) => item.pendingSync);
@@ -272,7 +289,11 @@ export function FieldStationWorkspace({
       });
     }
 
-    const resHallazgos = await listarHallazgos(currentUser.id);
+    // Quien registra o edita trabaja con servicio-registro; los demás solo con la consulta pública
+    const resHallazgos =
+      canWrite || canEdit
+        ? await listarHallazgos()
+        : await listarHallazgosPublicos();
     if (resHallazgos.online && resHallazgos.data) {
       const guardados = resHallazgos.data;
       setHallazgos((prev) => [...prev.filter((h) => h.pendingSync), ...guardados]);
@@ -305,7 +326,7 @@ export function FieldStationWorkspace({
     setLoading(true);
     setErrorFormulario(null);
     try {
-      const saved = await registrarAvistamiento(item.originalPayload, currentUser.id);
+      const saved = await registrarAvistamiento(item.originalPayload);
       setAvistamientos((prev) =>
         prev.map((av) => (av.id === item.id ? { ...saved, pendingSync: false } : av))
       );
@@ -365,7 +386,7 @@ export function FieldStationWorkspace({
     };
 
     try {
-      const saved = await registrarAvistamiento(payload, currentUser.id);
+      const saved = await registrarAvistamiento(payload);
       setAvistamientos((prev) => [{ ...saved, pendingSync: false }, ...prev]);
       notificar({
         tipo: 'ok',
@@ -520,7 +541,7 @@ export function FieldStationWorkspace({
       catalogo[0];
 
     try {
-      const result = await registrarHallazgo(payload, currentUser.id);
+      const result = await registrarHallazgo(payload);
       const created: HallazgoResponse = result.hallazgo || {
         id: result.id || crypto.randomUUID(),
         investigadorId: payload.investigadorId,
@@ -547,6 +568,7 @@ export function FieldStationWorkspace({
 
       setHallazgos((prev) => [created, ...prev]);
       setTargetHallazgoId(created.id);
+      recargarConsulta();
       setHaDescripcion('');
 
       onNewSpeciesCardCreated({
@@ -711,10 +733,11 @@ export function FieldStationWorkspace({
         campo: modCampo,
         valor: modValor.trim(),
         autor: currentUser.id,
-      }, currentUser.id);
+      });
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
       );
+      recargarConsulta();
       onNewHistoryEventAdded(
         {
           id: `EVT-${Date.now().toString().slice(-4)}`,
@@ -843,10 +866,11 @@ export function FieldStationWorkspace({
         motivo: recMotivo.trim(),
         autor: currentUser.id,
         autorizador: recAutorizador,
-      }, currentUser.id);
+      });
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
       );
+      recargarConsulta();
       onNewHistoryEventAdded(
         {
           id: `EVT-${Date.now().toString().slice(-4)}`,
@@ -914,97 +938,27 @@ export function FieldStationWorkspace({
   const targetNewSpecies = catalogo.find(
     (s) => s.id === recNuevaEspecieId
   );
-  const visibleAvistamientos = avistamientos.slice(0, visibleCount);
+  const avistamientosRecientes = useMemo(
+    () => [...avistamientos].sort((a, b) => Date.parse(b.fechaHora) - Date.parse(a.fechaHora)),
+    [avistamientos]
+  );
 
   return (
     <div className="space-y-6">
-      {/* Pestañas cortas en una sola fila con role="tablist" */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3">
-      <div
-        role="tablist"
-        aria-label="Módulos de estación de campo"
-        className="flex flex-wrap gap-2"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'avistamientos'}
-          onClick={() => {
-            setActiveTab('avistamientos');
+      <div className="border-b border-line pb-4">
+        <Pestanas
+          etiqueta="Módulos de estación de campo"
+          pestanas={canManageEquipment(currentUser) ? [...MODULOS, MODULO_GESTION] : MODULOS}
+          activa={activeTab}
+          onCambio={(modulo) => {
+            setActiveTab(modulo);
             setErrorFormulario(null);
           }}
-          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'avistamientos'
-              ? 'bg-forest-900 text-white'
-              : 'bg-surface text-ink border border-line hover:border-forest-700'
-          }`}
-        >
-          Avistamientos
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'hallazgos'}
-          onClick={() => {
-            setActiveTab('hallazgos');
-            setErrorFormulario(null);
-          }}
-          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'hallazgos'
-              ? 'bg-forest-900 text-white'
-              : 'bg-surface text-ink border border-line hover:border-forest-700'
-          }`}
-        >
-          Hallazgos
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'reclasificacion'}
-          onClick={() => {
-            setActiveTab('reclasificacion');
-            setErrorFormulario(null);
-          }}
-          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'reclasificacion'
-              ? 'bg-forest-900 text-white'
-              : 'bg-surface text-ink border border-line hover:border-forest-700'
-          }`}
-        >
-          Reclasificación
-        </button>
-        {canManageEquipment(currentUser) && (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'gestion'}
-            onClick={() => {
-              setActiveTab('gestion');
-              setErrorFormulario(null);
-            }}
-            className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-              activeTab === 'gestion'
-                ? 'bg-forest-900 text-white'
-                : 'bg-surface text-ink border border-line hover:border-forest-700'
-            }`}
-          >
-            Equipos y expediciones
-          </button>
-        )}
-      </div>
-        {/* Lleva a la sección "Inventario y fichas por especie" del panel */}
-        <a
-          href="#inventario"
-          onClick={(e) => {
-            e.preventDefault();
-            document.getElementById('inventario')?.scrollIntoView({ behavior: 'smooth' });
-          }}
-          className="inline-flex min-h-11 items-center rounded-md border border-line bg-surface px-5 py-2.5 font-mono text-xs font-semibold text-ink transition-colors hover:border-forest-700"
-        >
-          Fichas Taxonómicas
-        </a>
+          idPanel={ID_PANEL_CAMPO}
+        />
       </div>
 
+      <div role="tabpanel" id={ID_PANEL_CAMPO} aria-labelledby={idDePestana(ID_PANEL_CAMPO, activeTab)}>
       {activeTab === 'gestion' && (
         <GestionCampo
           currentUser={currentUser}
@@ -1019,7 +973,7 @@ export function FieldStationWorkspace({
           {/* Agregar una especie nueva al catálogo, al inicio de la sección (solo con hallazgo:crear) */}
           {canWrite && onEspecieCreada && (
             <div className="lg:col-span-12">
-              <NuevaEspecie usuario={currentUser} onCreada={onEspecieCreada} />
+              <NuevaEspecie onCreada={onEspecieCreada} />
             </div>
           )}
 
@@ -1040,9 +994,9 @@ export function FieldStationWorkspace({
                 <input
                   id="av-investigador"
                   type="text"
-                  readOnly
+                  disabled
                   value={`${currentUser.name} (${currentUser.id})`}
-                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
+                  className="pointer-events-none min-h-11 w-full select-none rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink-muted"
                 />
               </Field>
 
@@ -1147,9 +1101,10 @@ export function FieldStationWorkspace({
           </Card>
           )}
 
-          {/* Bitácora con layout unificado y paginación incremental (a todo el ancho si no hay formulario) */}
-          <Card as="section" className={`${canWrite ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-4`}>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+          {/* Bitácora con scroll propio: junto al formulario tiene una altura fija; sin él ocupa todo el ancho */}
+          <div className={canWrite ? 'lg:col-span-7 lg:relative lg:min-h-[42rem] lg:self-stretch' : 'lg:col-span-12'}>
+          <Card as="section" className={`flex flex-col gap-4 ${canWrite ? 'lg:absolute lg:inset-0' : ''}`}>
+            <div className="border-b border-line pb-3">
               <div>
                 <span className="font-mono text-xs uppercase tracking-wider text-ink-muted">
                   Orden cronológico descendente
@@ -1158,17 +1113,19 @@ export function FieldStationWorkspace({
                   Bitácora de avistamientos ({avistamientos.length})
                 </h3>
               </div>
-              <span className="font-mono text-xs text-ink-muted">
-                Mostrando {visibleAvistamientos.length} de {avistamientos.length}
-              </span>
             </div>
 
-            <div className="space-y-3">
-              {visibleAvistamientos.map((av) => {
+            <ListaDesplazable
+              items={avistamientosRecientes}
+              etiqueta="Bitácora de avistamientos"
+              clave={claveDeAvistamiento}
+              grupo={diaDeAvistamiento}
+              className={`max-h-[66vh] ${canWrite ? 'lg:max-h-none lg:min-h-0 lg:flex-1' : ''}`}
+            >
+              {(av) => {
                 const spMeta = catalogo.find((s) => s.id === av.especieId);
                 return (
                   <article
-                    key={av.id}
                     className={`rounded-lg border p-4 space-y-3 ${
                       av.pendingSync
                         ? 'border-sun-500 bg-sun-500/5'
@@ -1237,21 +1194,10 @@ export function FieldStationWorkspace({
                     </div>
                   </article>
                 );
-              })}
-            </div>
-
-            {visibleCount < avistamientos.length && (
-              <div className="pt-2 flex justify-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-                  className="text-xs"
-                >
-                  Cargar más avistamientos ({avistamientos.length - visibleCount} restantes)
-                </Button>
-              </div>
-            )}
+              }}
+            </ListaDesplazable>
           </Card>
+          </div>
         </div>
       )}
 
@@ -1602,29 +1548,23 @@ export function FieldStationWorkspace({
         {/* Sumar evidencias a un hallazgo ya registrado (solo con hallazgo:editar) */}
         {canEdit && (
           <AgregarEvidencia
-            currentUser={currentUser}
             hallazgos={hallazgos.filter((h) => !h.pendingSync)}
-            onHallazgoActualizado={(actualizado) =>
-              setHallazgos((prev) => prev.map((h) => (h.id === actualizado.id ? actualizado : h)))
-            }
+            onHallazgoActualizado={(actualizado) => {
+              setHallazgos((prev) => prev.map((h) => (h.id === actualizado.id ? actualizado : h)));
+              recargarConsulta();
+            }}
           />
         )}
 
-        {/* Hallazgos guardados en la base de datos, con búsqueda por nombre */}
+        {/* HU-05: consulta por especie, fecha y palabra clave en servicio-consulta-publica */}
         <ListaHallazgos
-          hallazgos={hallazgos}
+          usuario={currentUser}
+          pendientes={hallazgos.filter((h) => h.pendingSync)}
+          ultimoCambio={ultimoCambio}
           catalogo={catalogo}
           fichas={fichas ?? []}
           expediciones={expediciones}
           puedeVerExacta={puedeVerExacta}
-          onModificar={
-            canEdit
-              ? (id) => {
-                  setTargetHallazgoId(id);
-                  setActiveTab('reclasificacion');
-                }
-              : undefined
-          }
         />
         </div>
       )}
@@ -1666,7 +1606,8 @@ export function FieldStationWorkspace({
                   )}
                   {hallazgosFiltrados.map((h) => (
                     <option key={h.id} value={h.id}>
-                      {nombreComunHallazgo(h, catalogo)} ({h.especie}) — {h.departamento} · {h.investigadorId} · v{h.versionActual}
+                      {nombreComunHallazgo(h, catalogo)} ({h.especie}) — {h.departamento}
+                      {h.investigadorId ? ` · ${h.investigadorId}` : ''} · v{h.versionActual}
                     </option>
                   ))}
                 </select>
@@ -1858,6 +1799,8 @@ export function FieldStationWorkspace({
           )}
         </div>
       )}
+
+      </div>
 
       {/* Diálogo nativo <dialog> de confirmación antes de reclasificar */}
       <dialog

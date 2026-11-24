@@ -19,7 +19,6 @@ import {
 } from '@/lib/taxonomia-api';
 
 export interface NuevaFichaProps {
-  usuarioId: string;
   especies: EspecieRegistro[];
   fichas: FichaTaxonomica[];
   onCreada: () => Promise<void> | void;
@@ -60,7 +59,7 @@ function nombreEspecie(especie: EspecieRegistro): string {
     : especie.nombreCientifico;
 }
 
-export function NuevaFicha({ usuarioId, especies, fichas, onCreada }: NuevaFichaProps) {
+export function NuevaFicha({ especies, fichas, onCreada }: NuevaFichaProps) {
   const [catalogo, setCatalogo] = useState<AtributoTaxonomico[]>([]);
   const [especieId, setEspecieId] = useState<string>('');
   const [filas, setFilas] = useState<FilaAtributo[]>([filaVacia(1)]);
@@ -137,12 +136,12 @@ export function NuevaFicha({ usuarioId, especies, fichas, onCreada }: NuevaFicha
       for (const fila of filas) {
         if (fila.atributoId !== NUEVO) continue;
         const { nombre, tipoDato, unidad, opciones } = definicion(fila);
-        const creado = await crearAtributo({ nombre, tipoDato, unidad, opciones }, usuarioId);
+        const creado = await crearAtributo({ nombre, tipoDato, unidad, opciones });
         setCatalogo((prev) => [...prev, creado]);
         cambiarFila(fila.clave, { atributoId: creado.id });
       }
       const atributos = filas.map((fila) => ({ nombre: definicion(fila).nombre, valor: fila.valor.trim() }));
-      const ficha = await crearFicha(especie.id, atributos, usuarioId);
+      const ficha = await crearFicha(especie.id, atributos);
       notificar({
         tipo: 'ok',
         titulo: 'Ficha creada',

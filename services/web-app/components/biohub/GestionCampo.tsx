@@ -21,6 +21,7 @@ import {
 } from '@/lib/registro-api';
 import { avisoDeError } from '@/lib/avisos';
 import { CLASE_INPUT, Encabezado } from './campo-ui';
+import { ExpedicionesConEquipos } from './ExpedicionesConEquipos';
 
 export interface GestionCampoProps {
   currentUser: BioHubUser;
@@ -42,12 +43,16 @@ export function GestionCampo({
   const notificar = useNotificar();
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [lideres, setLideres] = useState<ResumenUsuario[]>([]);
+  const [expedicionAbierta, setExpedicionAbierta] = useState<string | null>(null);
+
+  const nombreDe = (id: string) =>
+    id === currentUser.id ? currentUser.name : lideres.find((l) => l.id === id)?.nombre ?? id;
 
   const recargarEquipos = async () => setEquipos(await listarEquipos());
 
   useEffect(() => {
     recargarEquipos();
-    listarUsuariosConPermiso(currentUser.id, PERMISOS.CREAR_HALLAZGO).then(setLideres);
+    listarUsuariosConPermiso(PERMISOS.CREAR_HALLAZGO).then(setLideres);
   }, [currentUser.id]);
 
   // Equipo
@@ -59,8 +64,7 @@ export function GestionCampo({
     e.preventDefault();
     try {
       const creado = await crearEquipo(
-        { numeroSerie: eqSerie.trim(), tipo: eqTipo, modelo: eqModelo.trim() || null },
-        currentUser.id
+        { numeroSerie: eqSerie.trim(), tipo: eqTipo, modelo: eqModelo.trim() || null }
       );
       notificar({
         tipo: 'ok',
@@ -98,8 +102,7 @@ export function GestionCampo({
           fechaInicio: exInicio,
           fechaFin: exFin || null,
           liderId: exLider,
-        },
-        currentUser.id
+        }
       );
       notificar({
         tipo: 'ok',
@@ -128,15 +131,14 @@ export function GestionCampo({
     e.preventDefault();
     if (!asExpedicionId || !asEquipoId) return;
     try {
-      const expedicion = await asignarEquipoAExpedicion(asExpedicionId, asEquipoId, currentUser.id);
+      const expedicion = await asignarEquipoAExpedicion(asExpedicionId, asEquipoId);
       notificar({
         tipo: 'ok',
         titulo: 'Equipo asignado',
-        detalle: `Va a ${expedicion.nombre}. Responsable: ${
-          lideres.find((l) => l.id === expedicion.liderId)?.nombre ?? expedicion.liderId
-        }.`,
+        detalle: `Va a ${expedicion.nombre}. Responsable: ${nombreDe(expedicion.liderId)}.`,
       });
       await Promise.all([onExpedicionesCambiaron(), recargarEquipos()]);
+      setExpedicionAbierta(expedicion.id);
     } catch (error) {
       notificar(
         avisoDeError(error, {
@@ -315,6 +317,16 @@ export function GestionCampo({
           </Card>
         )}
       </div>
+
+      {puedeGestionarEquipos && (
+        <ExpedicionesConEquipos
+          usuarioId={currentUser.id}
+          expediciones={expediciones}
+          nombreDe={nombreDe}
+          abierta={expedicionAbierta}
+          onAbrir={setExpedicionAbierta}
+        />
+      )}
     </div>
   );
 }

@@ -126,7 +126,7 @@ export function HistorialRegistros({
     let vigente = true;
     setCargando(true);
     setError(null);
-    obtenerHistorial(tipo, registroId, usuario.id)
+    obtenerHistorial(tipo, registroId)
       .then((h) => vigente && setHistorial(h))
       .catch((e) => {
         if (!vigente) return;

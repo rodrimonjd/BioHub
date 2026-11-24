@@ -7,15 +7,23 @@ import { Card } from '@/components/ui/Card';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
 import { SiteHeader } from '@/components/biohub/SiteHeader';
+import { TerrenoTopografico } from '@/components/ui/TerrenoTopografico';
 import {
   BioHubUser,
-  clearStoredSession,
   crearSesionInvitado,
   getStoredSession,
   ID_INVITADO,
   saveStoredSession,
 } from '@/lib/permissions';
 import { obtenerAcceso } from '@/lib/autorizacion-api';
+import { borrarCookieSesion, cerrarSesion } from '@/lib/sesion';
+import { useSeccionActiva } from '@/lib/useSeccionActiva';
+
+const TITULO = 'Sistema Nacional de Registro y Vigilancia de Biodiversidad'.split(' ');
+
+const SECCIONES = ['desafios'];
+
+const retraso = (ms: number) => ({ '--retraso': `${ms}ms` }) as React.CSSProperties;
 
 const CHALLENGES = [
   {
@@ -48,13 +56,14 @@ export default function HomePage() {
   const router = useRouter();
   const [sessionUser, setSessionUser] = useState<BioHubUser | null>(null);
   const [entrandoInvitado, setEntrandoInvitado] = useState<boolean>(false);
+  const { irA } = useSeccionActiva(SECCIONES);
 
   useEffect(() => {
     setSessionUser(getStoredSession());
   }, []);
 
   const handleLogout = () => {
-    clearStoredSession();
+    cerrarSesion();
     setSessionUser(null);
   };
 
@@ -62,12 +71,17 @@ export default function HomePage() {
   const handleInvitado = async () => {
     setEntrandoInvitado(true);
     try {
+      await borrarCookieSesion();
       const sesion = crearSesionInvitado(await obtenerAcceso(ID_INVITADO));
       saveStoredSession(sesion);
       router.push('/panel');
     } finally {
       setEntrandoInvitado(false);
     }
+  };
+
+  const bajar = (e: React.MouseEvent) => {
+    if (irA('desafios')) e.preventDefault();
   };
 
   return (
@@ -79,56 +93,82 @@ export default function HomePage() {
       />
 
       <main id="inicio" className="flex-1">
-        {/* HERO CON PATRÓN TOPOGRÁFICO (CURVAS DE NIVEL SVG INLINE, OPACIDAD 6%, SIN FOTOS) */}
+        {/* PORTADA: TERRENO DE CURVAS DE NIVEL EN 3D; EL SVG SE VE MIENTRAS CARGA O SIN WEBGL */}
         <section
           aria-labelledby="hero-heading"
-          className="relative overflow-hidden bg-forest-900 py-24 text-white"
+          className="relative flex min-h-[min(calc(100svh-5.125rem),56rem)] items-center overflow-hidden bg-forest-900 pb-28 pt-16 text-white [@media(max-height:720px)]:py-14"
         >
-          <svg
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.06]"
-            viewBox="0 0 1200 600"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+          <TerrenoTopografico
+            respaldo={
+              <svg
+                className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.06]"
+                viewBox="0 0 1200 600"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+                preserveAspectRatio="xMidYMid slice"
+              >
+                <g stroke="#FFFFFF" strokeWidth="1.5">
+                  <path d="M-100 90 C220 20, 460 180, 780 90 C1000 30, 1150 130, 1320 80" />
+                  <path d="M-100 155 C200 85, 480 240, 800 150 C1020 90, 1140 190, 1320 140" />
+                  <path d="M-100 225 C190 155, 510 310, 820 215 C1040 150, 1160 250, 1320 205" />
+                  <path d="M-100 295 C210 225, 530 375, 840 285 C1050 220, 1170 315, 1320 275" />
+                  <path d="M-100 365 C240 295, 550 445, 860 355 C1060 290, 1180 385, 1320 345" />
+                  <path d="M-100 435 C260 365, 570 510, 880 425 C1080 360, 1190 455, 1320 415" />
+                  <path d="M-100 505 C280 435, 590 575, 900 495 C1100 430, 1200 520, 1320 485" />
+                  <ellipse cx="880" cy="240" rx="220" ry="85" />
+                  <ellipse cx="880" cy="240" rx="140" ry="52" />
+                  <ellipse cx="880" cy="240" rx="70" ry="24" />
+                  <ellipse cx="290" cy="390" rx="190" ry="70" />
+                  <ellipse cx="290" cy="390" rx="110" ry="38" />
+                </g>
+              </svg>
+            }
+          />
+          {/* Oscurece el terreno detrás del texto y lo funde con los bordes */}
+          <div
             aria-hidden="true"
-            preserveAspectRatio="xMidYMid slice"
-          >
-            <g stroke="#FFFFFF" strokeWidth="1.5">
-              <path d="M-100 90 C220 20, 460 180, 780 90 C1000 30, 1150 130, 1320 80" />
-              <path d="M-100 155 C200 85, 480 240, 800 150 C1020 90, 1140 190, 1320 140" />
-              <path d="M-100 225 C190 155, 510 310, 820 215 C1040 150, 1160 250, 1320 205" />
-              <path d="M-100 295 C210 225, 530 375, 840 285 C1050 220, 1170 315, 1320 275" />
-              <path d="M-100 365 C240 295, 550 445, 860 355 C1060 290, 1180 385, 1320 345" />
-              <path d="M-100 435 C260 365, 570 510, 880 425 C1080 360, 1190 455, 1320 415" />
-              <path d="M-100 505 C280 435, 590 575, 900 495 C1100 430, 1200 520, 1320 485" />
-              <ellipse cx="880" cy="240" rx="220" ry="85" />
-              <ellipse cx="880" cy="240" rx="140" ry="52" />
-              <ellipse cx="880" cy="240" rx="70" ry="24" />
-              <ellipse cx="290" cy="390" rx="190" ry="70" />
-              <ellipse cx="290" cy="390" rx="110" ry="38" />
-            </g>
-          </svg>
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(18,55,42,0.94)_0%,rgba(18,55,42,0.82)_34%,rgba(18,55,42,0.2)_66%,transparent_82%)] max-md:bg-forest-900/75"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-forest-900 to-transparent"
+          />
 
           <Container className="relative z-10">
             <div className="max-w-3xl space-y-6">
-              <p className="font-mono text-xs uppercase tracking-widest text-sun-500">
+              <p
+                className="aparece-portada font-mono text-xs uppercase tracking-widest text-sun-500"
+                style={retraso(0)}
+              >
                 Archivo Científico Oficial · Inventario Nacional de Flora y Fauna
               </p>
 
               <h1
                 id="hero-heading"
-                className="font-serif text-4xl sm:text-5xl font-semibold leading-tight tracking-tight text-white"
+                className="font-serif text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight text-white"
               >
-                Sistema Nacional de Registro y Vigilancia de Biodiversidad
+                {TITULO.map((palabra, i) => (
+                  <React.Fragment key={palabra + i}>
+                    {i > 0 && ' '}
+                    <span className="inline-block overflow-hidden pb-[0.14em] -mb-[0.14em] align-bottom">
+                      <span className="palabra-portada inline-block" style={retraso(120 + i * 75)}>
+                        {palabra}
+                      </span>
+                    </span>
+                  </React.Fragment>
+                ))}
               </h1>
-              <p className="text-base sm:text-lg text-white/85 leading-relaxed">
-                BioHub centraliza los hallazgos de las expediciones biológicas del país,
-                resguarda las coordenadas de especies en peligro frente a la caza ilegal,
-                preserva cada reclasificación taxonómica y divulga el patrimonio natural
-                sin comprometer la operación científica de campo.
+              <p
+                className="aparece-portada max-w-2xl text-base sm:text-lg text-white/85 leading-relaxed"
+                style={retraso(720)}
+              >
+                Reúne los hallazgos de las expediciones del país, protege las coordenadas de las
+                especies en peligro y conserva cada reclasificación taxonómica.
               </p>
 
               {/* Jerarquía de botones corregida y HTML válido (sin <button> dentro de <a>) */}
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="aparece-portada flex flex-wrap items-center gap-4 pt-2" style={retraso(840)}>
                 <Link
                   href={sessionUser ? '/panel' : '/login'}
                   className="inline-flex min-h-11 items-center justify-center rounded-md bg-sun-500 px-5 py-2.5 text-sm font-semibold text-[#1B2A22] hover:brightness-95 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -150,6 +190,7 @@ export default function HomePage() {
                 )}
                 <a
                   href="#desafios"
+                  onClick={bajar}
                   className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/30 bg-forest-700/60 px-5 py-2.5 text-sm font-medium text-white hover:bg-forest-700 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sun-500"
                 >
                   Conocer los desafíos científicos
@@ -157,6 +198,23 @@ export default function HomePage() {
               </div>
             </div>
           </Container>
+
+          {/* El enlace a los desafíos ya está en los botones: aquí es solo una señal visual */}
+          <a
+            href="#desafios"
+            onClick={bajar}
+            tabIndex={-1}
+            aria-hidden="true"
+            className="aparece-portada absolute inset-x-0 bottom-6 z-10 mx-auto flex w-fit [@media(max-height:720px)]:hidden flex-col items-center gap-2 text-white/70 transition-colors hover:text-sun-500"
+            style={retraso(1200)}
+          >
+            <span className="font-mono text-[11px] uppercase tracking-widest">4 desafíos</span>
+            <svg viewBox="0 0 28 22" className="senal-bajar h-5 w-7 fill-none stroke-current stroke-2">
+              <path d="M4 2 L14 8 L24 2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 8.5 L14 14.5 L24 8.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 15 L14 21 L24 15" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
         </section>
 
         {/* PROBLEMA: 4 TARJETAS CON LOS RETOS DEL INSTITUTO */}

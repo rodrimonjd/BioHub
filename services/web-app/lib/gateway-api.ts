@@ -1,3 +1,5 @@
+import { pedir } from '@/lib/pedir';
+
 export interface ConsumoConsumidor {
   id: string;
   organizacion: string;
@@ -14,24 +16,21 @@ export interface ResumenConsumo {
 }
 
 /** Consumo de la API externa; el gateway exige el permiso api_externa:monitorear. */
-export async function obtenerConsumo(usuarioId: string): Promise<ResumenConsumo | null> {
+export async function obtenerConsumo(): Promise<ResumenConsumo | null> {
   try {
-    const res = await fetch('/api/gateway/consumo', {
-      cache: 'no-store',
-      headers: { 'X-Usuario-Id': usuarioId },
-    });
+    const res = await pedir('/api/gateway/consumo', { cache: 'no-store' });
     return res.ok ? res.json() : null;
   } catch {
     return null;
   }
 }
 
-export async function cambiarLimite(limitePorMinuto: number, usuarioId: string): Promise<ResumenConsumo> {
+export async function cambiarLimite(limitePorMinuto: number): Promise<ResumenConsumo> {
   let res: Response;
   try {
-    res = await fetch('/api/gateway/limite', {
+    res = await pedir('/api/gateway/limite', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': usuarioId },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limitePorMinuto }),
     });
   } catch {

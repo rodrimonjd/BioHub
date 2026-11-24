@@ -1,5 +1,7 @@
 // Cliente de servicio-historial (a través del proxy /api/historial de next.config.ts).
-// Todas las consultas exigen X-Usuario-Id con el permiso historial:ver.
+// Todas las consultas exigen una sesión con el permiso historial:ver.
+
+import { pedir } from '@/lib/pedir';
 
 const API_BASE = '/api/historial';
 
@@ -43,13 +45,11 @@ export class ErrorHistorial extends Error {
 
 export async function obtenerHistorial(
   tipo: TipoRegistroHistorial,
-  id: string,
-  usuarioId: string
+  id: string
 ): Promise<Historial> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/${tipo}/${encodeURIComponent(id)}`, {
-      headers: { 'X-Usuario-Id': usuarioId },
+    res = await pedir(`${API_BASE}/${tipo}/${encodeURIComponent(id)}`, {
       cache: 'no-store',
     });
   } catch {

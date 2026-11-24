@@ -1,3 +1,4 @@
+import { pedir } from '@/lib/pedir';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 
 export interface SeedSpecies {
@@ -137,7 +138,7 @@ export interface EquipoNuevo {
 
 export async function listarEquipos(): Promise<Equipo[]> {
   try {
-    const res = await fetch(`${API_BASE}/equipos`, { cache: 'no-store' });
+    const res = await pedir(`${API_BASE}/equipos`, { cache: 'no-store' });
     return res.ok ? res.json() : [];
   } catch {
     return [];
@@ -147,7 +148,7 @@ export async function listarEquipos(): Promise<Equipo[]> {
 /** Expediciones registradas (GET /expediciones). Lista vacía si registro no responde. */
 export async function listarExpediciones(): Promise<Expedicion[]> {
   try {
-    const res = await fetch(`${API_BASE}/expediciones`, { cache: 'no-store' });
+    const res = await pedir(`${API_BASE}/expediciones`, { cache: 'no-store' });
     return res.ok ? res.json() : [];
   } catch {
     return [];
@@ -199,16 +200,12 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
   return fallback;
 }
 
-function cabeceraUsuario(usuarioId?: string): Record<string, string> {
-  return usuarioId ? { 'X-Usuario-Id': usuarioId } : {};
-}
-
-export async function listarAvistamientos(usuarioId?: string): Promise<{
+export async function listarAvistamientos(): Promise<{
   data: AvistamientoResponse[] | null;
   online: boolean;
 }> {
   try {
-    const res = await fetch(`${API_BASE}/avistamientos`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
+    const res = await pedir(`${API_BASE}/avistamientos`, { cache: 'no-store' });
     if (!res.ok) return { data: null, online: false };
     const data: AvistamientoResponse[] = await res.json();
     return { data, online: true };
@@ -217,12 +214,12 @@ export async function listarAvistamientos(usuarioId?: string): Promise<{
   }
 }
 
-export async function listarHallazgos(usuarioId?: string): Promise<{
+export async function listarHallazgos(): Promise<{
   data: HallazgoResponse[] | null;
   online: boolean;
 }> {
   try {
-    const res = await fetch(`${API_BASE}/hallazgos`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
+    const res = await pedir(`${API_BASE}/hallazgos`, { cache: 'no-store' });
     if (!res.ok) return { data: null, online: false };
     const data: HallazgoResponse[] = await res.json();
     return { data, online: true };
@@ -231,8 +228,8 @@ export async function listarHallazgos(usuarioId?: string): Promise<{
   }
 }
 
-export async function obtenerAvistamientoPorId(id: string, usuarioId?: string): Promise<AvistamientoResponse> {
-  const res = await fetch(`${API_BASE}/avistamientos/${id}`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
+export async function obtenerAvistamientoPorId(id: string): Promise<AvistamientoResponse> {
+  const res = await pedir(`${API_BASE}/avistamientos/${id}`, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, 'Avistamiento no encontrado'));
   }
@@ -254,19 +251,18 @@ export class ErrorRechazado extends Error {
 }
 
 /**
- * Escritura en servicio-registro. Envía X-Usuario-Id: registro valida el permiso con servicio-autorizacion
- * y usa ese id como investigador/autor (ignora el que venga en el cuerpo).
+ * Escritura en servicio-registro: verifica el token de la sesión, valida el permiso con servicio-autorizacion
+ * y toma de él el investigador o autor (ignora el que venga en el cuerpo).
  */
 async function escribir(
   ruta: string,
   metodo: 'POST' | 'PATCH',
   payload: unknown,
-  usuarioId: string,
   mensajeError: string
 ): Promise<Response> {
-  const res = await fetch(`${API_BASE}${ruta}`, {
+  const res = await pedir(`${API_BASE}${ruta}`, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': usuarioId },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (res.ok) return res;
@@ -294,70 +290,66 @@ export interface EspecieCreada {
 }
 
 /** Agrega una especie al catálogo de servicio-registro (requiere hallazgo:crear). */
-export async function crearEspecie(payload: EspecieNueva, usuarioId: string): Promise<EspecieCreada> {
-  const res = await escribir('/especies', 'POST', payload, usuarioId,
+export async function crearEspecie(payload: EspecieNueva): Promise<EspecieCreada> {
+  const res = await escribir('/especies', 'POST', payload,
     'Servicio de registro no disponible');
   return res.json();
 }
 
-export async function crearEquipo(payload: EquipoNuevo, usuarioId: string): Promise<Equipo> {
-  const res = await escribir('/equipos', 'POST', payload, usuarioId,
+export async function crearEquipo(payload: EquipoNuevo): Promise<Equipo> {
+  const res = await escribir('/equipos', 'POST', payload,
     'Servicio de registro no disponible');
   return res.json();
 }
 
-export async function crearExpedicion(payload: ExpedicionNueva, usuarioId: string): Promise<Expedicion> {
-  const res = await escribir('/expediciones', 'POST', payload, usuarioId,
+export async function crearExpedicion(payload: ExpedicionNueva): Promise<Expedicion> {
+  const res = await escribir('/expediciones', 'POST', payload,
     'Servicio de registro no disponible');
   return res.json();
 }
 
 export async function asignarEquipoAExpedicion(
   expedicionId: string,
-  equipoId: string,
-  usuarioId: string
+  equipoId: string
 ): Promise<Expedicion> {
-  const res = await escribir(`/expediciones/${expedicionId}/equipos`, 'POST', { equipoId }, usuarioId,
+  const res = await escribir(`/expediciones/${expedicionId}/equipos`, 'POST', { equipoId },
     'Servicio de registro no disponible');
   return res.json();
 }
 
 export async function agregarEvidencia(
   hallazgoId: string,
-  evidencia: EvidenciaRequest,
-  usuarioId: string
+  evidencia: EvidenciaRequest
 ): Promise<HallazgoResponse> {
-  const res = await escribir(`/hallazgos/${hallazgoId}/evidencias`, 'POST', evidencia, usuarioId,
+  const res = await escribir(`/hallazgos/${hallazgoId}/evidencias`, 'POST', evidencia,
     'Servicio de registro no disponible');
   return res.json();
 }
 
 export async function registrarAvistamiento(
-  payload: AvistamientoRequest,
-  usuarioId: string
+  payload: AvistamientoRequest
 ): Promise<AvistamientoResponse> {
-  const res = await escribir('/avistamientos', 'POST', payload, usuarioId,
+  const res = await escribir('/avistamientos', 'POST', payload,
     'Servicio de registro no disponible');
   return res.json();
 }
 
 export async function registrarHallazgo(
-  payload: HallazgoRequest,
-  usuarioId: string
+  payload: HallazgoRequest
 ): Promise<{ id: string | null; hallazgo: HallazgoResponse | null }> {
-  const res = await escribir('/hallazgos', 'POST', payload, usuarioId,
+  const res = await escribir('/hallazgos', 'POST', payload,
     'Servicio de registro no disponible');
   const location = res.headers.get('Location');
   const extractedId = location ? location.split('/').pop() || null : null;
   if (extractedId) {
-    const hallazgo = await obtenerHallazgoPorId(extractedId, usuarioId);
+    const hallazgo = await obtenerHallazgoPorId(extractedId);
     return { id: extractedId, hallazgo };
   }
   return { id: null, hallazgo: null };
 }
 
-export async function obtenerHallazgoPorId(id: string, usuarioId?: string): Promise<HallazgoResponse> {
-  const res = await fetch(`${API_BASE}/hallazgos/${id}`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
+export async function obtenerHallazgoPorId(id: string): Promise<HallazgoResponse> {
+  const res = await pedir(`${API_BASE}/hallazgos/${id}`, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, 'Hallazgo no encontrado en el servidor'));
   }
@@ -366,20 +358,18 @@ export async function obtenerHallazgoPorId(id: string, usuarioId?: string): Prom
 
 export async function modificarHallazgo(
   id: string,
-  payload: ModificarHallazgoRequest,
-  usuarioId: string
+  payload: ModificarHallazgoRequest
 ): Promise<HallazgoResponse> {
-  const res = await escribir(`/hallazgos/${id}`, 'PATCH', payload, usuarioId,
+  const res = await escribir(`/hallazgos/${id}`, 'PATCH', payload,
     'No se pudo sincronizar la modificación');
   return res.json();
 }
 
 export async function reclasificarHallazgo(
   id: string,
-  payload: ReclasificarHallazgoRequest,
-  usuarioId: string
+  payload: ReclasificarHallazgoRequest
 ): Promise<HallazgoResponse> {
-  const res = await escribir(`/hallazgos/${id}/reclasificacion`, 'POST', payload, usuarioId,
+  const res = await escribir(`/hallazgos/${id}/reclasificacion`, 'POST', payload,
     'No se pudo sincronizar la reclasificación');
   return res.json();
 }

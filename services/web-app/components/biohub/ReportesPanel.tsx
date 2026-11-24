@@ -71,7 +71,7 @@ export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps
     if (!reporte || !sigueEnProceso(reporte.estado)) return;
     const temporizador = setTimeout(async () => {
       try {
-        setReporte(await obtenerReporte(reporte.id, currentUser.id));
+        setReporte(await obtenerReporte(reporte.id));
       } catch (e) {
         notificar(
           avisoDeError(e, {
@@ -87,7 +87,7 @@ export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps
 
   async function handleDescargar(id: string) {
     try {
-      await descargarPdf(id, currentUser.id);
+      await descargarPdf(id);
     } catch (e) {
       notificar(
         avisoDeError(e, {

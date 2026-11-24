@@ -10,6 +10,7 @@ biohub:
     url-publica: ${URL_PUBLICA:http://localhost:8080}
     limite-por-minuto: 60
     autorizacion-url: ${AUTORIZACION_URL:http://localhost:8082}
+    secreto-servicios: ${SECRETO_SERVICIOS:}
     rutas:
       "[/api/v1/inventario]": ${CONSULTA_URL:http://localhost:8083}/api/v1/consulta/hallazgos
     consumidores:
@@ -22,6 +23,11 @@ biohub:
       - id: consumidor-ong-suspendida
         organizacion: ONG con acceso suspendido
         hash-api-key: 156984eef3a667229759e5d3138dc2c1c7955e153ae9d2ef69af7607bde62538
+
+identidad:
+  claves-url: ${AUTORIZACION_URL:http://localhost:8082}/api/v1/autorizacion/claves
+  emisor: biohub-autorizacion
+  espera: 3s
 
 management:
   endpoints:

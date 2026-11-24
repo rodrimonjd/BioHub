@@ -23,6 +23,7 @@ public final class PresentadorUbicacion {
                 conRegion ? h.getRegion() : null,
                 exacta ? h.getLatitud() : null,
                 exacta ? h.getLongitud() : null,
-                nivel);
+                nivel,
+                h.getVersion());
     }
 }

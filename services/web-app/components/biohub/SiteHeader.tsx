@@ -1,9 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { Container } from '@/components/ui/Container';
-import { BioHubUser } from '@/lib/permissions';
+import {
+  BioHubUser,
+  canManageLocationAccess,
+  canViewApiUsage,
+  canViewReports,
+  PERMISOS,
+  tienePermiso,
+} from '@/lib/permissions';
+import { useSeccionActiva } from '@/lib/useSeccionActiva';
 
 export interface SiteHeaderProps {
   user?: BioHubUser | null;
@@ -13,6 +22,26 @@ export interface SiteHeaderProps {
 
 const THEME_STORAGE_KEY = 'biohub_theme_preference_v1';
 
+interface EnlaceNav {
+  id: string;
+  label: string;
+}
+
+/** Secciones del panel en el mismo orden en que aparecen en la página; cada cuenta ve solo las suyas. */
+function seccionesDelPanel(user: BioHubUser | null): EnlaceNav[] {
+  return [
+    { id: 'estacion-campo', label: 'Campo', visible: true },
+    { id: 'administracion', label: 'Usuarios', visible: tienePermiso(user, PERMISOS.ADMINISTRAR_ROLES) },
+    { id: 'inventario', label: 'Fichas', visible: true },
+    { id: 'trazabilidad', label: 'Trazabilidad', visible: true },
+    { id: 'accesos-ubicacion', label: 'Ubicaciones', visible: canManageLocationAccess(user) },
+    { id: 'operacion', label: 'API', visible: canViewApiUsage(user) },
+    { id: 'reportes', label: 'Reportes', visible: canViewReports(user) },
+  ].filter((s) => s.visible);
+}
+
+const SECCIONES_PUBLICAS: EnlaceNav[] = [{ id: 'desafios', label: 'Desafíos científicos' }];
+
 export function SiteHeader({
   user = null,
   onLogout,
@@ -21,6 +50,49 @@ export function SiteHeader({
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
+  const [compacto, setCompacto] = useState<boolean>(false);
+  const menuCuenta = useRef<HTMLDivElement>(null);
+  const botonCuenta = useRef<HTMLButtonElement>(null);
+  const botonMenu = useRef<HTMLButtonElement>(null);
+
+  const enlaces = showPanelNav ? seccionesDelPanel(user) : SECCIONES_PUBLICAS;
+  const { activa, irA } = useSeccionActiva(enlaces.map((e) => e.id));
+
+  // En páginas sin esas secciones (por ejemplo /login) el enlace lleva al inicio
+  const hrefDe = (id: string) => (showPanelNav ? `#${id}` : `/#${id}`);
+  const alElegir = (e: React.MouseEvent, id: string) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (irA(id)) e.preventDefault();
+    setMobileMenuOpen(false);
+  };
+
+  useEffect(() => {
+    // Dos umbrales: al encogerse el navbar la página se mueve unos píxeles y no debe volver a crecer
+    const alBajar = () => setCompacto((prev) => window.scrollY > (prev ? 8 : 48));
+    alBajar();
+    window.addEventListener('scroll', alBajar, { passive: true });
+    return () => window.removeEventListener('scroll', alBajar);
+  }, []);
+
+  // Los menús se cierran con Escape, y el de la cuenta también al hacer clic afuera
+  useEffect(() => {
+    if (!userMenuOpen && !mobileMenuOpen) return;
+    const alPulsar = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      (userMenuOpen ? botonCuenta : botonMenu).current?.focus();
+      setUserMenuOpen(false);
+      setMobileMenuOpen(false);
+    };
+    const alTocar = (e: PointerEvent) => {
+      if (!menuCuenta.current?.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    document.addEventListener('keydown', alPulsar);
+    document.addEventListener('pointerdown', alTocar);
+    return () => {
+      document.removeEventListener('keydown', alPulsar);
+      document.removeEventListener('pointerdown', alTocar);
+    };
+  }, [userMenuOpen, mobileMenuOpen]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -49,22 +121,18 @@ export function SiteHeader({
     }
   };
 
-  const navLinks = showPanelNav
-    ? [
-        { href: '#estacion-campo', label: 'Campo' },
-        { href: '#inventario', label: 'Inventario' },
-        { href: '#trazabilidad', label: 'Trazabilidad' },
-        { href: '#operacion', label: 'API' },
-        // Solo para quien administra cuentas (permiso roles:administrar)
-        ...(user?.permisos.includes('roles:administrar')
-          ? [{ href: '#administracion', label: 'Usuarios' }]
-          : []),
-      ]
-    : [{ href: '#desafios', label: 'Desafíos científicos' }];
-
   return (
-    <header className="sticky top-0 z-40 border-b border-forest-700/40 bg-forest-900 text-white">
-      <Container className="flex h-16 items-center justify-between gap-3">
+    <MotionConfig reducedMotion="user">
+    <header
+      className={`sticky top-0 z-40 border-b text-white transition-[background-color,box-shadow,border-color] duration-300 ${
+        compacto
+          ? 'border-white/10 bg-forest-900/92 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.55)] backdrop-blur-md'
+          : 'border-forest-700/40 bg-forest-900'
+      }`}
+    >
+      <Container
+        className={`flex items-center justify-between gap-3 transition-[height] duration-300 ${compacto ? 'h-16' : 'h-20'}`}
+      >
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/"
@@ -72,25 +140,58 @@ export function SiteHeader({
           >
             BioHub
           </Link>
-          <span className="hidden lg:inline-block font-mono text-xs text-white/75 border-l border-white/20 pl-3 whitespace-nowrap">
+          <span
+            className={`font-mono text-xs text-white/75 border-l border-white/20 pl-3 whitespace-nowrap ${
+              showPanelNav ? 'hidden' : 'hidden xl:inline-block'
+            }`}
+          >
             Instituto Nacional de Biodiversidad
           </span>
         </div>
 
-        {/* Navegación de escritorio con etiquetas cortas y whitespace-nowrap */}
+        {/* Navegación de escritorio: píldora con el relleno que sube y un punto en la sección activa */}
         <nav
           aria-label="Navegación principal"
-          className="hidden md:flex items-center gap-6 text-sm text-white/90"
+          className="hidden lg:flex items-center rounded-full border border-white/15 bg-black/15 p-[3px] text-[13px] font-medium"
         >
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="whitespace-nowrap py-2 hover:text-white transition-colors duration-150 focus-visible:outline-none focus-visible:underline"
-            >
-              {link.label}
-            </a>
-          ))}
+          {enlaces.map((enlace) => {
+            const esActiva = activa === enlace.id;
+            return (
+              <a
+                key={enlace.id}
+                href={hrefDe(enlace.id)}
+                onClick={(e) => alElegir(e, enlace.id)}
+                aria-current={esActiva ? 'true' : undefined}
+                className={`group relative flex h-11 items-center overflow-hidden whitespace-nowrap rounded-full px-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sun-500 ${
+                  esActiva ? 'text-sun-500' : 'text-white/85'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute left-1/2 top-full aspect-square w-[135%] -translate-x-1/2 rounded-full bg-sun-500 transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-[68%] group-focus-visible:-translate-y-[68%]"
+                />
+                <span className="relative block h-5 overflow-hidden leading-5">
+                  <span className="block transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-full group-focus-visible:-translate-y-full">
+                    {enlace.label}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-0 top-full block font-semibold text-[#1B2A22] transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-full group-focus-visible:-translate-y-full"
+                  >
+                    {enlace.label}
+                  </span>
+                </span>
+                {esActiva && (
+                  <motion.span
+                    layoutId="punto-seccion-activa"
+                    aria-hidden="true"
+                    className="absolute bottom-[5px] left-1/2 -ml-[2.5px] h-[5px] w-[5px] rounded-full bg-sun-500 group-hover:bg-[#1B2A22]"
+                    transition={{ type: 'spring', duration: 0.55, bounce: 0.25 }}
+                  />
+                )}
+              </a>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -143,8 +244,9 @@ export function SiteHeader({
 
           {/* Usuario autenticado como iniciales con menú o botón Iniciar sesión */}
           {user ? (
-            <div className="relative">
+            <div className="relative" ref={menuCuenta}>
               <button
+                ref={botonCuenta}
                 type="button"
                 onClick={() => setUserMenuOpen((prev) => !prev)}
                 aria-expanded={userMenuOpen}
@@ -155,14 +257,21 @@ export function SiteHeader({
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sun-500 font-mono text-[11px] font-bold text-[#1B2A22]">
                   {user.initials}
                 </span>
-                <span className="hidden sm:inline">{user.roleLabel}</span>
+                <span className={showPanelNav ? 'hidden sm:inline lg:hidden xl:inline' : 'hidden sm:inline'}>
+                  {user.roleLabel}
+                </span>
               </button>
 
+              <AnimatePresence>
               {userMenuOpen && (
-                <div
+                <motion.div
                   role="menu"
                   aria-label="Opciones de sesión"
-                  className="absolute right-0 mt-2 w-64 rounded-xl border border-line bg-surface p-3 text-ink shadow-sm z-50 space-y-2"
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                  className="absolute right-0 mt-2 w-64 origin-top-right rounded-xl border border-line bg-surface p-3 text-ink shadow-[0_18px_40px_-12px_rgba(15,26,21,0.45)] z-50 space-y-2"
                 >
                   <div className="border-b border-line pb-2">
                     <p className="font-serif text-sm font-semibold text-ink">
@@ -196,8 +305,9 @@ export function SiteHeader({
                       </button>
                     )}
                   </div>
-                </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
           ) : (
             <Link
@@ -210,6 +320,7 @@ export function SiteHeader({
 
           {/* Botón de menú móvil (hamburguesa) con objetivo táctil >= 44px */}
           <button
+            ref={botonMenu}
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             aria-expanded={mobileMenuOpen}
@@ -217,7 +328,7 @@ export function SiteHeader({
             aria-label={
               mobileMenuOpen ? 'Cerrar menú de navegación' : 'Abrir menú de navegación'
             }
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-white/25 px-2.5 text-white hover:bg-forest-700 md:hidden cursor-pointer"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-white/25 px-2.5 text-white hover:bg-forest-700 lg:hidden cursor-pointer"
           >
             {mobileMenuOpen ? (
               <svg
@@ -248,31 +359,43 @@ export function SiteHeader({
         </div>
       </Container>
 
-      {/* Menú desplegable en móvil */}
+      {/* Menú desplegable en celular y tableta */}
+      <AnimatePresence>
       {mobileMenuOpen && (
-        <nav
+        <motion.nav
           id="mobile-navigation-menu"
           aria-label="Navegación móvil"
-          className="border-t border-forest-700/50 bg-forest-900 px-4 py-3 md:hidden"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="absolute inset-x-0 top-full overflow-hidden border-y border-white/10 bg-forest-900 shadow-[0_24px_40px_-16px_rgba(0,0,0,0.6)] lg:hidden"
         >
-          <ul className="flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <a
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex min-h-11 items-center rounded-md px-3 text-sm text-white/95 hover:bg-forest-700"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
-            {user ? (
+          <ul className="flex flex-col gap-1 px-4 py-3 sm:px-6">
+            {enlaces.map((enlace) => {
+              const esActiva = activa === enlace.id;
+              return (
+                <li key={enlace.id}>
+                  <a
+                    href={hrefDe(enlace.id)}
+                    onClick={(e) => alElegir(e, enlace.id)}
+                    aria-current={esActiva ? 'true' : undefined}
+                    className={`flex min-h-11 items-center justify-between rounded-full px-4 text-sm ${
+                      esActiva ? 'bg-sun-500 font-semibold text-[#1B2A22]' : 'text-white/95 hover:bg-forest-700'
+                    }`}
+                  >
+                    {enlace.label}
+                    {esActiva && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#1B2A22]" />}
+                  </a>
+                </li>
+              );
+            })}
+            {showPanelNav ? null : user ? (
               <li>
                 <Link
                   href="/panel"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-sun-500 hover:bg-forest-700"
+                  className="flex min-h-11 items-center rounded-full px-4 text-sm font-medium text-sun-500 hover:bg-forest-700"
                 >
                   Ir al panel científico
                 </Link>
@@ -282,15 +405,17 @@ export function SiteHeader({
                 <Link
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-sun-500 hover:bg-forest-700"
+                  className="flex min-h-11 items-center rounded-full px-4 text-sm font-medium text-sun-500 hover:bg-forest-700"
                 >
                   Iniciar sesión institucional
                 </Link>
               </li>
             )}
           </ul>
-        </nav>
+        </motion.nav>
       )}
+      </AnimatePresence>
     </header>
+    </MotionConfig>
   );
 }

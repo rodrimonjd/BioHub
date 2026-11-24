@@ -18,6 +18,7 @@ servicio-registro ──(outbox → RabbitMQ: biohub.eventos)──► cola cons
                                                                 │
                                                          consulta_db.hallazgo_lectura
                                                                 │
+web-app y API Gateway
 GET /api/v1/consulta/hallazgos ──► ServicioConsulta ──┬── CatalogoEspecies (GET /especies de registro, caché 5 min)
                                                       └── ClienteAutorizacion (POST /visibilidad-ubicacion, caché 60 s)
 ```
@@ -66,10 +67,12 @@ Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMB
 ## API (`/api/v1/consulta`)
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/hallazgos` | Listado paginado. Filtros opcionales: `especieId`, `departamento`, `especie` (texto en el nombre científico), `pagina` (0), `tamano` (20, máx. 100) |
+| GET | `/hallazgos` | Listado paginado. Filtros opcionales: `especieId`, `departamento`, `especie` (texto en el nombre científico o común), `texto` (palabras clave, hasta 100 caracteres), `fechaDesde` y `fechaHasta` (`AAAA-MM-DD`, incluidas), `pagina` (0), `tamano` (20, máx. 100) |
 | GET | `/hallazgos/{id}` | Un hallazgo |
 
-Cabecera opcional `X-Usuario-Id` (la pone el API Gateway). Sin ella la consulta es anónima.
+La palabra clave busca cada palabra en la especie (científica o común), la descripción y el departamento, sin distinguir tildes ni mayúsculas. No busca en la región ni en las coordenadas, para que no se pueda deducir una ubicación protegida.
+
+Token opcional (`Authorization: Bearer`, lo ponen el API Gateway y la web). Sin él la consulta es anónima; con uno falso o vencido responde 401.
 
 ### Visibilidad de la ubicación (`nivelUbicacion`)
 | Nivel | Coordenadas | Región | Departamento |
@@ -78,13 +81,16 @@ Cabecera opcional `X-Usuario-Id` (la pone el API Gateway). Sin ella la consulta 
 | `REGION` | — | ✅ | ✅ |
 | `DEPARTAMENTO` | — | — | ✅ |
 
-Con las reglas actuales de `servicio-autorizacion`: el público ve exactas las especies LC/NT, región las VU y solo departamento las CR/EN; quien tiene `ubicacion:ver_exacta` (ADMIN, AUTORIDAD_AMBIENTAL) siempre ve coordenadas.
+Con las reglas actuales de `servicio-autorizacion`: quien no tiene permiso nunca ve coordenadas (solo departamento en CR/EN y región en las demás); quien tiene `ubicacion:ver_exacta` (ADMIN, AUTORIDAD_AMBIENTAL) siempre ve coordenadas.
 
 ## Ejemplos (PowerShell)
 ```powershell
 curl.exe "http://localhost:8083/api/v1/consulta/hallazgos?departamento=Meta"
 
-curl.exe http://localhost:8083/api/v1/consulta/hallazgos/<id> -H "X-Usuario-Id: admin"
+curl.exe "http://localhost:8083/api/v1/consulta/hallazgos?especie=jaguar&texto=meta&fechaDesde=2026-11-01"
+
+$r = Invoke-RestMethod -Method Post -Uri http://localhost:8082/api/v1/autorizacion/sesiones -ContentType application/json -Body '{"usuario":"admin","clave":"BioHub-Admin-2026"}'
+curl.exe http://localhost:8083/api/v1/consulta/hallazgos/<id> -H "Authorization: Bearer $($r.token)"
 ```
 
 ## Patrones

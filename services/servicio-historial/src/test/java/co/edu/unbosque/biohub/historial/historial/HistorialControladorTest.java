@@ -60,7 +60,7 @@ class HistorialControladorTest {
     void sinCabeceraDeUsuarioDa403() throws Exception {
         mvc.perform(get(URL))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.mensaje").value("Se requiere la cabecera X-Usuario-Id con el permiso historial:ver"));
+                .andExpect(jsonPath("$.mensaje").value("Se requiere iniciar sesión con el permiso historial:ver"));
         verify(servicio, never()).historial(any(), any());
     }
 

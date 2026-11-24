@@ -22,11 +22,15 @@ class ApiGatewayTest {
 
     private ApiGateway gateway(int limite) {
         GatewayProperties propiedades = new GatewayProperties(
-                "http://localhost:8080", limite, "http://autorizacion",
+                "http://localhost:8080", limite, "http://autorizacion", "secreto",
                 Map.of("/api/v1/inventario", "http://consulta/api/v1/consulta/hallazgos"),
                 List.of(new GatewayProperties.Consumidor("consumidor-unal", "Universidad Nacional",
                         ConsumidorExterno.hash("clave-unal"))));
         return new ApiGateway(propiedades, autorizacion);
+    }
+
+    private static ClienteAutorizacion.RespuestaConsumidor acceso(boolean valido) {
+        return new ClienteAutorizacion.RespuestaConsumidor("consumidor-unal", valido, valido ? "token" : null);
     }
 
     @Test
@@ -43,7 +47,7 @@ class ApiGatewayTest {
     @Test
     void alSuperarElLimiteResponde429ConRetryAfter() {
         ApiGateway gateway = gateway(2);
-        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(true);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(acceso(true));
 
         gateway.enrutar("/api/v1/no-existe", null, "clave-unal");
         gateway.enrutar("/api/v1/no-existe", null, "clave-unal");
@@ -56,7 +60,7 @@ class ApiGatewayTest {
 
     @Test
     void siAutorizacionLoRechazaResponde403() {
-        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(false);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(acceso(false));
 
         assertThat(gateway(60).enrutar("/api/v1/inventario", null, "clave-unal").getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
@@ -72,7 +76,7 @@ class ApiGatewayTest {
 
     @Test
     void unaRutaQueNoExisteResponde404() {
-        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(true);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(acceso(true));
 
         assertThat(gateway(60).enrutar("/api/v1/otra-cosa", null, "clave-unal").getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
@@ -101,7 +105,7 @@ class ApiGatewayTest {
     @Test
     void elResumenDeConsumoMuestraSolicitudesYRechazadasPorConsumidor() {
         ApiGateway gateway = gateway(2);
-        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(true);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(acceso(true));
         for (int i = 0; i < 3; i++) {
             gateway.enrutar("/api/v1/no-existe", null, "clave-unal");
         }
@@ -118,7 +122,7 @@ class ApiGatewayTest {
     @Test
     void alBajarElLimiteSeRechazaEnElMismoMinuto() {
         ApiGateway gateway = gateway(60);
-        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(true);
+        when(autorizacion.validarConsumidor("consumidor-unal")).thenReturn(acceso(true));
         gateway.cambiarLimite(1);
 
         assertThat(gateway.enrutar("/api/v1/no-existe", null, "clave-unal").getStatusCode())

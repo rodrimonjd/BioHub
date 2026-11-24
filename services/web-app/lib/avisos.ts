@@ -1,7 +1,7 @@
 import type { Notificacion } from '@/components/ui/Notificaciones';
 import { ErrorRechazado } from '@/lib/registro-api';
 
-const SIN_PERMISO = /^Sin permiso:|Se requiere el permiso|no tiene permiso/i;
+const SIN_PERMISO = /^Sin permiso:|Se requiere (el permiso|iniciar sesi[oó]n)|no tiene permiso/i;
 const SIN_CONEXION = /Failed to fetch|No se pudo conectar|No hay conexión/i;
 
 interface TextosDeError {

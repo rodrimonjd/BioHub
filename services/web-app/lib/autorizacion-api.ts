@@ -1,5 +1,7 @@
 // Cliente de servicio-autorizacion (a través del proxy /api/autorizacion de next.config.ts).
 
+import { pedir } from '@/lib/pedir';
+
 const API_BASE = '/api/autorizacion';
 
 export interface RespuestaSesion {
@@ -41,11 +43,11 @@ async function leerMensaje(res: Response, porDefecto: string): Promise<string> {
   return porDefecto;
 }
 
-/** POST /sesiones: usuario (id o correo) y contraseña. */
+/** Usuario (id o correo) y contraseña. El token queda en una cookie HttpOnly: aquí solo llegan los datos de la cuenta. */
 export async function iniciarSesion(usuario: string, clave: string): Promise<RespuestaSesion> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/sesiones`, {
+    res = await fetch('/api/sesion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ usuario, clave }),
@@ -62,10 +64,20 @@ export async function iniciarSesion(usuario: string, clave: string): Promise<Res
   return res.json();
 }
 
-/** Roles y permisos vigentes de un usuario (para refrescar la sesión guardada). */
+/** Roles y permisos vigentes de la sesión abierta, o null si el servicio no responde. Si venció responde 401. */
+export async function obtenerSesionActual(): Promise<AccesoUsuario | null> {
+  try {
+    const res = await pedir(`${API_BASE}/sesiones/actual`, { cache: 'no-store' });
+    return res.ok ? res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Roles y permisos de una cuenta: solo los propios o los del invitado. */
 export async function obtenerAcceso(usuarioId: string): Promise<AccesoUsuario | null> {
   try {
-    const res = await fetch(`${API_BASE}/usuarios/${encodeURIComponent(usuarioId)}/permisos`, {
+    const res = await pedir(`${API_BASE}/usuarios/${encodeURIComponent(usuarioId)}/permisos`, {
       cache: 'no-store',
     });
     return res.ok ? res.json() : null;
@@ -101,16 +113,12 @@ export interface SolicitudCrearUsuario {
 /** Error al administrar cuentas, con el mensaje que devuelve autorización (p. ej. "Ya existe un usuario..."). */
 export class ErrorAdministracion extends Error {}
 
-async function pedirComoAdmin<T>(
-  adminId: string,
-  ruta: string,
-  opciones: RequestInit = {}
-): Promise<T> {
+async function pedirComoAdmin<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${ruta}`, {
+    res = await pedir(`${API_BASE}${ruta}`, {
       ...opciones,
-      headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': adminId, ...opciones.headers },
+      headers: { 'Content-Type': 'application/json', ...opciones.headers },
       cache: 'no-store',
     });
   } catch {
@@ -124,29 +132,25 @@ async function pedirComoAdmin<T>(
   return res.json();
 }
 
-export function listarRoles(adminId: string): Promise<VistaRol[]> {
-  return pedirComoAdmin<VistaRol[]>(adminId, '/roles');
+export function listarRoles(): Promise<VistaRol[]> {
+  return pedirComoAdmin<VistaRol[]>('/roles');
 }
 
-export function listarUsuarios(adminId: string): Promise<VistaUsuario[]> {
-  return pedirComoAdmin<VistaUsuario[]>(adminId, '/usuarios');
+export function listarUsuarios(): Promise<VistaUsuario[]> {
+  return pedirComoAdmin<VistaUsuario[]>('/usuarios');
 }
 
-export function crearUsuario(adminId: string, datos: SolicitudCrearUsuario): Promise<VistaUsuario> {
-  return pedirComoAdmin<VistaUsuario>(adminId, '/usuarios', {
+export function crearUsuario(datos: SolicitudCrearUsuario): Promise<VistaUsuario> {
+  return pedirComoAdmin<VistaUsuario>('/usuarios', {
     method: 'POST',
     body: JSON.stringify(datos),
   });
 }
 
 /** Cuentas que tienen un permiso; requiere la sesión del usuario que consulta. */
-export async function listarUsuariosConPermiso(
-  usuarioId: string,
-  permiso: string
-): Promise<ResumenUsuario[]> {
+export async function listarUsuariosConPermiso(permiso: string): Promise<ResumenUsuario[]> {
   try {
-    const res = await fetch(`${API_BASE}/usuarios/con-permiso/${encodeURIComponent(permiso)}`, {
-      headers: { 'X-Usuario-Id': usuarioId },
+    const res = await pedir(`${API_BASE}/usuarios/con-permiso/${encodeURIComponent(permiso)}`, {
       cache: 'no-store',
     });
     return res.ok ? res.json() : [];
@@ -185,7 +189,7 @@ export interface CambioAccesoUbicacion {
 /** Si autorización no responde se asume el acceso más restrictivo (ninguna especie). */
 export async function obtenerAccesoUbicacion(usuarioId: string): Promise<AccesoUbicacion> {
   try {
-    const res = await fetch(`${API_BASE}/usuarios/${encodeURIComponent(usuarioId)}/ubicacion`, {
+    const res = await pedir(`${API_BASE}/usuarios/${encodeURIComponent(usuarioId)}/ubicacion`, {
       cache: 'no-store',
     });
     if (res.ok) return res.json();
@@ -195,40 +199,32 @@ export async function obtenerAccesoUbicacion(usuarioId: string): Promise<AccesoU
   return { usuarioId, todas: false, especies: [] };
 }
 
-export function listarAccesosUbicacion(solicitanteId: string): Promise<AccesoUbicacionVigente[]> {
-  return pedirComoAdmin<AccesoUbicacionVigente[]>(solicitanteId, '/ubicacion/accesos');
+export function listarAccesosUbicacion(): Promise<AccesoUbicacionVigente[]> {
+  return pedirComoAdmin<AccesoUbicacionVigente[]>('/ubicacion/accesos');
 }
 
-export function historialAccesosUbicacion(solicitanteId: string): Promise<CambioAccesoUbicacion[]> {
-  return pedirComoAdmin<CambioAccesoUbicacion[]>(solicitanteId, '/ubicacion/historial');
+export function historialAccesosUbicacion(): Promise<CambioAccesoUbicacion[]> {
+  return pedirComoAdmin<CambioAccesoUbicacion[]>('/ubicacion/historial');
 }
 
-export function usuariosParaUbicacion(solicitanteId: string): Promise<ResumenUsuario[]> {
-  return pedirComoAdmin<ResumenUsuario[]>(solicitanteId, '/ubicacion/usuarios');
+export function usuariosParaUbicacion(): Promise<ResumenUsuario[]> {
+  return pedirComoAdmin<ResumenUsuario[]>('/ubicacion/usuarios');
 }
 
-export function otorgarAccesoUbicacion(
-  solicitanteId: string,
-  usuarioId: string,
-  especieId: string
-): Promise<AccesoUbicacionVigente> {
-  return pedirComoAdmin<AccesoUbicacionVigente>(solicitanteId, '/ubicacion/accesos', {
+export function otorgarAccesoUbicacion(usuarioId: string, especieId: string): Promise<AccesoUbicacionVigente> {
+  return pedirComoAdmin<AccesoUbicacionVigente>('/ubicacion/accesos', {
     method: 'POST',
     body: JSON.stringify({ usuarioId, especieId }),
   });
 }
 
 /** DELETE responde 204 sin cuerpo, por eso no usa pedirComoAdmin. */
-export async function revocarAccesoUbicacion(
-  solicitanteId: string,
-  usuarioId: string,
-  especieId: string
-): Promise<void> {
+export async function revocarAccesoUbicacion(usuarioId: string, especieId: string): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(
+    res = await pedir(
       `${API_BASE}/ubicacion/accesos/${encodeURIComponent(usuarioId)}/${encodeURIComponent(especieId)}`,
-      { method: 'DELETE', headers: { 'X-Usuario-Id': solicitanteId }, cache: 'no-store' }
+      { method: 'DELETE', cache: 'no-store' }
     );
   } catch {
     throw new ErrorAdministracion('No se pudo conectar con el servicio de autorización.');
@@ -255,15 +251,14 @@ export interface CambioRol {
 /** POST y DELETE de roles responden 204 sin cuerpo, por eso no usan pedirComoAdmin. */
 async function cambiarRolDeUsuario(
   metodo: 'POST' | 'DELETE',
-  adminId: string,
   usuarioId: string,
   rol: string
 ): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(
+    res = await pedir(
       `${API_BASE}/usuarios/${encodeURIComponent(usuarioId)}/roles/${encodeURIComponent(rol)}`,
-      { method: metodo, headers: { 'X-Usuario-Id': adminId }, cache: 'no-store' }
+      { method: metodo, cache: 'no-store' }
     );
   } catch {
     throw new ErrorAdministracion('No se pudo conectar con el servicio de autorización.');
@@ -275,14 +270,29 @@ async function cambiarRolDeUsuario(
   }
 }
 
-export function asignarRol(adminId: string, usuarioId: string, rol: string): Promise<void> {
-  return cambiarRolDeUsuario('POST', adminId, usuarioId, rol);
+/**
+ * Deja la cuenta con un solo rol. Primero se asigna el nuevo y luego se quitan los demás: si algo falla
+ * a la mitad, la cuenta no se queda sin acceso. Se leen los roles guardados porque CIUDADANO puede
+ * aparecer por defecto, sin estar asignado, y en ese caso no hay nada que quitar.
+ */
+export async function cambiarRol(usuarioId: string, rol: string): Promise<void> {
+  const rolesDe = async () =>
+    (await listarUsuarios()).find((u) => u.id === usuarioId)?.roles ?? [];
+
+  if (!(await rolesDe()).includes(rol)) {
+    await cambiarRolDeUsuario('POST', usuarioId, rol);
+  }
+  const sobrantes = (await rolesDe()).filter((r) => r !== rol);
+  try {
+    for (const anterior of sobrantes) {
+      await cambiarRolDeUsuario('DELETE', usuarioId, anterior);
+    }
+  } catch (error) {
+    const motivo = error instanceof Error ? ` ${error.message}` : '';
+    throw new ErrorAdministracion(`El rol nuevo quedó asignado, pero no se pudo quitar el anterior.${motivo}`);
+  }
 }
 
-export function quitarRol(adminId: string, usuarioId: string, rol: string): Promise<void> {
-  return cambiarRolDeUsuario('DELETE', adminId, usuarioId, rol);
-}
-
-export function historialRoles(adminId: string): Promise<CambioRol[]> {
-  return pedirComoAdmin<CambioRol[]>(adminId, '/roles/historial');
+export function historialRoles(): Promise<CambioRol[]> {
+  return pedirComoAdmin<CambioRol[]>('/roles/historial');
 }

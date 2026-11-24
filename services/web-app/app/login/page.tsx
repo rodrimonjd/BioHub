@@ -14,9 +14,9 @@ import {
   crearSesion,
   getStoredSession,
   saveStoredSession,
-  clearStoredSession,
 } from '@/lib/permissions';
 import { ErrorSesion, iniciarSesion } from '@/lib/autorizacion-api';
+import { cerrarSesion } from '@/lib/sesion';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function LoginPage() {
       <SiteHeader
         user={currentUser}
         onLogout={() => {
-          clearStoredSession();
+          cerrarSesion();
           setCurrentUser(null);
           router.push('/');
         }}
