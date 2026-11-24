@@ -2,7 +2,10 @@ package co.edu.unbosque.biohub.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -52,5 +55,32 @@ class GatewayControllerTest {
         assertThatThrownBy(() -> controlador.consumo("admin"))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         e -> assertThat(estado(e)).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
+    }
+
+    @Test
+    void quienSoloMonitoreaNoPuedeCambiarElLimite() {
+        when(autorizacion.tienePermiso("investigador.campo", GatewayController.PERMISO_MONITOREO)).thenReturn(true);
+        assertThatThrownBy(() -> controlador.cambiarLimite("investigador.campo", new GatewayController.SolicitudLimite(10)))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(estado(e)).isEqualTo(HttpStatus.FORBIDDEN));
+        verify(gateway, never()).cambiarLimite(10);
+    }
+
+    @Test
+    void elAdministradorCambiaElLimite() {
+        when(autorizacion.tienePermiso("admin", GatewayController.PERMISO_CONFIGURAR)).thenReturn(true);
+        controlador.cambiarLimite("admin", new GatewayController.SolicitudLimite(10));
+        verify(gateway).cambiarLimite(10);
+    }
+
+    @Test
+    void unLimiteInvalidoOVacioResponde400() {
+        when(autorizacion.tienePermiso("admin", GatewayController.PERMISO_CONFIGURAR)).thenReturn(true);
+        doThrow(new IllegalArgumentException("fuera de rango")).when(gateway).cambiarLimite(500);
+        for (Integer limite : new Integer[] { 500, null }) {
+            assertThatThrownBy(() -> controlador.cambiarLimite("admin", new GatewayController.SolicitudLimite(limite)))
+                    .isInstanceOfSatisfying(ResponseStatusException.class,
+                            e -> assertThat(estado(e)).isEqualTo(HttpStatus.BAD_REQUEST));
+        }
     }
 }

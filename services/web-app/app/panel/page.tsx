@@ -20,6 +20,7 @@ import {
   actualizarAcceso,
   BioHubUser,
   canEditFichas,
+  canConfigureApi,
   canViewApiUsage,
   canViewReports,
   clearStoredSession,
@@ -30,6 +31,7 @@ import {
 } from '@/lib/permissions';
 import { obtenerAcceso } from '@/lib/autorizacion-api';
 import { AdminUsuarios } from '@/components/biohub/AdminUsuarios';
+import { NuevaFicha } from '@/components/biohub/NuevaFicha';
 import {
   cargarInventario,
   EspecieRegistro,
@@ -168,8 +170,10 @@ export default function PanelPage() {
       tarjetaDesde(especie, datos.fichas.find((f) => f.especieId === especie.id))
     );
     setSpeciesList(tarjetas);
+    const codigosConFicha = datos.fichas.map((f) => codigoFicha(f.especieId));
+    const tarjetasConFicha = tarjetas.filter((t) => codigosConFicha.includes(t.id));
     setSelectedCardIdForAttr((actual) =>
-      tarjetas.some((t) => t.id === actual) ? actual : tarjetas[0]?.id ?? actual
+      codigosConFicha.includes(actual) ? actual : tarjetasConFicha[0]?.id ?? ''
     );
   };
 
@@ -197,6 +201,10 @@ export default function PanelPage() {
     const matchesStatus = statusFilter === 'ALL' || sp.status === statusFilter;
     return matchesText && matchesStatus;
   });
+
+  const tarjetasConFicha = inventario
+    ? speciesList.filter((sp) => inventario.fichas.some((f) => codigoFicha(f.especieId) === sp.id))
+    : speciesList;
 
   const handleAddDynamicAttribute = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -459,6 +467,15 @@ export default function PanelPage() {
                 </div>
               )}
 
+              {inventario && canEditFichas(currentUser) && (
+                <NuevaFicha
+                  usuarioId={currentUser.id}
+                  especies={inventario.especies}
+                  fichas={inventario.fichas}
+                  onCreada={recargarInventario}
+                />
+              )}
+
               {/* Agregar atributo a una ficha: solo con el permiso ficha:editar (el invitado no lo ve) */}
               {canEditFichas(currentUser) && (
               <Card className="bg-surface space-y-4">
@@ -500,7 +517,8 @@ export default function PanelPage() {
                       onChange={(e) => setSelectedCardIdForAttr(e.target.value)}
                       className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                     >
-                      {speciesList.map((sp) => (
+                      {tarjetasConFicha.length === 0 && <option value="">Aún no hay fichas creadas</option>}
+                      {tarjetasConFicha.map((sp) => (
                         <option key={sp.id} value={sp.id}>
                           #{sp.id} — {sp.commonName}
                         </option>
@@ -545,7 +563,7 @@ export default function PanelPage() {
                       type="submit"
                       variant="ghost"
                       className="w-full text-xs"
-                      disabled={guardandoAtributo}
+                      disabled={guardandoAtributo || tarjetasConFicha.length === 0}
                     >
                       {guardandoAtributo ? 'Guardando...' : '+ Agregar atributo'}
                     </Button>
@@ -607,7 +625,7 @@ export default function PanelPage() {
                 </p>
                 {/* El consumo de la API exige api_externa:monitorear; el invitado (CIUDADANO) no lo tiene */}
                 {canViewApiUsage(currentUser) ? (
-                  <ApiUsagePanel usuarioId={currentUser.id} />
+                  <ApiUsagePanel usuarioId={currentUser.id} puedeConfigurar={canConfigureApi(currentUser)} />
                 ) : (
                   <SeccionBloqueada
                     titulo="Plataforma abierta bloqueada"
