@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -21,7 +22,7 @@ public final class Dtos {
     public record RespuestaAccesoUsuario(String usuarioId, Set<String> roles, Set<String> permisos) {}
 
     public record SolicitudConsumidor(@NotBlank(message = "es obligatorio") String consumidorId) {}
-    public record RespuestaConsumidor(String consumidorId, boolean valido) {}
+    public record RespuestaConsumidor(String consumidorId, boolean valido, String token) {}
 
     public record SolicitudVisibilidad(String usuarioId, String categoriaConservacion, String especieId) {}
     public record RespuestaVisibilidad(NivelVisibilidad nivel, boolean coordenadasExactas) {}
@@ -43,6 +44,9 @@ public final class Dtos {
                                   @NotBlank(message = "es obligatoria") String clave) {}
     public record RespuestaSesion(String usuarioId, String nombre, String correo,
                                   Set<String> roles, Set<String> permisos) {}
+
+    public record RespuestaInicioSesion(String usuarioId, String nombre, String correo, Set<String> roles,
+                                        Set<String> permisos, String token, Instant venceEn) {}
 
     public record SolicitudCrearUsuario(
             @NotBlank(message = "es obligatorio")

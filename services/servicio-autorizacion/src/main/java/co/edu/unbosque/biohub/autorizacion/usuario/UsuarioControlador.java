@@ -1,11 +1,13 @@
 package co.edu.unbosque.biohub.autorizacion.usuario;
 
 import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.ResumenUsuario;
+import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.RespuestaInicioSesion;
 import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.RespuestaSesion;
 import co.edu.unbosque.biohub.autorizacion.compartido.ProhibidoException;
 import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.SolicitudCrearUsuario;
 import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.SolicitudSesion;
 import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.VistaUsuario;
+import co.edu.unbosque.biohub.autorizacion.identidad.ServicioTokens;
 import co.edu.unbosque.biohub.autorizacion.rol.RolServicio;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -28,15 +30,25 @@ public class UsuarioControlador {
 
     private final ServicioUsuarios servicio;
     private final RolServicio roles;
+    private final ServicioTokens tokens;
 
-    public UsuarioControlador(ServicioUsuarios servicio, RolServicio roles) {
+    public UsuarioControlador(ServicioUsuarios servicio, RolServicio roles, ServicioTokens tokens) {
         this.servicio = servicio;
         this.roles = roles;
+        this.tokens = tokens;
     }
 
     @PostMapping("/sesiones")
-    public RespuestaSesion iniciarSesion(@Valid @RequestBody SolicitudSesion solicitud) {
-        return servicio.iniciarSesion(solicitud.usuario(), solicitud.clave());
+    public RespuestaInicioSesion iniciarSesion(@Valid @RequestBody SolicitudSesion solicitud) {
+        RespuestaSesion sesion = servicio.iniciarSesion(solicitud.usuario(), solicitud.clave());
+        ServicioTokens.Token token = tokens.paraSesion(sesion.usuarioId());
+        return new RespuestaInicioSesion(sesion.usuarioId(), sesion.nombre(), sesion.correo(), sesion.roles(),
+                sesion.permisos(), token.valor(), token.venceEn());
+    }
+
+    @GetMapping("/sesiones/actual")
+    public RespuestaSesion sesionActual(@RequestHeader(value = CABECERA_USUARIO, required = false) String solicitante) {
+        return servicio.sesionDe(solicitante);
     }
 
     @GetMapping("/usuarios")

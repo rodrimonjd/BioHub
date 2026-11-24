@@ -2,3 +2,5 @@ target/
 .idea/
 *.iml
 .vscode/
+# Clave privada de las sesiones (la crea servicio-autorizacion al correr sin Docker)
+claves/

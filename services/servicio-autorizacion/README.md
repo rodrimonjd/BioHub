@@ -18,6 +18,7 @@ src/main/java/co/edu/unbosque/biohub/autorizacion/
 ├── permiso/        Permiso, PermisoRepositorio
 ├── usuario/        UsuarioRol, UsuarioRolRepositorio
 ├── evento/         EventoOutbox, EventoOutboxRepositorio (patrón Outbox)
+├── identidad/      ServicioTokens, ClaveFirma, FiltroIdentidad, ClavesControlador (sesiones firmadas)
 ├── visibilidad/    PoliticaVisibilidadUbicacion (patrón Strategy), NivelVisibilidad
 └── compartido/     Dtos, excepciones y ManejadorExcepciones
 src/main/resources/db/migration/   V1 (esquema), V2 (datos iniciales)
@@ -29,7 +30,7 @@ src/main/resources/db/migration/   V1 (esquema), V2 (datos iniciales)
 mvn spring-boot:run          # puerto 8082
 mvn test
 ```
-Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE` (`auth_db`), `BD_USUARIO` (`auth_user`), `BD_CLAVE` (`auth_pass`), `PUERTO_SERVIDOR`.
+Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE` (`auth_db`), `BD_USUARIO` (`auth_user`), `BD_CLAVE` (`auth_pass`), `PUERTO_SERVIDOR`, `IDENTIDAD_CLAVE_ARCHIVO` (`claves/firma.json`), `IDENTIDAD_DURACION_SESION` (`8h`), `SECRETO_SERVICIOS` (vacío: no entrega tokens de consumidores).
 La base `auth_db` y el usuario `auth_user` los crea `infra/mysql/init.sql` al iniciar el contenedor de MySQL.
 
 Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL, INVESTIGADOR, CIUDADANO; usuario `admin` con rol ADMIN).
@@ -38,20 +39,35 @@ Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL,
 | Método | Ruta | Descripción |
 |---|---|---|
 | POST | `/verificar` | `{usuarioId, permiso}` → `{permitido}` |
-| GET | `/usuarios/{usuarioId}/permisos` | Roles y permisos efectivos |
-| POST | `/consumidores/validar` | `{consumidorId}` → `{valido}`. Lo usa el API Gateway: es válido si el consumidor tiene el permiso `api_externa:consultar` (rol `CONSUMIDOR_EXTERNO`, migración V3) |
+| GET | `/claves` | Clave pública (JWKS) con la que los demás servicios verifican los tokens |
+| GET | `/usuarios/{usuarioId}/permisos` | Roles y permisos efectivos: solo los propios, los del invitado o cualquiera si es admin |
+| POST | `/consumidores/validar` | `{consumidorId}` → `{valido, token}`. Lo usa el API Gateway (el token solo se entrega con la cabecera `X-Secreto-Servicio` correcta): es válido si el consumidor tiene el permiso `api_externa:consultar` (rol `CONSUMIDOR_EXTERNO`, migración V3) |
 | POST | `/visibilidad-ubicacion` | `{usuarioId?, categoriaConservacion}` → `EXACTA` / `REGION` / `DEPARTAMENTO` |
 | GET/POST | `/roles` | Listar / crear roles (admin) |
 | PUT | `/roles/{nombre}/permisos` | Reemplazar los permisos de un rol (admin) |
 | POST/DELETE | `/usuarios/{usuarioId}/roles/{nombreRol}` | Asignar / revocar rol (admin) |
-| POST | `/sesiones` | Inicio de sesión: `{usuario (id o correo), clave}` → `{usuarioId, nombre, correo, roles, permisos}`. 401 con un mensaje genérico si no coinciden |
+| POST | `/sesiones` | Inicio de sesión: `{usuario (id o correo), clave}` → `{usuarioId, nombre, correo, roles, permisos, token, venceEn}`. 401 con un mensaje genérico si no coinciden |
+| GET | `/sesiones/actual` | Cuenta, roles y permisos vigentes del token enviado. 401 si no hay sesión |
 | GET/POST | `/usuarios` | Listar / crear cuentas `{id, nombre, correo, clave, rol?}` (admin) |
-| GET | `/usuarios/con-permiso/{permiso}` | Cuentas activas con un permiso (solo id y nombre), p. ej. `hallazgo:validar` para elegir quién autoriza una reclasificación. Exige `X-Usuario-Id` de una cuenta activa |
+| GET | `/usuarios/con-permiso/{permiso}` | Cuentas activas con un permiso (solo id y nombre), p. ej. `hallazgo:validar` para elegir quién autoriza una reclasificación. Exige la sesión de una cuenta activa |
 
-Los endpoints de administración exigen la cabecera `X-Usuario-Id` (la pone el API Gateway) con el permiso `roles:administrar`.
+Los endpoints de administración exigen un token (`Authorization: Bearer`) de una cuenta con el permiso `roles:administrar`.
+
+## Identidad verificable (HU-8.2, ASR-05)
+La identidad no se puede inventar: sale de un token firmado por este servicio.
+
+1. `POST /sesiones` comprueba la contraseña y entrega un JWT firmado con RSA (RS256) que vence a las 8 horas. Lleva el id de la cuenta, **no los permisos**: esos se consultan aquí, con una caché de 60 s como máximo en cada servicio, así que un cambio de rol se aplica sin volver a entrar.
+2. Cada servicio (y el API Gateway en `/gateway`) tiene un `FiltroIdentidad` que verifica la firma con la clave pública de `GET /claves`, el vencimiento, el emisor y el destino:
+   - token válido: el filtro escribe `X-Usuario-Id` con el usuario del token;
+   - token falso, alterado o vencido: **401**;
+   - sin token: visitante anónimo. Si el cliente escribió `X-Usuario-Id`, se borra;
+   - si no se puede verificar (autorización caída y sin clave en memoria): **503**, nunca se deja pasar.
+3. La clave privada se crea sola la primera vez (en Docker, en el volumen `auth_claves`) y no está en el repositorio. Si se borra, todos deben volver a iniciar sesión.
+
+Un token robado sirve hasta que vence: no hay lista de tokens anulados.
 
 ## Cuentas e inicio de sesión
-La identidad y el acceso están centralizados en este servicio (ASR-05): la tabla `usuarios` (migración V4) guarda cada cuenta y `usuario_roles` sus roles. El id de la cuenta es el mismo `X-Usuario-Id` que reciben los demás servicios.
+La identidad y el acceso están centralizados en este servicio (ASR-05): la tabla `usuarios` (migración V4) guarda cada cuenta y `usuario_roles` sus roles. El id de la cuenta es el que viaja en el token.
 
 - Las contraseñas se guardan **solo como hash BCrypt** (`spring-security-crypto`), nunca en texto plano, y la respuesta nunca las incluye.
 - Usuario inexistente, cuenta inactiva o contraseña incorrecta dan el mismo 401 *"Usuario o contraseña incorrectos"*, y se compara un hash aunque el usuario no exista, para no revelar qué cuentas existen.
@@ -71,7 +87,8 @@ curl.exe -X POST http://localhost:8082/api/v1/autorizacion/verificar -H "Content
 
 curl.exe -X POST http://localhost:8082/api/v1/autorizacion/visibilidad-ubicacion -H "Content-Type: application/json" -d '{\"categoriaConservacion\":\"CR\"}'
 
-curl.exe -X POST http://localhost:8082/api/v1/autorizacion/usuarios/u123/roles/INVESTIGADOR -H "X-Usuario-Id: admin"
+$r = Invoke-RestMethod -Method Post -Uri http://localhost:8082/api/v1/autorizacion/sesiones -ContentType application/json -Body '{"usuario":"admin","clave":"BioHub-Admin-2026"}'
+curl.exe -X POST http://localhost:8082/api/v1/autorizacion/usuarios/u123/roles/INVESTIGADOR -H "Authorization: Bearer $($r.token)"
 ```
 
 ## Patrones

@@ -15,6 +15,13 @@ spring:
   flyway:
     enabled: true
 
+identidad:
+  clave-archivo: ${IDENTIDAD_CLAVE_ARCHIVO:claves/firma.json}
+  emisor: biohub-autorizacion
+  duracion-sesion: ${IDENTIDAD_DURACION_SESION:8h}
+  duracion-consumidor: 1m
+  secreto-servicios: ${SECRETO_SERVICIOS:}
+
 management:
   endpoints:
     web:
