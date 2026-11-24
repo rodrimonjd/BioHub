@@ -3,7 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ErrorFormulario } from '@/components/ui/ErrorFormulario';
 import { Field } from '@/components/ui/Field';
+import { useNotificar } from '@/components/ui/Notificaciones';
+import { avisoDeError } from '@/lib/avisos';
 import { ReportStatus, BackgroundReportState } from '@/components/biohub/ReportStatus';
 import { SeccionBloqueada } from '@/components/biohub/SeccionBloqueada';
 import { BioHubUser, canGenerateReports } from '@/lib/permissions';
@@ -52,7 +55,8 @@ export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps
   const [fechaFin, setFechaFin] = useState<string>(hoy());
   const [departamento, setDepartamento] = useState<string>('');
   const [reporte, setReporte] = useState<Reporte | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const notificar = useNotificar();
+  const [errorFechas, setErrorFechas] = useState<string | null>(null);
   const [enviando, setEnviando] = useState<boolean>(false);
 
   const puedeGenerar = canGenerateReports(currentUser);
@@ -69,26 +73,37 @@ export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps
       try {
         setReporte(await obtenerReporte(reporte.id, currentUser.id));
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'No se pudo consultar el reporte');
+        notificar(
+          avisoDeError(e, {
+            titulo: 'No se pudo revisar el reporte',
+            sinConexion: 'No se sabe si el reporte ya terminó',
+            accion: 'ver reportes',
+          })
+        );
       }
     }, INTERVALO_CONSULTA_MS);
     return () => clearTimeout(temporizador);
-  }, [reporte, currentUser.id]);
+  }, [reporte, currentUser.id, notificar]);
 
   async function handleDescargar(id: string) {
-    setError(null);
     try {
       await descargarPdf(id, currentUser.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo descargar el reporte');
+      notificar(
+        avisoDeError(e, {
+          titulo: 'No se descargó el reporte',
+          sinConexion: 'El PDF no se descargó',
+          accion: 'descargar reportes',
+        })
+      );
     }
   }
 
   async function handleSolicitar(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setErrorFechas(null);
     if (fechaInicio > fechaFin) {
-      setError('La fecha de inicio no puede ser posterior a la fecha de fin.');
+      setErrorFechas('La fecha "Desde" no puede ser posterior a la fecha "Hasta".');
       return;
     }
     setEnviando(true);
@@ -102,10 +117,12 @@ export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps
       });
       setReporte(nuevo);
     } catch (e) {
-      setError(
-        e instanceof Error && e.message !== 'Failed to fetch'
-          ? e.message
-          : 'No hay conexión con el servicio de reportes.'
+      notificar(
+        avisoDeError(e, {
+          titulo: 'No se pidió el reporte',
+          sinConexion: 'El reporte no se pidió',
+          accion: 'generar reportes',
+        })
       );
     } finally {
       setEnviando(false);
@@ -169,14 +186,10 @@ export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps
                 </select>
               </Field>
             </div>
+            <ErrorFormulario texto={errorFechas} />
             <Button type="submit" disabled={enviando || (reporte !== null && sigueEnProceso(reporte.estado))}>
               {enviando ? 'Solicitando...' : 'Generar reporte'}
             </Button>
-            {error && (
-              <p role="alert" className="rounded-md border border-iucn-cr/40 bg-iucn-cr/10 px-3 py-2 text-xs text-iucn-cr">
-                {error}
-              </p>
-            )}
           </form>
         </Card>
       ) : (
@@ -184,12 +197,6 @@ export function ReportesPanel({ currentUser, especies = [] }: ReportesPanelProps
           titulo="Generación de reportes bloqueada"
           descripcion="Requiere el permiso para solicitar reportes (investigador, autoridad ambiental o administrador)."
         />
-      )}
-
-      {!puedeGenerar && error && (
-        <p role="alert" className="rounded-md border border-iucn-cr/40 bg-iucn-cr/10 px-3 py-2 text-xs text-iucn-cr">
-          {error}
-        </p>
       )}
 
       {reporte && (

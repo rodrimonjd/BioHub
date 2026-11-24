@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { useNotificar } from '@/components/ui/Notificaciones';
 import {
   BioHubUser,
   canManageEquipment,
@@ -18,7 +19,8 @@ import {
   Expedicion,
   listarEquipos,
 } from '@/lib/registro-api';
-import { Aviso, CLASE_INPUT, Encabezado, MensajeAviso, mensajeDeError } from './campo-ui';
+import { avisoDeError } from '@/lib/avisos';
+import { CLASE_INPUT, Encabezado } from './campo-ui';
 
 export interface GestionCampoProps {
   currentUser: BioHubUser;
@@ -37,6 +39,7 @@ export function GestionCampo({
 }: GestionCampoProps) {
   const puedeGestionarEquipos = canManageEquipment(currentUser);
 
+  const notificar = useNotificar();
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [lideres, setLideres] = useState<ResumenUsuario[]>([]);
 
@@ -51,22 +54,30 @@ export function GestionCampo({
   const [eqSerie, setEqSerie] = useState('');
   const [eqTipo, setEqTipo] = useState(TIPOS_EQUIPO[0]);
   const [eqModelo, setEqModelo] = useState('');
-  const [avisoEquipo, setAvisoEquipo] = useState<Aviso>(null);
 
   const handleCrearEquipo = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAvisoEquipo(null);
     try {
       const creado = await crearEquipo(
         { numeroSerie: eqSerie.trim(), tipo: eqTipo, modelo: eqModelo.trim() || null },
         currentUser.id
       );
-      setAvisoEquipo({ tipo: 'ok', texto: `Equipo ${creado.numeroSerie} registrado.` });
+      notificar({
+        tipo: 'ok',
+        titulo: 'Equipo registrado',
+        detalle: `${creado.tipo} con número de serie ${creado.numeroSerie}.`,
+      });
       setEqSerie('');
       setEqModelo('');
       await recargarEquipos();
     } catch (error) {
-      setAvisoEquipo({ tipo: 'err', texto: mensajeDeError(error) });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se registró el equipo',
+          sinConexion: 'El equipo no se guardó',
+          accion: 'registrar equipos',
+        })
+      );
     }
   };
 
@@ -76,11 +87,9 @@ export function GestionCampo({
   const [exInicio, setExInicio] = useState(new Date().toISOString().slice(0, 10));
   const [exFin, setExFin] = useState('');
   const [exLider, setExLider] = useState(currentUser.id);
-  const [avisoExpedicion, setAvisoExpedicion] = useState<Aviso>(null);
 
   const handleCrearExpedicion = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAvisoExpedicion(null);
     try {
       const creada = await crearExpedicion(
         {
@@ -92,33 +101,50 @@ export function GestionCampo({
         },
         currentUser.id
       );
-      setAvisoExpedicion({ tipo: 'ok', texto: `Expedición "${creada.nombre}" creada.` });
+      notificar({
+        tipo: 'ok',
+        titulo: 'Expedición creada',
+        detalle: `${creada.nombre}, en ${creada.zona}.`,
+      });
       setExNombre('');
       setExFin('');
       await onExpedicionesCambiaron();
     } catch (error) {
-      setAvisoExpedicion({ tipo: 'err', texto: mensajeDeError(error) });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se creó la expedición',
+          sinConexion: 'La expedición no se guardó',
+          accion: 'crear expediciones',
+        })
+      );
     }
   };
 
   // Asignar equipo a expedición
   const [asExpedicionId, setAsExpedicionId] = useState('');
   const [asEquipoId, setAsEquipoId] = useState('');
-  const [avisoAsignacion, setAvisoAsignacion] = useState<Aviso>(null);
 
   const handleAsignar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!asExpedicionId || !asEquipoId) return;
-    setAvisoAsignacion(null);
     try {
       const expedicion = await asignarEquipoAExpedicion(asExpedicionId, asEquipoId, currentUser.id);
-      setAvisoAsignacion({
+      notificar({
         tipo: 'ok',
-        texto: `Equipo asignado a "${expedicion.nombre}"; su responsable ahora es ${expedicion.liderId}.`,
+        titulo: 'Equipo asignado',
+        detalle: `Va a ${expedicion.nombre}. Responsable: ${
+          lideres.find((l) => l.id === expedicion.liderId)?.nombre ?? expedicion.liderId
+        }.`,
       });
       await Promise.all([onExpedicionesCambiaron(), recargarEquipos()]);
     } catch (error) {
-      setAvisoAsignacion({ tipo: 'err', texto: mensajeDeError(error) });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se asignó el equipo',
+          sinConexion: 'La asignación no se guardó',
+          accion: 'asignar equipos',
+        })
+      );
     }
   };
 
@@ -131,7 +157,6 @@ export function GestionCampo({
               titulo="Registrar equipo de campo"
               descripcion="Drones, cámaras trampa, hidrófonos y sensores. Al asignarlo a una expedición, su responsable pasa a ser el líder."
             />
-            <MensajeAviso aviso={avisoEquipo} />
             <form onSubmit={handleCrearEquipo} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
               <Field id="eq-serie" label="Número de serie">
                 <input
@@ -189,7 +214,6 @@ export function GestionCampo({
               titulo="Crear expedición"
               descripcion="Agrupa los hallazgos de una salida de campo y los equipos que se llevan."
             />
-            <MensajeAviso aviso={avisoExpedicion} />
             <form onSubmit={handleCrearExpedicion} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
               <Field id="ex-nombre" label="Nombre" className="sm:col-span-2">
                 <input
@@ -250,7 +274,6 @@ export function GestionCampo({
               <p className="font-mono text-xs font-semibold uppercase tracking-wider text-moss-500">
                 Asignar equipo a una expedición
               </p>
-              <MensajeAviso aviso={avisoAsignacion} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field id="as-expedicion" label="Expedición">
                   <select
