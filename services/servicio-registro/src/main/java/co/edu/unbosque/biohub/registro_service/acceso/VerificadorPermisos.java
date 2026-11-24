@@ -4,6 +4,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Predicate;
+
 /**
  * Exige permisos de servicio-autorizacion antes de cada escritura (ASR-05: permisos centralizados).
  * El usuario llega en la cabecera X-Usuario-Id; los ids de autor/investigador del cuerpo no se usan.
@@ -38,11 +42,20 @@ public class VerificadorPermisos {
         return usuario;
     }
 
-    public boolean puedeVerUbicacionExacta(String usuarioId) {
+    /**
+     * Qué especies puede ver el usuario con coordenadas exactas: todas si tiene ubicacion:ver_exacta,
+     * o solo aquellas a las que la autoridad ambiental le dio acceso.
+     */
+    public Predicate<UUID> ubicacionExacta(String usuarioId) {
         if (usuarioId == null || usuarioId.isBlank()) {
-            return false;
+            return especie -> false;
         }
-        return autorizacion.tienePermiso(usuarioId.trim(), VER_UBICACION_EXACTA);
+        String usuario = usuarioId.trim();
+        if (autorizacion.tienePermiso(usuario, VER_UBICACION_EXACTA)) {
+            return especie -> true;
+        }
+        Set<String> especies = autorizacion.especiesConUbicacionExacta(usuario);
+        return especie -> especie != null && especies != null && especies.contains(especie.toString());
     }
 
     /** La reclasificación necesita un autorizador con permiso hallazgo:validar (HU-10). */

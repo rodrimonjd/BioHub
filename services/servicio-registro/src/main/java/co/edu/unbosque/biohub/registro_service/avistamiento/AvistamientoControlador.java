@@ -3,6 +3,7 @@ package co.edu.unbosque.biohub.registro_service.avistamiento;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,17 +49,17 @@ public class AvistamientoControlador {
     @GetMapping
     public List<RespuestaAvistamiento> listar(
             @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario) {
-        boolean verExacta = permisos.puedeVerUbicacionExacta(usuario);
+        Predicate<UUID> verExacta = permisos.ubicacionExacta(usuario);
         List<RespuestaAvistamiento> respuesta = new ArrayList<>();
         for (Avistamiento a : service.listar()) {
             RespuestaAvistamiento r = RespuestaAvistamiento.desde(a);
-            respuesta.add(verExacta ? r : r.sinCoordenadas());
+            respuesta.add(verExacta.test(r.especieId()) ? r : r.sinCoordenadas());
         }
         return respuesta;
     }
 
     private RespuestaAvistamiento vista(Avistamiento a, String usuario) {
         RespuestaAvistamiento r = RespuestaAvistamiento.desde(a);
-        return permisos.puedeVerUbicacionExacta(usuario) ? r : r.sinCoordenadas();
+        return permisos.ubicacionExacta(usuario).test(r.especieId()) ? r : r.sinCoordenadas();
     }
 }
