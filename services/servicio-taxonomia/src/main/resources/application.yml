@@ -19,6 +19,9 @@ biohub:
   eventos:
     exchange: biohub.eventos
     intervalo-ms: 5000
+  autorizacion:
+    url: ${AUTORIZACION_URL:http://localhost:8082}
+    cache-ttl: 60s
 
 management:
   endpoints:

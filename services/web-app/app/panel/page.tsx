@@ -10,10 +10,7 @@ import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
 import { SiteHeader } from '@/components/biohub/SiteHeader';
 import { SpeciesCard, SpeciesCardProps } from '@/components/biohub/SpeciesCard';
-import {
-  HistoryTimeline,
-  HistoryEventItem,
-} from '@/components/biohub/HistoryTimeline';
+import { HistorialRegistros } from '@/components/biohub/HistorialRegistros';
 import { ProtectedLocation } from '@/components/biohub/ProtectedLocation';
 import { ApiUsagePanel } from '@/components/biohub/ApiUsagePanel';
 import { ReportesPanel } from '@/components/biohub/ReportesPanel';
@@ -21,6 +18,7 @@ import { FieldStationWorkspace } from '@/components/biohub/FieldStationWorkspace
 import {
   actualizarAcceso,
   BioHubUser,
+  canEditFichas,
   canViewExactCoordinates,
   clearStoredSession,
   getStoredSession,
@@ -104,7 +102,7 @@ function tarjetaDesde(especie: EspecieRegistro, ficha: FichaTaxonomica | undefin
     }));
   return {
     id: codigoFicha(especie.id),
-    commonName: especie.nombreComun,
+    commonName: especie.nombreComun ?? especie.nombreCientifico,
     scientificName: especie.nombreCientifico,
     status: especie.estadoConservacion as ConservationStatus,
     specimenCode: ficha ? `Ficha v${ficha.version}` : 'Sin ficha taxonómica',
@@ -112,29 +110,6 @@ function tarjetaDesde(especie: EspecieRegistro, ficha: FichaTaxonomica | undefin
     attributes: atributos,
   };
 }
-
-const INITIAL_HISTORY_EVENTS: HistoryEventItem[] = [
-  {
-    id: 'EVT-2026-0114',
-    version: 'v1',
-    date: '2026-01-14 · 09:20 UTC-5',
-    previousBelief: 'Sin registro previo (ingreso en estación base)',
-    currentKnowledge: 'Crocodylus acutus (Clasificación morfológica preliminar)',
-    authorizedBy: 'Sebastián García (Investigador de campo)',
-    reason:
-      'Registro inicial al regresar de expedición de campo con mediciones de temperatura del agua y canto.',
-  },
-  {
-    id: 'EVT-2026-0619',
-    version: 'v2',
-    date: '2026-06-19 · 16:45 UTC-5',
-    previousBelief: 'Crocodylus acutus',
-    currentKnowledge: 'Crocodylus intermedius',
-    authorizedBy: 'Sebastián García · Autorizó: Dra. Elena Escobar',
-    reason:
-      'Secuenciación genética de muestra ADN-ORI-2026-884 confirma reclasificación definitiva tras análisis de laboratorio.',
-  },
-];
 
 export default function PanelPage() {
   const router = useRouter();
@@ -162,10 +137,9 @@ export default function PanelPage() {
     fichas: FichaTaxonomica[];
   } | null>(null);
 
-  const [activeFindingId, setActiveFindingId] = useState<string>('HAL-A1B2C3D4');
-  const [historyEvents, setHistoryEvents] = useState<HistoryEventItem[]>(
-    INITIAL_HISTORY_EVENTS
-  );
+  // Historial (servicio-historial): hallazgo a mostrar y contador para volver a consultarlo
+  const [hallazgoHistorial, setHallazgoHistorial] = useState<string | null>(null);
+  const [recargaHistorial, setRecargaHistorial] = useState<number>(0);
 
   useEffect(() => {
     const stored = getStoredSession();
@@ -243,7 +217,7 @@ export default function PanelPage() {
           autor: currentUser.id,
         });
         setAttrSavedNotice(
-          `Atributo "${newAttrLabel.trim()}" guardado en la ficha de ${especie.nombreComun} (versión ${ficha.version}).`
+          `Atributo "${newAttrLabel.trim()}" guardado en la ficha de ${especie.nombreComun ?? especie.nombreCientifico} (versión ${ficha.version}).`
         );
         setNewAttrLabel('');
         setNewAttrValue('');
@@ -349,12 +323,22 @@ export default function PanelPage() {
 
             <FieldStationWorkspace
               currentUser={currentUser}
+              especies={inventario?.especies.map((e) => ({
+                id: e.id,
+                scientificName: e.nombreCientifico,
+                commonName: e.nombreComun ?? e.nombreCientifico,
+                status: e.estadoConservacion as ConservationStatus,
+              }))}
+              fichas={inventario?.fichas ?? []}
+              onEspecieCreada={recargarInventario}
               onNewSpeciesCardCreated={(newCard) =>
                 setSpeciesList((prev) => [newCard, ...prev])
               }
-              onNewHistoryEventAdded={(newEvent, findingId) => {
-                setActiveFindingId(`HAL-${findingId}`);
-                setHistoryEvents((prev) => [...prev, newEvent]);
+              onNewHistoryEventAdded={(_evento, hallazgoId) => {
+                // El historial llega por eventos (RabbitMQ): se recarga ya y otra vez unos segundos después
+                setHallazgoHistorial(hallazgoId);
+                setRecargaHistorial((n) => n + 1);
+                window.setTimeout(() => setRecargaHistorial((n) => n + 1), 3000);
               }}
             />
           </div>
@@ -475,7 +459,8 @@ export default function PanelPage() {
                 </div>
               )}
 
-              {/* Formulario con título y explicación clara: Agregar atributo a una ficha */}
+              {/* Agregar atributo a una ficha: solo con el permiso ficha:editar (el invitado no lo ve) */}
+              {canEditFichas(currentUser) && (
               <Card className="bg-surface space-y-4">
                 <div className="border-b border-line pb-3">
                   <h3 className="font-serif text-lg font-semibold text-ink">
@@ -567,6 +552,7 @@ export default function PanelPage() {
                   </div>
                 </form>
               </Card>
+              )}
             </div>
 
             {/* 3. TRAZABILIDAD Y CORREDOR BIOLÓGICO */}
@@ -584,9 +570,12 @@ export default function PanelPage() {
                     autorizadas.
                   </p>
                 </div>
-                <HistoryTimeline
-                  findingId={activeFindingId}
-                  events={historyEvents}
+                <HistorialRegistros
+                  usuario={currentUser}
+                  fichas={inventario?.fichas ?? []}
+                  especies={inventario?.especies ?? []}
+                  hallazgoActivo={hallazgoHistorial}
+                  recarga={recargaHistorial}
                 />
               </div>
 

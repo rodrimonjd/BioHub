@@ -31,6 +31,7 @@ export const PERMISOS = {
   VER_REPORTES: 'reporte:ver',
   GENERAR_REPORTES: 'reporte:generar',
   ADMINISTRAR_ROLES: 'roles:administrar',
+  EDITAR_FICHA: 'ficha:editar',
 } as const;
 
 const ETIQUETAS_ROL: Record<string, string> = {
@@ -151,6 +152,11 @@ export function canRegisterFieldData(user: BioHubUser | null | undefined): boole
 /** Modificar y reclasificar hallazgos: permiso hallazgo:editar. */
 export function canEditFindings(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.EDITAR_HALLAZGO);
+}
+
+/** Agregar o cambiar atributos de fichas taxonómicas: permiso ficha:editar (el invitado no lo tiene). */
+export function canEditFichas(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.EDITAR_FICHA);
 }
 
 /** Autorizar reclasificaciones: permiso hallazgo:validar. */

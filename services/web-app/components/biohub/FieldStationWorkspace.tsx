@@ -10,8 +10,11 @@ import {
   canRegisterFieldData,
   canAuthorizeReclassification,
   canEditFindings,
+  canViewExactCoordinates,
   PERMISOS,
 } from '@/lib/permissions';
+import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
+import { FichaTaxonomica } from '@/lib/taxonomia-api';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
 import {
   AvistamientoRequest,
@@ -19,23 +22,33 @@ import {
   BACKEND_SEED_SPECIES,
   ErrorRechazado,
   EvidenciaRequest,
+  Expedicion,
+  listarExpediciones,
   HallazgoResponse,
   listarAvistamientos,
   listarHallazgos,
   modificarHallazgo,
-  obtenerHallazgoPorId,
   reclasificarHallazgo,
   registrarAvistamiento,
   registrarHallazgo,
+  SeedSpecies,
   TipoEvidencia,
 } from '@/lib/registro-api';
 import { SpeciesCardProps } from './SpeciesCard';
+import { NuevaEspecie } from './NuevaEspecie';
+import { ListaHallazgos } from './ListaHallazgos';
 import { HistoryEventItem } from './HistoryTimeline';
 
 export interface FieldStationWorkspaceProps {
   currentUser: BioHubUser;
   onNewSpeciesCardCreated: (card: SpeciesCardProps) => void;
   onNewHistoryEventAdded: (event: HistoryEventItem, findingId: string) => void;
+  /** Catálogo de especies de servicio-registro (GET /especies). Vacío o ausente: catálogo base sin conexión. */
+  especies?: SeedSpecies[];
+  /** Fichas de servicio-taxonomia (GET /fichas), para asociar la ficha al registrar un hallazgo. */
+  fichas?: FichaTaxonomica[];
+  /** Tras agregar una especie, el panel recarga el catálogo desde la base de datos. */
+  onEspecieCreada?: () => Promise<void> | void;
 }
 
 const DEPARTAMENTOS_REGIONES: { depto: string; region: string }[] = [
@@ -130,7 +143,12 @@ export function FieldStationWorkspace({
   currentUser,
   onNewSpeciesCardCreated,
   onNewHistoryEventAdded,
+  especies,
+  fichas,
+  onEspecieCreada,
 }: FieldStationWorkspaceProps) {
+  // Especies de la base de datos; si registro no responde, el catálogo base para trabajar sin conexión
+  const catalogo = especies && especies.length > 0 ? especies : BACKEND_SEED_SPECIES;
   const [activeTab, setActiveTab] = useState<
     'avistamientos' | 'hallazgos' | 'reclasificacion'
   >('avistamientos');
@@ -151,7 +169,7 @@ export function FieldStationWorkspace({
   );
 
   // Formulario Avistamiento
-  const [avEspecieId, setAvEspecieId] = useState(BACKEND_SEED_SPECIES[0].id);
+  const [avEspecieId, setAvEspecieId] = useState(catalogo[0].id);
   const [avCantidad, setAvCantidad] = useState<number>(2);
   const [avDepto, setAvDepto] = useState('Vichada');
   const [avRegion, setAvRegion] = useState('Orinoquía');
@@ -159,8 +177,28 @@ export function FieldStationWorkspace({
   const [avLon, setAvLon] = useState('-68.5194');
 
   // Formulario Hallazgo + Evidencias
-  const [haEspecieId, setHaEspecieId] = useState(BACKEND_SEED_SPECIES[0].id);
-  const [haFichaId, setHaFichaId] = useState('FICHA-TOMO-2026');
+  const [haEspecieId, setHaEspecieId] = useState(catalogo[0].id);
+  // Expediciones de servicio-registro para asociar el hallazgo
+  const [expediciones, setExpediciones] = useState<Expedicion[]>([]);
+  const [haExpedicionId, setHaExpedicionId] = useState<string>('');
+  useEffect(() => {
+    listarExpediciones().then((lista) => {
+      setExpediciones(lista);
+      // Se propone la expedición que lidera el usuario, si tiene una
+      setHaExpedicionId(
+        (actual) => actual || lista.find((ex) => ex.liderId === currentUser.id)?.id || ''
+      );
+    });
+  }, [currentUser.id]);
+
+  // Ficha de servicio-taxonomia: se elige entre las fichas activas de la especie seleccionada
+  const [haFichaId, setHaFichaId] = useState<string>('');
+  const fichasEspecie = (fichas ?? []).filter((f) => f.activa && f.especieId === haEspecieId);
+  const primeraFicha = fichasEspecie[0]?.id ?? '';
+  useEffect(() => {
+    // Al cambiar de especie (o cargar las fichas) se propone su ficha vigente
+    setHaFichaId(primeraFicha);
+  }, [haEspecieId, primeraFicha]);
   const [haDescripcion, setHaDescripcion] = useState('');
   const [haDepto, setHaDepto] = useState('Vichada');
   const [haRegion, setHaRegion] = useState('Orinoquía');
@@ -184,13 +222,13 @@ export function FieldStationWorkspace({
   const [targetHallazgoId, setTargetHallazgoId] = useState<string>(
     INITIAL_LOCAL_HALLAZGOS[0].id
   );
-  const [lookupUuid, setLookupUuid] = useState<string>('');
+  const [busquedaHallazgo, setBusquedaHallazgo] = useState<string>('');
   const [modCampo, setModCampo] = useState<'descripcion' | 'departamento' | 'region'>(
     'descripcion'
   );
   const [modValor, setModValor] = useState<string>('');
   const [recNuevaEspecieId, setRecNuevaEspecieId] = useState<string>(
-    BACKEND_SEED_SPECIES[1].id
+    catalogo[1].id
   );
   const [recMotivo, setRecMotivo] = useState<string>('');
   const [recAutorizador, setRecAutorizador] = useState<string>('');
@@ -327,7 +365,7 @@ export function FieldStationWorkspace({
         return;
       }
       setBackendOnline(false);
-      const espObj = BACKEND_SEED_SPECIES.find((s) => s.id === avEspecieId);
+      const espObj = catalogo.find((s) => s.id === avEspecieId);
       const localSaved: AvistamientoResponse = {
         id: crypto.randomUUID(),
         especieId: avEspecieId,
@@ -451,12 +489,13 @@ export function FieldStationWorkspace({
       longitud: hasLon ? Number(haLon) : null,
       departamento: haDepto,
       region: haRegion || null,
+      expedicionId: haExpedicionId || undefined,
       evidencias: haEvidencias,
     };
 
     const espMeta =
-      BACKEND_SEED_SPECIES.find((s) => s.id === haEspecieId) ||
-      BACKEND_SEED_SPECIES[0];
+      catalogo.find((s) => s.id === haEspecieId) ||
+      catalogo[0];
 
     try {
       const result = await registrarHallazgo(payload, currentUser.id);
@@ -600,56 +639,17 @@ export function FieldStationWorkspace({
     }
   };
 
-  // Buscar Hallazgo por identificador
-  const handleBuscarHallazgoUuid = async () => {
-    const codigo = lookupUuid.trim().toLowerCase();
-    if (!codigo) return;
-    setStatusBanner(null);
 
-    if (codigo.length < 36) {
-      const coincidencias = hallazgos.filter((h) => h.id.toLowerCase().startsWith(codigo));
-      if (coincidencias.length === 1) {
-        setTargetHallazgoId(coincidencias[0].id);
-        setStatusBanner({
-          type: 'ok',
-          text: `Hallazgo ${coincidencias[0].id.slice(0, 8)} seleccionado (v${coincidencias[0].versionActual}).`,
-        });
-      } else {
-        setStatusBanner({
-          type: 'err',
-          text:
-            coincidencias.length === 0
-              ? `No hay ningún hallazgo con el código ${codigo}.`
-              : `Hay ${coincidencias.length} hallazgos que empiezan por ${codigo}; escribe más caracteres.`,
-        });
-      }
-      return;
-    }
+  // Buscar hallazgo por nombre: filtra la lista y, si el elegido ya no coincide, toma el primero que sí
+  const hallazgosFiltrados = hallazgos.filter((h) =>
+    coincideHallazgo(h, busquedaHallazgo, catalogo)
+  );
 
-    setLoading(true);
-    try {
-      const found = await obtenerHallazgoPorId(codigo);
-      setBackendOnline(true);
-      setHallazgos((prev) => {
-        const exists = prev.some((h) => h.id === found.id);
-        return exists
-          ? prev.map((h) => (h.id === found.id ? found : h))
-          : [found, ...prev];
-      });
-      setTargetHallazgoId(found.id);
-      setStatusBanner({
-        type: 'ok',
-        text: `Hallazgo ${found.id.slice(0, 8)} recuperado desde el servidor (v${
-          found.versionActual
-        }).`,
-      });
-    } catch {
-      setStatusBanner({
-        type: 'err',
-        text: 'No fue posible recuperar ese código de hallazgo desde el servidor.',
-      });
-    } finally {
-      setLoading(false);
+  const handleBuscarHallazgo = (texto: string) => {
+    setBusquedaHallazgo(texto);
+    const coincidencias = hallazgos.filter((h) => coincideHallazgo(h, texto, catalogo));
+    if (coincidencias.length > 0 && !coincidencias.some((h) => h.id === targetHallazgoId)) {
+      setTargetHallazgoId(coincidencias[0].id);
     }
   };
 
@@ -703,7 +703,7 @@ export function FieldStationWorkspace({
           authorizedBy: `${currentUser.name}`,
           reason: `Actualización de ${modCampo} en estación de campo`,
         },
-        updated.id.slice(0, 8).toUpperCase()
+        updated.id
       );
       setModValor('');
       setStatusBanner({
@@ -735,7 +735,7 @@ export function FieldStationWorkspace({
           authorizedBy: `${currentUser.name}`,
           reason: `Actualización local de ${modCampo}`,
         },
-        current.id.slice(0, 8).toUpperCase()
+        current.id
       );
       setModValor('');
       setStatusBanner({
@@ -802,7 +802,7 @@ export function FieldStationWorkspace({
   const executeReclasificacionConfirmada = async () => {
     closeConfirmDialog();
     const current = hallazgos.find((h) => h.id === targetHallazgoId);
-    const nuevaEsp = BACKEND_SEED_SPECIES.find((s) => s.id === recNuevaEspecieId);
+    const nuevaEsp = catalogo.find((s) => s.id === recNuevaEspecieId);
     if (!current || !nuevaEsp) return;
 
     setLoading(true);
@@ -827,7 +827,7 @@ export function FieldStationWorkspace({
           authorizedBy: `${currentUser.name} · Autorizó: ${nombreAutorizador(recAutorizador)}`,
           reason: recMotivo.trim(),
         },
-        updated.id.slice(0, 8).toUpperCase()
+        updated.id
       );
       setRecMotivo('');
       setStatusBanner({
@@ -860,7 +860,7 @@ export function FieldStationWorkspace({
           authorizedBy: `${currentUser.name} · Autorizó: ${nombreAutorizador(recAutorizador)}`,
           reason: recMotivo.trim(),
         },
-        current.id.slice(0, 8).toUpperCase()
+        current.id
       );
       setRecMotivo('');
       setStatusBanner({
@@ -873,7 +873,7 @@ export function FieldStationWorkspace({
   };
 
   const selectedHallazgo = hallazgos.find((h) => h.id === targetHallazgoId);
-  const targetNewSpecies = BACKEND_SEED_SPECIES.find(
+  const targetNewSpecies = catalogo.find(
     (s) => s.id === recNuevaEspecieId
   );
   const visibleAvistamientos = avistamientos.slice(0, visibleCount);
@@ -985,6 +985,13 @@ export function FieldStationWorkspace({
       {/* PESTAÑA 1: AVISTAMIENTOS */}
       {activeTab === 'avistamientos' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Agregar especie al catálogo: mismo permiso que registrar datos de campo (hallazgo:crear) */}
+          {canWrite && onEspecieCreada && (
+            <div className="lg:col-span-12">
+              <NuevaEspecie usuario={currentUser} onCreada={onEspecieCreada} />
+            </div>
+          )}
+
           {/* El formulario solo aparece si la cuenta puede registrar (hallazgo:crear); el invitado no lo ve */}
           {canWrite && (
           <Card as="section" className="lg:col-span-5 space-y-4">
@@ -1020,7 +1027,7 @@ export function FieldStationWorkspace({
                     onChange={(e) => setAvEspecieId(e.target.value)}
                     className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   >
-                    {BACKEND_SEED_SPECIES.map((sp) => (
+                    {catalogo.map((sp) => (
                       <option key={sp.id} value={sp.id}>
                         {sp.commonName} ({sp.scientificName}) [{sp.status}]
                       </option>
@@ -1127,7 +1134,7 @@ export function FieldStationWorkspace({
 
             <div className="space-y-3">
               {visibleAvistamientos.map((av) => {
-                const spMeta = BACKEND_SEED_SPECIES.find((s) => s.id === av.especieId);
+                const spMeta = catalogo.find((s) => s.id === av.especieId);
                 return (
                   <article
                     key={av.id}
@@ -1214,6 +1221,9 @@ export function FieldStationWorkspace({
 
       {/* PESTAÑA 2: HALLAZGOS */}
       {activeTab === 'hallazgos' && (
+        <div className="space-y-6">
+        {/* El formulario solo aparece si la cuenta puede registrar (hallazgo:crear); el invitado solo ve la lista */}
+        {canWrite && (
         <Card as="section" className="space-y-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line pb-4">
             <div>
@@ -1230,7 +1240,7 @@ export function FieldStationWorkspace({
           </div>
 
           <form onSubmit={handleRegistrarHallazgo} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field id="ha-especie" label="Especie identificada">
                 <select
                   id="ha-especie"
@@ -1238,7 +1248,7 @@ export function FieldStationWorkspace({
                   onChange={(e) => setHaEspecieId(e.target.value)}
                   className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                 >
-                  {BACKEND_SEED_SPECIES.map((sp) => (
+                  {catalogo.map((sp) => (
                     <option key={sp.id} value={sp.id}>
                       {sp.commonName} — {sp.scientificName} [{sp.status}]
                     </option>
@@ -1246,15 +1256,49 @@ export function FieldStationWorkspace({
                 </select>
               </Field>
 
-              <Field id="ha-ficha" label="Código de ficha taxonómica">
-                <input
+              <Field
+                id="ha-ficha"
+                label="Ficha taxonómica"
+                hint={
+                  fichasEspecie.length === 0
+                    ? 'Esta especie aún no tiene ficha en servicio-taxonomía'
+                    : undefined
+                }
+              >
+                <select
                   id="ha-ficha"
-                  type="text"
                   value={haFichaId}
                   onChange={(e) => setHaFichaId(e.target.value)}
-                  placeholder="FICHA-TOMO-2026"
-                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
-                />
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                >
+                  {fichasEspecie.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      Ficha v{f.version} · {f.atributos.length} atributo(s) · #{f.id.slice(0, 8)}
+                    </option>
+                  ))}
+                  <option value="">Sin ficha asociada</option>
+                </select>
+              </Field>
+
+              <Field
+                id="ha-expedicion"
+                label="Expedición"
+                hint={expediciones.length === 0 ? 'No hay expediciones registradas' : undefined}
+              >
+                <select
+                  id="ha-expedicion"
+                  value={haExpedicionId}
+                  onChange={(e) => setHaExpedicionId(e.target.value)}
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                >
+                  <option value="">Sin expedición</option>
+                  {expediciones.map((ex) => (
+                    <option key={ex.id} value={ex.id}>
+                      {ex.nombre} · {ex.zona} · desde {ex.fechaInicio}
+                      {ex.liderId === currentUser.id ? ' (tú la lideras)' : ''}
+                    </option>
+                  ))}
+                </select>
               </Field>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1514,6 +1558,25 @@ export function FieldStationWorkspace({
             </div>
           </form>
         </Card>
+        )}
+
+        {/* Hallazgos guardados en la base de datos, con búsqueda por nombre */}
+        <ListaHallazgos
+          hallazgos={hallazgos}
+          catalogo={catalogo}
+          fichas={fichas ?? []}
+          expediciones={expediciones}
+          puedeVerExacta={canViewExactCoordinates(currentUser)}
+          onModificar={
+            canEdit
+              ? (id) => {
+                  setTargetHallazgoId(id);
+                  setActiveTab('reclasificacion');
+                }
+              : undefined
+          }
+        />
+        </div>
       )}
 
       {/* PESTAÑA 3: RECLASIFICACIÓN */}
@@ -1521,6 +1584,22 @@ export function FieldStationWorkspace({
         <div className="space-y-6">
           <Card className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <Field
+                id="buscar-hallazgo-input"
+                label="Buscar hallazgo por nombre"
+                hint={`${hallazgosFiltrados.length} de ${hallazgos.length} hallazgos`}
+                className="md:col-span-5"
+              >
+                <input
+                  id="buscar-hallazgo-input"
+                  type="search"
+                  value={busquedaHallazgo}
+                  onChange={(e) => handleBuscarHallazgo(e.target.value)}
+                  placeholder="Especie, departamento, investigador..."
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                />
+              </Field>
+
               <Field
                 id="target-hallazgo-select"
                 label="Seleccionar hallazgo registrado"
@@ -1530,39 +1609,19 @@ export function FieldStationWorkspace({
                   id="target-hallazgo-select"
                   value={targetHallazgoId}
                   onChange={(e) => setTargetHallazgoId(e.target.value)}
-                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+                  disabled={hallazgosFiltrados.length === 0}
+                  className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                 >
-                  {hallazgos.map((h) => (
+                  {hallazgosFiltrados.length === 0 && (
+                    <option value={targetHallazgoId}>Ningún hallazgo coincide con la búsqueda</option>
+                  )}
+                  {hallazgosFiltrados.map((h) => (
                     <option key={h.id} value={h.id}>
-                      [v{h.versionActual}] {h.especie} — {h.departamento} · {h.investigadorId} ({h.id.slice(0, 8)})
+                      {nombreComunHallazgo(h, catalogo)} ({h.especie}) — {h.departamento} · {h.investigadorId} · v{h.versionActual}
                     </option>
                   ))}
                 </select>
               </Field>
-
-              <div className="md:col-span-5 flex gap-2 items-end">
-                <Field
-                  id="lookup-uuid-input"
-                  label="Buscar hallazgo por código"
-                  className="flex-1"
-                >
-                  <input
-                    id="lookup-uuid-input"
-                    type="text"
-                    value={lookupUuid}
-                    onChange={(e) => setLookupUuid(e.target.value)}
-                    placeholder="Código de 8 caracteres o UUID completo"
-                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
-                  />
-                </Field>
-                <Button
-                  variant="ghost"
-                  onClick={handleBuscarHallazgoUuid}
-                  className="text-xs"
-                >
-                  Consultar
-                </Button>
-              </div>
             </div>
 
             {selectedHallazgo && (
@@ -1593,6 +1652,8 @@ export function FieldStationWorkspace({
             )}
           </Card>
 
+          {/* Actualizar y reclasificar: solo con hallazgo:editar; el invitado solo consulta el hallazgo */}
+          {canEdit && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card as="section" className="space-y-4">
               <div className="border-b border-line pb-3">
@@ -1673,7 +1734,7 @@ export function FieldStationWorkspace({
                     onChange={(e) => setRecNuevaEspecieId(e.target.value)}
                     className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
                   >
-                    {BACKEND_SEED_SPECIES.map((sp) => (
+                    {catalogo.map((sp) => (
                       <option key={sp.id} value={sp.id}>
                         {sp.scientificName} ({sp.commonName}) [{sp.status}]
                       </option>
@@ -1739,6 +1800,7 @@ export function FieldStationWorkspace({
               </form>
             </Card>
           </div>
+          )}
         </div>
       )}
 

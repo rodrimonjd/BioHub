@@ -13,4 +13,6 @@ public interface EspecieRepositorio extends JpaRepository<Especie, UUID> {
        "   or lower(e.nombreComun) like lower(concat('%', :texto, '%')) " +
        "order by e.nombreCientifico")
     List<Especie> buscar(@Param("texto") String texto);
+
+    boolean existsByNombreCientificoIgnoreCase(String nombreCientifico);
 }

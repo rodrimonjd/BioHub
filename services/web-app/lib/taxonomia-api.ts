@@ -30,7 +30,7 @@ export interface FichaTaxonomica {
 export interface EspecieRegistro {
   id: string;
   nombreCientifico: string;
-  nombreComun: string;
+  nombreComun: string | null;
   estadoConservacion: string;
 }
 
@@ -60,7 +60,8 @@ export async function cargarInventario(): Promise<{
   }
 }
 
-async function asegurarAtributo(nombre: string): Promise<void> {
+// Las escrituras van con X-Usuario-Id: taxonomía exige el permiso ficha:editar y usa ese id como autor.
+async function asegurarAtributo(nombre: string, autor: string): Promise<void> {
   const resCatalogo = await fetch(`${API_BASE}/atributos`, { cache: 'no-store' });
   if (resCatalogo.ok) {
     const catalogo: AtributoTaxonomico[] = await resCatalogo.json();
@@ -68,7 +69,7 @@ async function asegurarAtributo(nombre: string): Promise<void> {
   }
   const res = await fetch(`${API_BASE}/atributos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
     body: JSON.stringify({ nombre, tipoDato: 'TEXTO' }),
   });
   if (!res.ok && res.status !== 409) {
@@ -84,13 +85,13 @@ export async function guardarAtributoEnFicha(params: {
   autor: string;
 }): Promise<FichaTaxonomica> {
   const { especieId, ficha, nombre, valor, autor } = params;
-  await asegurarAtributo(nombre);
+  await asegurarAtributo(nombre, autor);
 
   let res: Response;
   if (!ficha) {
     res = await fetch(`${API_BASE}/fichas`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
       body: JSON.stringify({ especieId, autor, atributos: [{ nombre, valor }] }),
     });
   } else {
@@ -100,12 +101,12 @@ export async function guardarAtributoEnFicha(params: {
     res = yaLoTiene
       ? await fetch(`${API_BASE}/fichas/${ficha.id}/atributos/${encodeURIComponent(nombre)}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
           body: JSON.stringify({ valor, autor }),
         })
       : await fetch(`${API_BASE}/fichas/${ficha.id}/atributos`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': autor },
           body: JSON.stringify({ nombre, valor, autor }),
         });
   }

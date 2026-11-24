@@ -9,11 +9,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.edu.unbosque.biohub.taxonomia.acceso.VerificadorPermisos;
 import jakarta.validation.Valid;
 
 @RestController
@@ -21,15 +23,19 @@ import jakarta.validation.Valid;
 public class FichaControlador {
 
     private final FichaServicio servicio;
+    private final VerificadorPermisos permisos;
 
-    public FichaControlador(FichaServicio servicio) {
+    public FichaControlador(FichaServicio servicio, VerificadorPermisos permisos) {
         this.servicio = servicio;
+        this.permisos = permisos;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public FichaTaxonomica crear(@Valid @RequestBody SolicitudesFicha.CrearFicha request) {
-        return servicio.crear(request);
+    public FichaTaxonomica crear(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @Valid @RequestBody SolicitudesFicha.CrearFicha request) {
+        return servicio.crear(request.conAutor(permisos.exigirEdicion(usuario)));
     }
 
     @GetMapping
@@ -43,17 +49,24 @@ public class FichaControlador {
     }
 
     @PutMapping("/{id}/atributos/{nombre}")
-    public FichaTaxonomica modificarValor(@PathVariable String id, @PathVariable String nombre, @Valid @RequestBody SolicitudesFicha.ModificarValor request) {
-        return servicio.modificarValor(id, nombre, request);
+    public FichaTaxonomica modificarValor(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @PathVariable String id, @PathVariable String nombre,
+            @Valid @RequestBody SolicitudesFicha.ModificarValor request) {
+        return servicio.modificarValor(id, nombre, request.conAutor(permisos.exigirEdicion(usuario)));
     }
 
     @PostMapping("/{id}/atributos")
-    public FichaTaxonomica incorporarAtributo(@PathVariable String id, @Valid @RequestBody SolicitudesFicha.IncorporarAtributo request) {
-        return servicio.incorporarAtributo(id, request);
+    public FichaTaxonomica incorporarAtributo(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @PathVariable String id, @Valid @RequestBody SolicitudesFicha.IncorporarAtributo request) {
+        return servicio.incorporarAtributo(id, request.conAutor(permisos.exigirEdicion(usuario)));
     }
 
     @PostMapping("/{id}/desactivacion")
-    public FichaTaxonomica desactivar(@PathVariable String id, @Valid @RequestBody SolicitudesFicha.DesactivarFicha request) {
-        return servicio.desactivar(id, request);
+    public FichaTaxonomica desactivar(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @PathVariable String id, @Valid @RequestBody SolicitudesFicha.DesactivarFicha request) {
+        return servicio.desactivar(id, request.conAutor(permisos.exigirEdicion(usuario)));
     }
 }

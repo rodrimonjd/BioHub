@@ -84,6 +84,9 @@ public class Expedicion {
         if (equipo.getEstado() == EstadoEquipo.MANTENIMIENTO) {
             throw new IllegalArgumentException( "El equipo " + equipo.getNumeroSerie() + " esta en mantenimiento");
         }
+        if (equipos.stream().anyMatch(e -> e.getId().equals(equipo.getId()))) {
+            throw new IllegalStateException("El equipo " + equipo.getNumeroSerie() + " ya esta asignado a esta expedicion");
+        }
         equipo.asignarResponsable(liderId);
         equipos.add(equipo);
     }
