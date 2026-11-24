@@ -55,6 +55,10 @@ const nextConfig: NextConfig = {
         destination: `${GATEWAY_URL}/gateway/consumo`,
       },
       {
+        source: '/api/gateway/limite',
+        destination: `${GATEWAY_URL}/gateway/limite`,
+      },
+      {
         source: '/api/externa/:path*',
         destination: `${GATEWAY_URL}/api/v1/:path*`,
       },

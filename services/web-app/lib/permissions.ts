@@ -34,6 +34,7 @@ export const PERMISOS = {
   ADMINISTRAR_ROLES: 'roles:administrar',
   EDITAR_FICHA: 'ficha:editar',
   MONITOREAR_API: 'api_externa:monitorear',
+  CONFIGURAR_API: 'api_externa:configurar',
 } as const;
 
 const ETIQUETAS_ROL: Record<string, string> = {
@@ -174,6 +175,10 @@ export function canViewReports(user: BioHubUser | null | undefined): boolean {
 /** Ver el consumo de la API externa: permiso api_externa:monitorear (el invitado no lo tiene). */
 export function canViewApiUsage(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.MONITOREAR_API);
+}
+
+export function canConfigureApi(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.CONFIGURAR_API);
 }
 
 /** Solicitar reportes científicos: permiso reporte:generar. */
