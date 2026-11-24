@@ -607,12 +607,7 @@ export default function PanelPage() {
                 <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
                   Plataforma abierta con límite de peticiones
                 </p>
-                <ApiUsagePanel
-                  consumerName="Universidad & ONG — Modelo Climático Regional"
-                  endpointUrl="https://api.biohub.gov.co/v1/inventario"
-                  requestsPerMinute={36}
-                  limitPerMinute={60}
-                />
+                <ApiUsagePanel />
               </div>
 
               <div className="space-y-3">
