@@ -33,6 +33,7 @@ export const PERMISOS = {
   GESTIONAR_EQUIPOS: 'equipo:gestionar',
   ADMINISTRAR_ROLES: 'roles:administrar',
   EDITAR_FICHA: 'ficha:editar',
+  MONITOREAR_API: 'api_externa:monitorear',
 } as const;
 
 const ETIQUETAS_ROL: Record<string, string> = {
@@ -163,6 +164,16 @@ export function canEditFichas(user: BioHubUser | null | undefined): boolean {
 /** Autorizar reclasificaciones: permiso hallazgo:validar. */
 export function canAuthorizeReclassification(user: BioHubUser | null | undefined): boolean {
   return tienePermiso(user, PERMISOS.VALIDAR_HALLAZGO);
+}
+
+/** Ver reportes científicos: permiso reporte:ver (el invitado no lo tiene). */
+export function canViewReports(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.VER_REPORTES);
+}
+
+/** Ver el consumo de la API externa: permiso api_externa:monitorear (el invitado no lo tiene). */
+export function canViewApiUsage(user: BioHubUser | null | undefined): boolean {
+  return tienePermiso(user, PERMISOS.MONITOREAR_API);
 }
 
 /** Solicitar reportes científicos: permiso reporte:generar. */

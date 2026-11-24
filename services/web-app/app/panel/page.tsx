@@ -11,15 +11,17 @@ import { Section } from '@/components/ui/Section';
 import { SiteHeader } from '@/components/biohub/SiteHeader';
 import { SpeciesCard, SpeciesCardProps } from '@/components/biohub/SpeciesCard';
 import { HistorialRegistros } from '@/components/biohub/HistorialRegistros';
-import { ProtectedLocation } from '@/components/biohub/ProtectedLocation';
+import { UbicacionPorEspecie } from '@/components/biohub/UbicacionPorEspecie';
 import { ApiUsagePanel } from '@/components/biohub/ApiUsagePanel';
 import { ReportesPanel } from '@/components/biohub/ReportesPanel';
+import { SeccionBloqueada } from '@/components/biohub/SeccionBloqueada';
 import { FieldStationWorkspace } from '@/components/biohub/FieldStationWorkspace';
 import {
   actualizarAcceso,
   BioHubUser,
   canEditFichas,
-  canViewExactCoordinates,
+  canViewApiUsage,
+  canViewReports,
   clearStoredSession,
   getStoredSession,
   PERMISOS,
@@ -28,7 +30,6 @@ import {
 } from '@/lib/permissions';
 import { obtenerAcceso } from '@/lib/autorizacion-api';
 import { AdminUsuarios } from '@/components/biohub/AdminUsuarios';
-import { BACKEND_SEED_SPECIES } from '@/lib/registro-api';
 import {
   cargarInventario,
   EspecieRegistro,
@@ -37,7 +38,6 @@ import {
 } from '@/lib/taxonomia-api';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 
-const JAGUAR_SEED = BACKEND_SEED_SPECIES[1];
 
 const INITIAL_SPECIES_CARDS: SpeciesCardProps[] = [
   {
@@ -580,20 +580,18 @@ export default function PanelPage() {
               </div>
 
               <div className="lg:col-span-5 space-y-4">
-                <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
-                  El corredor biológico
-                </p>
+                <div className="space-y-1">
+                  <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+                    El corredor biológico
+                  </p>
+                  <p className="text-sm text-ink-muted">Ubicación geográfica sensible</p>
+                </div>
 
                 {/* La visibilidad depende del permiso ubicacion:ver_exacta de la cuenta (servicio-autorizacion) */}
-                <ProtectedLocation
-                  puedeVerExacta={canViewExactCoordinates(currentUser)}
-                  nivelLabel={currentUser.roleLabel}
-                  speciesCommonName={`${JAGUAR_SEED.commonName} del corredor Macarena`}
-                  speciesScientificName={JAGUAR_SEED.scientificName}
-                  status={JAGUAR_SEED.status}
-                  regionLabel="Región: Meta"
-                  exactCoordinates="02° 42' 45.0&quot; N · 73° 54' 15.1&quot; W"
-                  altitude="485 msnm"
+                <UbicacionPorEspecie
+                  usuario={currentUser}
+                  especies={inventario?.especies ?? []}
+                  recarga={recargaHistorial}
                 />
               </div>
             </div>
@@ -607,14 +605,30 @@ export default function PanelPage() {
                 <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
                   Plataforma abierta con límite de peticiones
                 </p>
-                <ApiUsagePanel />
+                {/* El consumo de la API exige api_externa:monitorear; el invitado (CIUDADANO) no lo tiene */}
+                {canViewApiUsage(currentUser) ? (
+                  <ApiUsagePanel usuarioId={currentUser.id} />
+                ) : (
+                  <SeccionBloqueada
+                    titulo="Plataforma abierta bloqueada"
+                    descripcion="Tu rol no tiene acceso al consumo de la API externa ni a sus pruebas."
+                  />
+                )}
               </div>
 
               <div className="space-y-3">
                 <p className="font-mono text-xs uppercase tracking-wider text-water-600 font-semibold">
                   Reportes analíticos sin bloqueo de campo
                 </p>
-                <ReportesPanel currentUser={currentUser} />
+                {/* Ver reportes exige reporte:ver; el invitado (CIUDADANO) no lo tiene */}
+                {canViewReports(currentUser) ? (
+                  <ReportesPanel currentUser={currentUser} />
+                ) : (
+                  <SeccionBloqueada
+                    titulo="Reportes bloqueados"
+                    descripcion="Tu rol no tiene permiso para consultar ni generar reportes científicos."
+                  />
+                )}
               </div>
             </div>
           </div>
