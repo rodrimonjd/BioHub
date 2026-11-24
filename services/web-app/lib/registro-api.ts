@@ -109,6 +109,39 @@ export interface Expedicion {
   fechaInicio: string;
   fechaFin: string | null;
   liderId: string;
+  equipos?: Equipo[];
+}
+
+export interface Equipo {
+  id: string;
+  numeroSerie: string;
+  tipo: string;
+  modelo: string | null;
+  estado: string;
+  responsableId: string | null;
+}
+
+export interface ExpedicionNueva {
+  nombre: string;
+  zona: string;
+  fechaInicio: string;
+  fechaFin: string | null;
+  liderId: string;
+}
+
+export interface EquipoNuevo {
+  numeroSerie: string;
+  tipo: string;
+  modelo: string | null;
+}
+
+export async function listarEquipos(): Promise<Equipo[]> {
+  try {
+    const res = await fetch(`${API_BASE}/equipos`, { cache: 'no-store' });
+    return res.ok ? res.json() : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Expediciones registradas (GET /expediciones). Lista vacía si registro no responde. */
@@ -259,6 +292,38 @@ export interface EspecieCreada {
 /** Agrega una especie al catálogo de servicio-registro (requiere hallazgo:crear). */
 export async function crearEspecie(payload: EspecieNueva, usuarioId: string): Promise<EspecieCreada> {
   const res = await escribir('/especies', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function crearEquipo(payload: EquipoNuevo, usuarioId: string): Promise<Equipo> {
+  const res = await escribir('/equipos', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function crearExpedicion(payload: ExpedicionNueva, usuarioId: string): Promise<Expedicion> {
+  const res = await escribir('/expediciones', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function asignarEquipoAExpedicion(
+  expedicionId: string,
+  equipoId: string,
+  usuarioId: string
+): Promise<Expedicion> {
+  const res = await escribir(`/expediciones/${expedicionId}/equipos`, 'POST', { equipoId }, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function agregarEvidencia(
+  hallazgoId: string,
+  evidencia: EvidenciaRequest,
+  usuarioId: string
+): Promise<HallazgoResponse> {
+  const res = await escribir(`/hallazgos/${hallazgoId}/evidencias`, 'POST', evidencia, usuarioId,
     'Servicio de registro no disponible');
   return res.json();
 }
