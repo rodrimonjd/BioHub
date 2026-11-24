@@ -275,12 +275,27 @@ async function cambiarRolDeUsuario(
   }
 }
 
-export function asignarRol(adminId: string, usuarioId: string, rol: string): Promise<void> {
-  return cambiarRolDeUsuario('POST', adminId, usuarioId, rol);
-}
+/**
+ * Deja la cuenta con un solo rol. Primero se asigna el nuevo y luego se quitan los demás: si algo falla
+ * a la mitad, la cuenta no se queda sin acceso. Se leen los roles guardados porque CIUDADANO puede
+ * aparecer por defecto, sin estar asignado, y en ese caso no hay nada que quitar.
+ */
+export async function cambiarRol(adminId: string, usuarioId: string, rol: string): Promise<void> {
+  const rolesDe = async () =>
+    (await listarUsuarios(adminId)).find((u) => u.id === usuarioId)?.roles ?? [];
 
-export function quitarRol(adminId: string, usuarioId: string, rol: string): Promise<void> {
-  return cambiarRolDeUsuario('DELETE', adminId, usuarioId, rol);
+  if (!(await rolesDe()).includes(rol)) {
+    await cambiarRolDeUsuario('POST', adminId, usuarioId, rol);
+  }
+  const sobrantes = (await rolesDe()).filter((r) => r !== rol);
+  try {
+    for (const anterior of sobrantes) {
+      await cambiarRolDeUsuario('DELETE', adminId, usuarioId, anterior);
+    }
+  } catch (error) {
+    const motivo = error instanceof Error ? ` ${error.message}` : '';
+    throw new ErrorAdministracion(`El rol nuevo quedó asignado, pero no se pudo quitar el anterior.${motivo}`);
+  }
 }
 
 export function historialRoles(adminId: string): Promise<CambioRol[]> {
