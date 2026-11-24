@@ -79,7 +79,7 @@ class UsuarioControladorTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"id\":\"x.y\",\"nombre\":\"X\",\"correo\":\"x@y.co\",\"clave\":\"Clave-Segura-1\"}"))
                 .andExpect(status().isForbidden());
-        verify(servicio, never()).crear(any());
+        verify(servicio, never()).crear(any(), any());
     }
 
     @Test

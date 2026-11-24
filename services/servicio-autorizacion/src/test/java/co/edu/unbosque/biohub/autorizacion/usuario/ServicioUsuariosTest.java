@@ -87,27 +87,27 @@ class ServicioUsuariosTest {
     @Test
     void crearGuardaSoloElHashYAsignaElRol() {
         servicio.crear(new SolicitudCrearUsuario("Nueva.Persona", "Nueva Persona", "Nueva@BioHub.gov.co",
-                "Clave-Nueva-2026", "AUTORIDAD_AMBIENTAL"));
+                "Clave-Nueva-2026", "AUTORIDAD_AMBIENTAL"), "admin");
         Usuario guardado = tabla.get("nueva.persona");
         assertEquals("nueva@biohub.gov.co", guardado.getCorreo());
         assertNotEquals("Clave-Nueva-2026", guardado.getHashClave());
         assertTrue(claves.matches("Clave-Nueva-2026", guardado.getHashClave()));
-        verify(roles).asignarRol("nueva.persona", "AUTORIDAD_AMBIENTAL");
+        verify(roles).asignarRol("nueva.persona", "AUTORIDAD_AMBIENTAL", "admin");
     }
 
     @Test
     void elIdDeInvitadoEstaReservado() {
         assertThrows(IllegalArgumentException.class, () -> servicio.crear(
-                new SolicitudCrearUsuario("Invitado", "Alguien", "alguien@biohub.gov.co", "Clave-Segura-1", "ADMIN")));
-        verify(roles, never()).asignarRol(anyString(), anyString());
+                new SolicitudCrearUsuario("Invitado", "Alguien", "alguien@biohub.gov.co", "Clave-Segura-1", "ADMIN"), "admin"));
+        verify(roles, never()).asignarRol(anyString(), anyString(), anyString());
     }
 
     @Test
     void noPermiteIdNiCorreoRepetidos() {
         assertThrows(IllegalArgumentException.class, () -> servicio.crear(
-                new SolicitudCrearUsuario("inv", "Otra", "otra@biohub.gov.co", "Clave-Segura-1", null)));
+                new SolicitudCrearUsuario("inv", "Otra", "otra@biohub.gov.co", "Clave-Segura-1", null), "admin"));
         assertThrows(IllegalArgumentException.class, () -> servicio.crear(
-                new SolicitudCrearUsuario("otra", "Otra", "INV@biohub.gov.co", "Clave-Segura-1", null)));
-        verify(roles, never()).asignarRol(anyString(), anyString());
+                new SolicitudCrearUsuario("otra", "Otra", "INV@biohub.gov.co", "Clave-Segura-1", null), "admin"));
+        verify(roles, never()).asignarRol(anyString(), anyString(), anyString());
     }
 }

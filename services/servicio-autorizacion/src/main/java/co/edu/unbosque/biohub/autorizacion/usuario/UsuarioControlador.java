@@ -59,6 +59,6 @@ public class UsuarioControlador {
     public VistaUsuario crear(@RequestHeader(value = CABECERA_USUARIO, required = false) String solicitante,
                               @Valid @RequestBody SolicitudCrearUsuario solicitud) {
         roles.exigirAdmin(solicitante);
-        return servicio.crear(solicitud);
+        return servicio.crear(solicitud, solicitante.trim());
     }
 }
