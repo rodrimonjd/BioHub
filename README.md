@@ -4,7 +4,7 @@ Proyecto semestral de **Ingeniería de Software 2** · Universidad El Bosque.
 Plataforma que centraliza, protege y divulga el inventario nacional de flora y fauna.
 
 ## Equipo
-Juan David Rodriguez · Raul Sebastian Escobar · Sebastian Garcia
+Juan David Rodriguez · Raul Sebastian Escobar · Sebastian Garcia · Sebastian Bonilla · Julian Rodriguez
 
 ## Arquitectura (Entrega 2)
 Microservicios + arquitectura orientada a eventos (EDA) + API Gateway. Cada servicio con su propia base de datos.
