@@ -4,6 +4,7 @@ import co.edu.unbosque.biohub.registro_service.especie.Especie;
 import co.edu.unbosque.biohub.registro_service.especie.EspecieRepositorio;
 import co.edu.unbosque.biohub.registro_service.evento.FabricaEventos;
 import co.edu.unbosque.biohub.registro_service.evento.OutboxServicio;
+import co.edu.unbosque.biohub.registro_service.evidencia.Evidencia;
 import co.edu.unbosque.biohub.registro_service.evidencia.FabricaEvidencia;
 import co.edu.unbosque.biohub.registro_service.evidencia.SolicitudEvidencia;
 import co.edu.unbosque.biohub.registro_service.expedicion.Expedicion;
@@ -77,6 +78,16 @@ public class HallazgoServicio {
     public Hallazgo modificar(UUID id, SolicitudModificarHallazgo r) {
         Hallazgo hallazgo = obtener(id);
         CambioHallazgo cambio = hallazgo.modificar(r.campo().trim(), r.valor().trim(), r.autor());
+        outbox.guardar(FabricaEventos.hallazgoModificado(hallazgo, cambio));
+        return hallazgo;
+    }
+
+    @Transactional
+    public Hallazgo agregarEvidencia(UUID id, SolicitudEvidencia e, String autor) {
+        Hallazgo hallazgo = obtener(id);
+        Evidencia evidencia = FabricaEvidencia.crear(e.tipo(), e.valor(), e.unidad(), e.urlArchivo(), e.atributoTaxonomico());
+        CambioHallazgo cambio = hallazgo.registrarEvidencia(evidencia, autor);
+        hallazgos.saveAndFlush(hallazgo);
         outbox.guardar(FabricaEventos.hallazgoModificado(hallazgo, cambio));
         return hallazgo;
     }

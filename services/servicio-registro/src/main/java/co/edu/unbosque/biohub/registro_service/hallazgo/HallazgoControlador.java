@@ -1,6 +1,7 @@
 package co.edu.unbosque.biohub.registro_service.hallazgo;
 
 import co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos;
+import co.edu.unbosque.biohub.registro_service.evidencia.SolicitudEvidencia;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -52,6 +53,13 @@ public class HallazgoControlador {
                                        @PathVariable UUID id, @Valid @RequestBody SolicitudModificarHallazgo request) {
         String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
         return RespuestaHallazgo.desde(service.modificar(id, request.conAutor(autor)));
+    }
+
+    @PostMapping("/{id}/evidencias")
+    public RespuestaHallazgo agregarEvidencia(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                              @PathVariable UUID id, @Valid @RequestBody SolicitudEvidencia request) {
+        String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
+        return RespuestaHallazgo.desde(service.agregarEvidencia(id, request, autor));
     }
 
     @PostMapping("/{id}/reclasificacion")
