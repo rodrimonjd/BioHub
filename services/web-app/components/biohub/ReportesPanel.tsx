@@ -158,7 +158,7 @@ export function ReportesPanel({ currentUser }: { currentUser: BioHubUser }) {
       ) : (
         <SeccionBloqueada
           titulo="Generación de reportes bloqueada"
-          descripcion="Requiere el permiso para solicitar reportes (autoridad ambiental o administrador)."
+          descripcion="Requiere el permiso para solicitar reportes (investigador, autoridad ambiental o administrador)."
         />
       )}
 
