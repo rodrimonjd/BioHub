@@ -15,6 +15,7 @@ public class ConsumidorExterno {
 
     private long minutoActual = -1;
     private int solicitudesMinutoActual = 0;
+    private int rechazadasMinutoActual = 0;
 
     public ConsumidorExterno(String id, String organizacion, String hashApiKey, int limitePorMinuto) {
         this.id = id;
@@ -39,8 +40,10 @@ public class ConsumidorExterno {
         if (minuto != minutoActual) {
             minutoActual = minuto;
             solicitudesMinutoActual = 0;
+            rechazadasMinutoActual = 0;
         }
         if (solicitudesMinutoActual >= limitePorMinuto) {
+            rechazadasMinutoActual++;
             return false;
         }
         solicitudesMinutoActual++;
@@ -64,4 +67,12 @@ public class ConsumidorExterno {
     public String getOrganizacion() { return organizacion; }
     public int getLimitePorMinuto() { return limitePorMinuto; }
     public synchronized int getSolicitudesMinutoActual() { return solicitudesMinutoActual; }
+
+    synchronized int solicitudesEn(Instant ahora) {
+        return ahora.getEpochSecond() / 60 == minutoActual ? solicitudesMinutoActual : 0;
+    }
+
+    synchronized int rechazadasEn(Instant ahora) {
+        return ahora.getEpochSecond() / 60 == minutoActual ? rechazadasMinutoActual : 0;
+    }
 }
