@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
+import co.edu.unbosque.biohub.consulta.configuracion.PropiedadesConsulta;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -22,11 +22,11 @@ public class ConsumidorEventos {
     private final String colaErrores;
 
     public ConsumidorEventos(JsonMapper json, ProyectorHallazgos proyector, RabbitTemplate rabbit,
-                             @Value("${consulta.eventos.cola-errores}") String colaErrores) {
+                             PropiedadesConsulta propiedades) {
         this.json = json;
         this.proyector = proyector;
         this.rabbit = rabbit;
-        this.colaErrores = colaErrores;
+        this.colaErrores = propiedades.eventos().colaErrores();
     }
 
     @RabbitListener(queues = "${consulta.eventos.cola}")

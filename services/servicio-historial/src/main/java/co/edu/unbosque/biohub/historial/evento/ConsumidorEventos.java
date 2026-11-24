@@ -1,12 +1,12 @@
 package co.edu.unbosque.biohub.historial.evento;
 
+import co.edu.unbosque.biohub.historial.configuracion.PropiedadesHistorial;
 import co.edu.unbosque.biohub.historial.historial.ServicioRegistroHistorial;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -25,11 +25,11 @@ public class ConsumidorEventos {
     private final String colaErrores;
 
     public ConsumidorEventos(JsonMapper json, ServicioRegistroHistorial servicio, RabbitTemplate rabbit,
-                             @Value("${historial.eventos.cola-errores}") String colaErrores) {
+                             PropiedadesHistorial propiedades) {
         this.json = json;
         this.servicio = servicio;
         this.rabbit = rabbit;
-        this.colaErrores = colaErrores;
+        this.colaErrores = propiedades.eventos().colaErrores();
     }
 
     @RabbitListener(queues = "${historial.eventos.cola}")

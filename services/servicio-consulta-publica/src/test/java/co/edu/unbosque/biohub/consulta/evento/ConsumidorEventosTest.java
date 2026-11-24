@@ -1,5 +1,6 @@
 package co.edu.unbosque.biohub.consulta.evento;
 
+import co.edu.unbosque.biohub.consulta.PropiedadesDePrueba;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
@@ -24,7 +25,8 @@ class ConsumidorEventosTest {
     private final ProyectorHallazgos proyector = mock(ProyectorHallazgos.class);
     private final RabbitTemplate rabbit = mock(RabbitTemplate.class);
     private final ConsumidorEventos consumidor =
-            new ConsumidorEventos(JsonMapper.builder().build(), proyector, rabbit, DLQ);
+            new ConsumidorEventos(JsonMapper.builder().build(), proyector, rabbit,
+                    PropiedadesDePrueba.con("http://localhost:8082", DLQ));
 
     private static Message mensaje(String cuerpo) {
         return new Message(cuerpo.getBytes(StandardCharsets.UTF_8), new MessageProperties());
