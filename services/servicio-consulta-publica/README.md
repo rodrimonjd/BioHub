@@ -72,7 +72,7 @@ Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMB
 
 La palabra clave busca cada palabra en la especie (científica o común), la descripción y el departamento, sin distinguir tildes ni mayúsculas. No busca en la región ni en las coordenadas, para que no se pueda deducir una ubicación protegida.
 
-Cabecera opcional `X-Usuario-Id` (la ponen el API Gateway y la web). Sin ella la consulta es anónima.
+Token opcional (`Authorization: Bearer`, lo ponen el API Gateway y la web). Sin él la consulta es anónima; con uno falso o vencido responde 401.
 
 ### Visibilidad de la ubicación (`nivelUbicacion`)
 | Nivel | Coordenadas | Región | Departamento |
@@ -89,7 +89,8 @@ curl.exe "http://localhost:8083/api/v1/consulta/hallazgos?departamento=Meta"
 
 curl.exe "http://localhost:8083/api/v1/consulta/hallazgos?especie=jaguar&texto=meta&fechaDesde=2026-11-01"
 
-curl.exe http://localhost:8083/api/v1/consulta/hallazgos/<id> -H "X-Usuario-Id: admin"
+$r = Invoke-RestMethod -Method Post -Uri http://localhost:8082/api/v1/autorizacion/sesiones -ContentType application/json -Body '{"usuario":"admin","clave":"BioHub-Admin-2026"}'
+curl.exe http://localhost:8083/api/v1/consulta/hallazgos/<id> -H "Authorization: Bearer $($r.token)"
 ```
 
 ## Patrones

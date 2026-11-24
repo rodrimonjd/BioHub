@@ -30,7 +30,7 @@ GET /api/v1/historial/... ──► VerificadorPermisos (historial:ver en servic
 | Conservar versiones (HU-20.1, ASR-07) | Cada cambio crea una `VersionRegistro` nueva con el estado completo; las anteriores nunca se tocan. |
 | No eliminada ni alterada (HU-19.3) | Triggers en MySQL rechazan todo `UPDATE` y `DELETE` (incluso como root) · entidades `@Immutable` · la API no tiene operaciones de escritura · cadena de hashes SHA-256 verificable en `/integridad`. |
 | Sin cambios omitidos (HU-19.2) | Si llega una versión saltándose otras, se guarda igual y el historial lo indica (`completo: false`, `versionesFaltantes`). |
-| Solo usuarios autorizados (HU-09, ASR-05) | Cabecera `X-Usuario-Id` con el permiso `historial:ver` (ADMIN, AUTORIDAD_AMBIENTAL, INVESTIGADOR). Si autorización no responde, se niega el acceso (503). |
+| Solo usuarios autorizados (HU-09, ASR-05) | Token de una cuenta con el permiso `historial:ver` (ADMIN, AUTORIDAD_AMBIENTAL, INVESTIGADOR). Si autorización no responde, se niega el acceso (503). |
 
 ### Robustez
 - **Idempotente:** un evento repetido (mismo `idEvento`) o con una versión ya guardada se ignora.
@@ -60,7 +60,7 @@ Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMB
 > **MySQL y los triggers:** con el binlog activo, MySQL solo deja crear triggers a usuarios sin SUPER si `log_bin_trust_function_creators=1`. El `docker-compose.yml` ya arranca MySQL con esa opción. Si tu contenedor de MySQL es anterior, recréalo con `docker compose -f infra/docker-compose.yml up -d mysql`.
 
 ## API (`/api/v1/historial`)
-`{tipo}` es `hallazgos` o `fichas`. Todas exigen la cabecera `X-Usuario-Id` con el permiso `historial:ver`.
+`{tipo}` es `hallazgos` o `fichas`. Todas exigen un token (`Authorization: Bearer`) de una cuenta con el permiso `historial:ver`.
 
 | Método | Ruta | Descripción | Historia |
 |---|---|---|---|
@@ -74,11 +74,12 @@ No existen `POST`, `PUT` ni `DELETE`: el historial solo se alimenta de eventos.
 
 ## Ejemplos (PowerShell)
 ```powershell
-curl.exe http://localhost:8086/api/v1/historial/hallazgos/<id> -H "X-Usuario-Id: admin"
+$r = Invoke-RestMethod -Method Post -Uri http://localhost:8082/api/v1/autorizacion/sesiones -ContentType application/json -Body '{"usuario":"admin","clave":"BioHub-Admin-2026"}'
+curl.exe http://localhost:8086/api/v1/historial/hallazgos/<id> -H "Authorization: Bearer $($r.token)"
 
-curl.exe http://localhost:8086/api/v1/historial/hallazgos/<id>/versiones/1 -H "X-Usuario-Id: admin"
+curl.exe http://localhost:8086/api/v1/historial/hallazgos/<id>/versiones/1 -H "Authorization: Bearer $($r.token)"
 
-curl.exe http://localhost:8086/api/v1/historial/fichas/<id>/integridad -H "X-Usuario-Id: admin"
+curl.exe http://localhost:8086/api/v1/historial/fichas/<id>/integridad -H "Authorization: Bearer $($r.token)"
 ```
 
 ## Patrones

@@ -70,7 +70,7 @@ public class GatewayController {
     private void exigir(String usuarioId, String permiso) {
         if (usuarioId == null || usuarioId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Se requiere la cabecera " + ApiGateway.CABECERA_USUARIO + " con el permiso " + permiso);
+                    "Se requiere iniciar sesion con el permiso " + permiso);
         }
         boolean permitido;
         try {
