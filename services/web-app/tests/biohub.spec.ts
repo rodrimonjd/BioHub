@@ -66,7 +66,10 @@ test.describe('BioHub — Flujos principales e2e', () => {
     await page.getByLabel('Usuario o correo institucional').fill('investigador.campo');
     await page.getByLabel('Contraseña').fill('clave-incorrecta');
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-    await expect(page.getByRole('alert')).toContainText('Usuario o contraseña incorrectos');
+    // Next.js agrega su propio role="alert" vacío (__next-route-announcer__): se busca la alerta por su texto
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Usuario o contraseña incorrectos' })
+    ).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
 
     await iniciarSesion(page, 'investigador.campo', 'BioHub-Invest-2026');
