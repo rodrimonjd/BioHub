@@ -20,6 +20,11 @@ export interface SpeciesCardProps {
   specimenCode: string;
   attributes: FlexibleAttribute[];
   illustrationVariant?: 'amphibian' | 'avian' | 'reptile';
+  /**
+   * Desactiva la ficha de la especie con un motivo opcional. Solo se pasa si la especie tiene ficha
+   * y la cuenta tiene el permiso ficha:desactivar; sin él la tarjeta no muestra el botón.
+   */
+  onDesactivar?: (motivo: string) => Promise<void>;
 }
 
 function BotanicalIllustration({
@@ -107,9 +112,30 @@ export function SpeciesCard({
   specimenCode,
   attributes,
   illustrationVariant = 'amphibian',
+  onDesactivar,
 }: SpeciesCardProps) {
   const [expanded, setExpanded] = useState<boolean>(false);
   const detailsId = `species-attributes-${id}`;
+  // Confirmación antes de desactivar la ficha
+  const [confirmando, setConfirmando] = useState<boolean>(false);
+  const [motivo, setMotivo] = useState<string>('');
+  const [desactivando, setDesactivando] = useState<boolean>(false);
+  const [errorDesactivar, setErrorDesactivar] = useState<string | null>(null);
+
+  const handleDesactivar = async () => {
+    if (!onDesactivar) return;
+    setDesactivando(true);
+    setErrorDesactivar(null);
+    try {
+      await onDesactivar(motivo);
+      setConfirmando(false);
+      setMotivo('');
+    } catch (error) {
+      setErrorDesactivar(error instanceof Error ? error.message : 'No se pudo desactivar la ficha.');
+    } finally {
+      setDesactivando(false);
+    }
+  };
 
   return (
     <Card as="article" className="flex flex-col justify-between space-y-4">
@@ -168,6 +194,64 @@ export function SpeciesCard({
               </div>
             ))}
           </dl>
+        )}
+
+        {onDesactivar && (
+          <div className="mt-3 space-y-2">
+            {!confirmando ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmando(true);
+                  setErrorDesactivar(null);
+                }}
+                className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-md border border-iucn-cr/50 px-3.5 py-2 text-xs font-medium text-ink transition-colors duration-150 hover:bg-iucn-cr/10"
+              >
+                Desactivar ficha
+              </button>
+            ) : (
+              <div className="space-y-2 rounded-md border border-iucn-cr/50 bg-iucn-cr/5 p-3">
+                <p className="text-xs text-ink">
+                  La ficha de <span className="font-semibold">{commonName}</span> quedará inactiva. No se borra: el
+                  cambio queda en el historial.
+                </p>
+                <label className="block space-y-1 text-xs text-ink">
+                  <span className="font-medium">Motivo (opcional)</span>
+                  <input
+                    type="text"
+                    value={motivo}
+                    maxLength={500}
+                    onChange={(e) => setMotivo(e.target.value)}
+                    placeholder="Ej. ficha duplicada o especie reclasificada"
+                    className="min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink"
+                  />
+                </label>
+                {errorDesactivar && (
+                  <p role="alert" className="rounded-md border border-iucn-cr bg-iucn-cr/10 px-3 py-2 font-mono text-xs text-ink">
+                    {errorDesactivar}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmando(false)}
+                    disabled={desactivando}
+                    className="min-h-11 cursor-pointer rounded-md border border-line bg-paper px-3 text-xs text-ink hover:border-forest-700"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDesactivar}
+                    disabled={desactivando}
+                    className="min-h-11 cursor-pointer rounded-md bg-iucn-cr px-3 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                  >
+                    {desactivando ? 'Desactivando...' : 'Confirmar desactivación'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </Card>

@@ -67,6 +67,6 @@ public class FichaControlador {
     public FichaTaxonomica desactivar(
             @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
             @PathVariable String id, @Valid @RequestBody SolicitudesFicha.DesactivarFicha request) {
-        return servicio.desactivar(id, request.conAutor(permisos.exigirEdicion(usuario)));
+        return servicio.desactivar(id, request.conAutor(permisos.exigirDesactivacion(usuario)));
     }
 }

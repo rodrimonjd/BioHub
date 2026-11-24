@@ -96,7 +96,6 @@ public class FichaTaxonomica {
         eventosPendientes.add(evento);
     }
 
-    /** Quita los primeros eventos, que ya se publicaron. */
     public void quitarEventosPublicados(int cantidad) {
         for (int i = 0; i < cantidad; i++) {
             eventosPendientes.remove(0);

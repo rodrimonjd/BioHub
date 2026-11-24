@@ -4,10 +4,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Exige permisos de servicio-autorizacion antes de entregar o generar reportes (ASR-05: permisos centralizados).
- * El usuario llega en la cabecera X-Usuario-Id.
- */
 @Component
 public class VerificadorPermisos {
 
@@ -22,7 +18,6 @@ public class VerificadorPermisos {
         this.autorizacion = autorizacion;
     }
 
-    /** @return el id del usuario (sin espacios) */
     public String exigir(String usuarioId, String permiso) {
         if (usuarioId == null || usuarioId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,

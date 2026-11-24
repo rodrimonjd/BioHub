@@ -9,6 +9,7 @@ public class VerificadorPermisos {
 
     public static final String CABECERA_USUARIO = "X-Usuario-Id";
     public static final String EDITAR_FICHA = "ficha:editar";
+    public static final String DESACTIVAR_FICHA = "ficha:desactivar";
 
     private final ClienteAutorizacion autorizacion;
 
@@ -16,15 +17,22 @@ public class VerificadorPermisos {
         this.autorizacion = autorizacion;
     }
 
-    /** @return el id del usuario (sin espacios), listo para usarse como autor */
     public String exigirEdicion(String usuarioId) {
+        return exigir(usuarioId, EDITAR_FICHA);
+    }
+
+    public String exigirDesactivacion(String usuarioId) {
+        return exigir(usuarioId, DESACTIVAR_FICHA);
+    }
+
+    private String exigir(String usuarioId, String permiso) {
         if (usuarioId == null || usuarioId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Se requiere la cabecera " + CABECERA_USUARIO + " con el permiso " + EDITAR_FICHA);
+                    "Se requiere la cabecera " + CABECERA_USUARIO + " con el permiso " + permiso);
         }
         String usuario = usuarioId.trim();
-        if (!autorizacion.tienePermiso(usuario, EDITAR_FICHA)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Se requiere el permiso " + EDITAR_FICHA);
+        if (!autorizacion.tienePermiso(usuario, permiso)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Se requiere el permiso " + permiso);
         }
         return usuario;
     }

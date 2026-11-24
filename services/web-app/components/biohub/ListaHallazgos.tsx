@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConservationBadge } from '@/components/ui/ConservationBadge';
 import { Expedicion, HallazgoResponse, SeedSpecies } from '@/lib/registro-api';
-import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
+import { coincideHallazgo, enRangoDeFechas, nombreComunHallazgo } from '@/lib/hallazgos';
 import { FichaTaxonomica } from '@/lib/taxonomia-api';
 
 export interface ListaHallazgosProps {
@@ -15,8 +15,8 @@ export interface ListaHallazgosProps {
   fichas: FichaTaxonomica[];
   /** Expediciones de servicio-registro, para mostrar en cuál se hizo cada hallazgo. */
   expediciones: Expedicion[];
-  /** Con ubicacion:ver_exacta se muestran las coordenadas; si no, solo departamento y región. */
-  puedeVerExacta: boolean;
+  /** Si la cuenta ve las coordenadas exactas de esa especie (ubicacion:ver_exacta o acceso dado por la autoridad ambiental). */
+  puedeVerExacta: (especieId: string) => boolean;
   /** Si la cuenta puede modificar hallazgos: lleva el hallazgo a la pestaña de reclasificación. */
   onModificar?: (id: string) => void;
 }
@@ -46,13 +46,32 @@ export function ListaHallazgos({
   onModificar,
 }: ListaHallazgosProps) {
   const [busqueda, setBusqueda] = useState<string>('');
+  const [desde, setDesde] = useState<string>('');
+  const [hasta, setHasta] = useState<string>('');
   const [visibles, setVisibles] = useState<number>(POR_PAGINA);
   const [abierto, setAbierto] = useState<string | null>(null);
 
+  const rangoInvertido = desde !== '' && hasta !== '' && desde > hasta;
+
   const filtrados = useMemo(
-    () => hallazgos.filter((h) => coincideHallazgo(h, busqueda, catalogo)),
-    [hallazgos, busqueda, catalogo]
+    () =>
+      rangoInvertido
+        ? []
+        : hallazgos.filter(
+            (h) => coincideHallazgo(h, busqueda, catalogo) && enRangoDeFechas(h, desde, hasta)
+          ),
+    [hallazgos, busqueda, catalogo, desde, hasta, rangoInvertido]
   );
+
+  const hayFiltroDeFecha = desde !== '' || hasta !== '';
+  const describirFiltro = () => {
+    const partes: string[] = [];
+    if (busqueda.trim()) partes.push(`"${busqueda.trim()}"`);
+    if (desde && hasta) partes.push(`entre el ${fecha(`${desde}T12:00:00`)} y el ${fecha(`${hasta}T12:00:00`)}`);
+    else if (desde) partes.push(`desde el ${fecha(`${desde}T12:00:00`)}`);
+    else if (hasta) partes.push(`hasta el ${fecha(`${hasta}T12:00:00`)}`);
+    return partes.join(' ');
+  };
 
   return (
     <Card as="section" aria-labelledby="lista-hallazgos-heading" className="space-y-4">
@@ -78,11 +97,58 @@ export function ListaHallazgos({
         />
       </div>
 
+      {/* Búsqueda por fecha del hallazgo (ambas fechas incluidas) */}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="space-y-1 text-xs text-ink">
+          <span className="block font-medium">Desde</span>
+          <input
+            type="date"
+            value={desde}
+            max={hasta || undefined}
+            onChange={(e) => {
+              setDesde(e.target.value);
+              setVisibles(POR_PAGINA);
+            }}
+            aria-label="Hallazgos desde la fecha"
+            className="min-h-11 rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+          />
+        </label>
+        <label className="space-y-1 text-xs text-ink">
+          <span className="block font-medium">Hasta</span>
+          <input
+            type="date"
+            value={hasta}
+            min={desde || undefined}
+            onChange={(e) => {
+              setHasta(e.target.value);
+              setVisibles(POR_PAGINA);
+            }}
+            aria-label="Hallazgos hasta la fecha"
+            className="min-h-11 rounded-md border border-line bg-paper px-3 py-2 font-mono text-xs text-ink"
+          />
+        </label>
+        {hayFiltroDeFecha && (
+          <Button
+            variant="ghost"
+            className="text-xs"
+            onClick={() => {
+              setDesde('');
+              setHasta('');
+              setVisibles(POR_PAGINA);
+            }}
+          >
+            Quitar fechas
+          </Button>
+        )}
+      </div>
+
       {filtrados.length === 0 ? (
-        <p className="py-6 text-center text-sm text-ink-muted">
+        <p role={rangoInvertido ? 'alert' : undefined} className="py-6 text-center text-sm text-ink-muted">
           {hallazgos.length === 0
             ? 'Todavía no hay hallazgos registrados.'
-            : `Ningún hallazgo coincide con "${busqueda}".`}
+            : rangoInvertido
+              ? 'La fecha "Desde" no puede ser posterior a la fecha "Hasta".'
+              : `Ningún hallazgo coincide con ${describirFiltro()}.`}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -140,11 +206,11 @@ export function ListaHallazgos({
                       })()}
                     </p>
                     <p className="font-mono text-ink-muted">
-                      {puedeVerExacta
+                      {puedeVerExacta(h.especieId)
                         ? h.latitud !== null && h.longitud !== null
                           ? `Coordenadas: ${h.latitud}, ${h.longitud}`
                           : 'Sin coordenadas registradas'
-                        : 'Coordenadas exactas ocultas (requiere ubicacion:ver_exacta)'}
+                        : 'Coordenadas exactas ocultas (requiere acceso a la ubicación de esta especie)'}
                     </p>
                     {h.evidencias.length > 0 && (
                       <ul className="space-y-1">

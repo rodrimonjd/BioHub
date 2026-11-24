@@ -50,7 +50,6 @@ public class Avistamiento {
         this.recibidoEn = Instant.now();
     }
 
-    /** Ecosistema al que se le calcula el indice: "departamento - region", o solo el departamento. */
     public String ecosistema() {
         if (region == null || region.isBlank()) {
             return departamento;

@@ -65,11 +65,6 @@ public class Avistamiento {
         this.region = region;
     }
 
-    /**
-     * Revisa los datos minimos de un avistamiento: investigador, especie,
-     * fecha no futura, cantidad mayor a cero, departamento, y latitud y
-     * longitud juntas (o ninguna) dentro de su rango.
-     */
     public boolean validarDatos() {
         if (investigadorId == null || investigadorId.isBlank()) {
             return false;
@@ -137,5 +132,4 @@ public class Avistamiento {
         return creadoEn;
     }
 
-    
 }

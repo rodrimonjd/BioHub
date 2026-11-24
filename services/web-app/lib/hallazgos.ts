@@ -33,3 +33,18 @@ export function coincideHallazgo(h: HallazgoResponse, texto: string, catalogo: S
     .split(/\s+/)
     .every((palabra) => campos.some((c) => normalizar(c).includes(palabra)));
 }
+
+/** Día (AAAA-MM-DD) en la hora local del navegador en que se registró el hallazgo. */
+export function diaLocal(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-CA');
+}
+
+/**
+ * Si el hallazgo cae entre dos fechas (AAAA-MM-DD), ambas incluidas. Una fecha vacía no limita.
+ */
+export function enRangoDeFechas(h: HallazgoResponse, desde: string, hasta: string): boolean {
+  const dia = diaLocal(h.fecha);
+  if (!dia) return !desde && !hasta;
+  return (!desde || dia >= desde) && (!hasta || dia <= hasta);
+}

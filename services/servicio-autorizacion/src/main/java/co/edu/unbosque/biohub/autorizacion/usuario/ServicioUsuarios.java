@@ -61,7 +61,7 @@ public class ServicioUsuarios {
                 autorizacion.rolesDe(u.getId()), autorizacion.permisosDe(u.getId()));
     }
 
-    public VistaUsuario crear(SolicitudCrearUsuario s) {
+    public VistaUsuario crear(SolicitudCrearUsuario s, String autor) {
         String id = s.id().trim().toLowerCase(Locale.ROOT);
         String correo = s.correo().trim().toLowerCase(Locale.ROOT);
         if (ID_INVITADO.equals(id)) {
@@ -75,7 +75,7 @@ public class ServicioUsuarios {
         }
         usuarios.save(new Usuario(id, s.nombre().trim(), correo, claves.encode(s.clave())));
         if (s.rol() != null && !s.rol().isBlank()) {
-            roles.asignarRol(id, s.rol());
+            roles.asignarRol(id, s.rol(), autor);
         }
         emitir(id, Map.of("usuario", id, "correo", correo));
         return vista(usuarios.findById(id).orElseThrow());

@@ -5,7 +5,6 @@ import java.time.Duration;
 
 import co.edu.unbosque.biohub.consulta.configuracion.PropiedadesConsulta;
 
-/** Configuración de servicio-consulta-publica para pruebas unitarias, con los mismos valores del application.yml. */
 public final class PropiedadesDePrueba {
 
     private PropiedadesDePrueba() {

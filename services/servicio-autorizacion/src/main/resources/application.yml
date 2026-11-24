@@ -10,7 +10,7 @@ spring:
     password: ${BD_CLAVE:auth_pass}
   jpa:
     hibernate:
-      ddl-auto: validate      # el esquema lo maneja Flyway
+      ddl-auto: validate
     open-in-view: false
   flyway:
     enabled: true

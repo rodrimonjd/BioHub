@@ -57,7 +57,7 @@ class ConsumidorEventosTest {
     void datosInvalidosVanALaColaDeErroresSinReintentar() {
         when(proyector.aplicar(any())).thenThrow(new EventoInvalidoException("Evento sin el campo obligatorio 'fecha'"));
         Message m = mensaje(VALIDO);
-        consumidor.recibir(m); // no lanza excepción: no hay reintentos
+        consumidor.recibir(m);
         verify(rabbit).send(eq(""), eq(DLQ), eq(m));
         assertEquals("Evento sin el campo obligatorio 'fecha'",
                 m.getMessageProperties().getHeader(ConsumidorEventos.CABECERA_MOTIVO));

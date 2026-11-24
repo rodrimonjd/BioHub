@@ -32,15 +32,16 @@ public class ClienteAutorizacionHttp implements ClienteAutorizacion {
     }
 
     @Override
-    public NivelVisibilidad visibilidad(String usuarioId, String categoriaConservacion) {
+    public NivelVisibilidad visibilidad(String usuarioId, String categoriaConservacion, String especieId) {
         String usuario = usuarioId == null || usuarioId.isBlank() ? ANONIMO : usuarioId.trim();
         String categoria = categoriaConservacion == null ? "" : categoriaConservacion.trim().toUpperCase();
-        String clave = usuario + "|" + categoria;
+        String especie = especieId == null ? "" : especieId.trim();
+        String clave = usuario + "|" + categoria + "|" + especie;
 
         NivelVisibilidad enCache = cache.getIfPresent(clave);
         if (enCache != null) return enCache;
         try {
-            NivelVisibilidad nivel = consultar(usuario, categoria);
+            NivelVisibilidad nivel = consultar(usuario, categoria, especie);
             cache.put(clave, nivel);
             return nivel;
         } catch (RuntimeException e) {
@@ -50,10 +51,11 @@ public class ClienteAutorizacionHttp implements ClienteAutorizacion {
         }
     }
 
-    private NivelVisibilidad consultar(String usuario, String categoria) {
+    private NivelVisibilidad consultar(String usuario, String categoria, String especie) {
         Map<String, String> cuerpo = new HashMap<>();
         cuerpo.put("usuarioId", usuario.isEmpty() ? null : usuario);
         cuerpo.put("categoriaConservacion", categoria.isEmpty() ? null : categoria);
+        cuerpo.put("especieId", especie.isEmpty() ? null : especie);
         RespuestaVisibilidad respuesta = cliente.post()
                 .uri("/api/v1/autorizacion/visibilidad-ubicacion")
                 .contentType(MediaType.APPLICATION_JSON)

@@ -20,7 +20,6 @@ import co.edu.unbosque.biohub.reportes.acceso.VerificadorPermisos;
 import co.edu.unbosque.biohub.reportes.compartido.DatosInvalidosException;
 import jakarta.validation.Valid;
 
-/** Consultar y exportar reportes exige reporte:ver; pedir uno nuevo, reporte:generar. */
 @RestController
 @RequestMapping("/reportes")
 public class ReporteControlador {

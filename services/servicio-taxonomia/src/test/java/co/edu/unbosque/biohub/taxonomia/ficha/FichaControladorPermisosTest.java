@@ -74,4 +74,32 @@ class FichaControladorPermisosTest {
         verify(servicio).incorporarAtributo(eq("f-1"), captor.capture());
         assertThat(captor.getValue().autor()).isEqualTo("investigador.campo");
     }
+
+    @Test
+    void sinFichaDesactivarNoSeDesactivaAunqueTengaFichaEditar() throws Exception {
+        when(autorizacion.tienePermiso("consumidor-unal", "ficha:editar")).thenReturn(true);
+        when(autorizacion.tienePermiso("consumidor-unal", "ficha:desactivar")).thenReturn(false);
+        mvc.perform(post("/fichas/f-1/desactivacion").header("X-Usuario-Id", "consumidor-unal")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"duplicada\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/fichas/f-1/desactivacion")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        verify(servicio, never()).desactivar(any(), any());
+    }
+
+    @Test
+    void conFichaDesactivarSeDesactivaYElAutorEsElDeLaCabecera() throws Exception {
+        when(autorizacion.tienePermiso("autoridad.ambiental", "ficha:desactivar")).thenReturn(true);
+        mvc.perform(post("/fichas/f-1/desactivacion").header("X-Usuario-Id", "autoridad.ambiental")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"autor\":\"suplantado\",\"motivo\":\"Ficha duplicada\"}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<SolicitudesFicha.DesactivarFicha> captor =
+                ArgumentCaptor.forClass(SolicitudesFicha.DesactivarFicha.class);
+        verify(servicio).desactivar(eq("f-1"), captor.capture());
+        assertThat(captor.getValue().autor()).isEqualTo("autoridad.ambiental");
+        assertThat(captor.getValue().motivo()).isEqualTo("Ficha duplicada");
+    }
 }

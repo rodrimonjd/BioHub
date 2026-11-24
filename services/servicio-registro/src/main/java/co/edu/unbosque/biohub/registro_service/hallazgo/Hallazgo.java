@@ -171,7 +171,6 @@ public class Hallazgo {
         }
     }
     
-
     public UUID getId() {
         return id;
     }
@@ -280,5 +279,4 @@ public class Hallazgo {
         this.evidencias = evidencias;
     }
 
-    
 }

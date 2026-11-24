@@ -19,7 +19,6 @@
 	</properties>
 
 	<dependencies>
-		<!-- Genera la metadata de las propiedades @ConfigurationProperties (autocompletado y documentacion en el IDE) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-configuration-processor</artifactId>
@@ -54,7 +53,6 @@
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>3.2.0</version>
 		</dependency>
-		<!-- Caché de las respuestas de servicio-autorizacion -->
 		<dependency>
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>

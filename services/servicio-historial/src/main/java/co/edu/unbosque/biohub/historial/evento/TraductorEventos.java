@@ -27,11 +27,9 @@ public class TraductorEventos {
         };
     }
 
-    // ---- hallazgos (servicio-registro) ----
-
     private static Map<String, Object> estadoHallazgo(Map<String, Object> d) {
         Map<String, Object> estado = new LinkedHashMap<>(d);
-        estado.remove("version"); // la versión ya va aparte
+        estado.remove("version");
         return estado;
     }
 
@@ -46,13 +44,10 @@ public class TraductorEventos {
                 e.autor(), e.autorizador(), e.ocurrioEn(), null,
                 estado -> {
                     estado.put(campo, nuevo);
-                    // registro solo envía el nombre de la nueva especie: el id anterior ya no es válido
                     if (reclasificacion) estado.remove("especieId");
                     return estado;
                 });
     }
-
-    // ---- fichas taxonómicas (servicio-taxonomia) ----
 
     private static Map<String, Object> estadoFicha(Map<String, Object> d) {
         Map<String, Object> estado = new LinkedHashMap<>();
@@ -89,8 +84,6 @@ public class TraductorEventos {
                     return estado;
                 });
     }
-
-    // ---- auxiliares ----
 
     private static CambioPropuesto creacion(TipoRegistro tipo, EventoEntrante e, int version, Map<String, Object> estado) {
         return new CambioPropuesto(tipo, e.idAgregado(), version, TipoCambio.CREACION, null, null, null, null,

@@ -9,7 +9,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
 
-/** La configuración se enlaza con tipos y se valida al arrancar: un valor faltante o inválido impide iniciar. */
 class PropiedadesTaxonomiaTest {
 
     @Configuration

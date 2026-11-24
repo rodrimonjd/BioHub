@@ -10,6 +10,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import static co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos.CABECERA_USUARIO;
 
@@ -37,11 +38,11 @@ public class HallazgoControlador {
     @GetMapping
     public List<RespuestaHallazgo> listar(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                                           @RequestParam(required = false) String investigadorId) {
-        boolean verExacta = permisos.puedeVerUbicacionExacta(usuario);
+        Predicate<UUID> verExacta = permisos.ubicacionExacta(usuario);
         List<RespuestaHallazgo> respuesta = new ArrayList<>();
         for (Hallazgo h : service.listar(investigadorId)) {
             RespuestaHallazgo r = RespuestaHallazgo.desde(h);
-            respuesta.add(verExacta ? r : r.sinCoordenadas());
+            respuesta.add(verExacta.test(r.especieId()) ? r : r.sinCoordenadas());
         }
         return respuesta;
     }
@@ -76,6 +77,6 @@ public class HallazgoControlador {
 
     private RespuestaHallazgo vista(Hallazgo h, String usuario) {
         RespuestaHallazgo r = RespuestaHallazgo.desde(h);
-        return permisos.puedeVerUbicacionExacta(usuario) ? r : r.sinCoordenadas();
+        return permisos.ubicacionExacta(usuario).test(r.especieId()) ? r : r.sinCoordenadas();
     }
 }

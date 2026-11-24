@@ -11,9 +11,9 @@ import {
   canAuthorizeReclassification,
   canEditFindings,
   canManageEquipment,
-  canViewExactCoordinates,
   PERMISOS,
 } from '@/lib/permissions';
+import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
 import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
 import { FichaTaxonomica } from '@/lib/taxonomia-api';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
@@ -244,6 +244,8 @@ export function FieldStationWorkspace({
 
   const canWrite = canRegisterFieldData(currentUser);
   const canEdit = canEditFindings(currentUser);
+  // Coordenadas exactas por especie: ubicacion:ver_exacta o acceso dado por la autoridad ambiental
+  const puedeVerExacta = useAccesoUbicacion(currentUser);
 
   useEffect(() => {
     listarUsuariosConPermiso(currentUser.id, PERMISOS.VALIDAR_HALLAZGO).then((lista) => {
@@ -1168,7 +1170,7 @@ export function FieldStationWorkspace({
                         {av.departamento}
                         {av.region ? ` · Región ${av.region}` : ''}
                       </span>
-                      {!canViewExactCoordinates(currentUser) ? (
+                      {!puedeVerExacta(av.especieId) ? (
                         <span className="font-mono ml-2">· Coordenadas exactas ocultas</span>
                       ) : (
                         av.latitud !== null &&
@@ -1587,7 +1589,7 @@ export function FieldStationWorkspace({
           catalogo={catalogo}
           fichas={fichas ?? []}
           expediciones={expediciones}
-          puedeVerExacta={canViewExactCoordinates(currentUser)}
+          puedeVerExacta={puedeVerExacta}
           onModificar={
             canEdit
               ? (id) => {

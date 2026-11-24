@@ -61,13 +61,13 @@ class ReporteTest {
         assertThat(reporte.getIndices()).hasSize(3 * TipoIndice.values().length);
 
         IndicePresion densidad = reporte.indice("Meta - Orinoquia", TipoIndice.DENSIDAD_OBSERVACION);
-        assertThat(densidad.getValor()).isEqualTo(11.0);        // 110 individuos / 10 dias
-        assertThat(densidad.isSuperaUmbral()).isTrue();          // umbral 10
+        assertThat(densidad.getValor()).isEqualTo(11.0);
+        assertThat(densidad.isSuperaUmbral()).isTrue();
         assertThat(densidad.getIndividuos()).isEqualTo(110);
 
         IndicePresion riqueza = reporte.indice("Meta - Orinoquia", TipoIndice.RIQUEZA_ESPECIES);
         assertThat(riqueza.getValor()).isEqualTo(2.0);
-        assertThat(riqueza.isSuperaUmbral()).isFalse();          // umbral 5
+        assertThat(riqueza.isSuperaUmbral()).isFalse();
     }
 
     @Test

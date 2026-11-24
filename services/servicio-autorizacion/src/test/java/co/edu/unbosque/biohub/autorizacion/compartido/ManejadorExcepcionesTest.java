@@ -30,6 +30,9 @@ class ManejadorExcepcionesTest {
     @MockitoBean
     private ServicioAutorizacion autorizacion;
 
+    @MockitoBean
+    private co.edu.unbosque.biohub.autorizacion.ubicacion.ServicioAccesoUbicacion accesosUbicacion;
+
     @Test
     void validacionDevuelveSoloCampoYMensaje() throws Exception {
         mvc.perform(post(VERIFICAR).contentType(MediaType.APPLICATION_JSON).content("{\"usuarioId\":\"admin\"}"))

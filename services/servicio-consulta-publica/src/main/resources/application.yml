@@ -10,7 +10,7 @@ spring:
     password: ${BD_CLAVE:consulta_pass}
   jpa:
     hibernate:
-      ddl-auto: validate      # el esquema lo maneja Flyway
+      ddl-auto: validate
     open-in-view: false
   flyway:
     enabled: true
@@ -21,7 +21,6 @@ spring:
     password: ${RABBIT_CLAVE:biohub}
     listener:
       simple:
-        # 3 intentos por mensaje; si sigue fallando se rechaza y va a la cola de errores (dead-letter)
         retry:
           enabled: true
           max-attempts: 3
@@ -30,9 +29,9 @@ spring:
 
 consulta:
   eventos:
-    exchange: biohub.eventos      # mismo exchange que declara servicio-registro
+    exchange: biohub.eventos
     cola: consulta-publica.hallazgos
-    cola-errores: consulta-publica.hallazgos.dlq   # mensajes que no se pudieron procesar
+    cola-errores: consulta-publica.hallazgos.dlq
   registro-url: ${REGISTRO_URL:http://localhost:8081}
   autorizacion-url: ${AUTORIZACION_URL:http://localhost:8082}
   cache:

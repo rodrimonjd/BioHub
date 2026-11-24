@@ -38,6 +38,11 @@ public class ManejadorExcepciones extends ResponseEntityExceptionHandler {
         return construir(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
+    @ExceptionHandler(ConflictoException.class)
+    public ResponseEntity<Object> conflicto(ConflictoException e) {
+        return construir(HttpStatus.CONFLICT, e.getMessage());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Object> solicitudInvalida(IllegalArgumentException e) {
         return construir(HttpStatus.BAD_REQUEST, e.getMessage());

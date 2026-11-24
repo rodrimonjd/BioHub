@@ -4,9 +4,6 @@ import java.time.LocalDate;
 
 import jakarta.validation.constraints.NotNull;
 
-/**
- * @param solicitadoPor quién pide el reporte; lo fija el controlador con la cabecera X-Usuario-Id
- */
 public record SolicitudReporte(
         @NotNull LocalDate fechaInicio,
         @NotNull LocalDate fechaFin,

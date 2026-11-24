@@ -7,16 +7,11 @@ spring:
 
 biohub:
   gateway:
-    # URL estable que se publica a universidades y ONG (RNF-11).
     url-publica: ${URL_PUBLICA:http://localhost:8080}
-    # Limite unico para todos los consumidores (ASR-03).
     limite-por-minuto: 60
     autorizacion-url: ${AUTORIZACION_URL:http://localhost:8082}
-    # Ruta publica -> servicio interno. Cambiar un destino no afecta a los consumidores.
     rutas:
       "[/api/v1/inventario]": ${CONSULTA_URL:http://localhost:8083}/api/v1/consulta/hallazgos
-    # Consumidores externos. Se guarda el SHA-256 de la API key, nunca la key.
-    # Las keys de demostracion estan en el README.
     consumidores:
       - id: consumidor-unal
         organizacion: Universidad Nacional de Colombia
