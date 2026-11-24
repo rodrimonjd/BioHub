@@ -199,12 +199,16 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
   return fallback;
 }
 
-export async function listarAvistamientos(): Promise<{
+function cabeceraUsuario(usuarioId?: string): Record<string, string> {
+  return usuarioId ? { 'X-Usuario-Id': usuarioId } : {};
+}
+
+export async function listarAvistamientos(usuarioId?: string): Promise<{
   data: AvistamientoResponse[] | null;
   online: boolean;
 }> {
   try {
-    const res = await fetch(`${API_BASE}/avistamientos`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/avistamientos`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
     if (!res.ok) return { data: null, online: false };
     const data: AvistamientoResponse[] = await res.json();
     return { data, online: true };
@@ -213,12 +217,12 @@ export async function listarAvistamientos(): Promise<{
   }
 }
 
-export async function listarHallazgos(): Promise<{
+export async function listarHallazgos(usuarioId?: string): Promise<{
   data: HallazgoResponse[] | null;
   online: boolean;
 }> {
   try {
-    const res = await fetch(`${API_BASE}/hallazgos`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/hallazgos`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
     if (!res.ok) return { data: null, online: false };
     const data: HallazgoResponse[] = await res.json();
     return { data, online: true };
@@ -227,8 +231,8 @@ export async function listarHallazgos(): Promise<{
   }
 }
 
-export async function obtenerAvistamientoPorId(id: string): Promise<AvistamientoResponse> {
-  const res = await fetch(`${API_BASE}/avistamientos/${id}`, { cache: 'no-store' });
+export async function obtenerAvistamientoPorId(id: string, usuarioId?: string): Promise<AvistamientoResponse> {
+  const res = await fetch(`${API_BASE}/avistamientos/${id}`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, 'Avistamiento no encontrado'));
   }
@@ -346,14 +350,14 @@ export async function registrarHallazgo(
   const location = res.headers.get('Location');
   const extractedId = location ? location.split('/').pop() || null : null;
   if (extractedId) {
-    const hallazgo = await obtenerHallazgoPorId(extractedId);
+    const hallazgo = await obtenerHallazgoPorId(extractedId, usuarioId);
     return { id: extractedId, hallazgo };
   }
   return { id: null, hallazgo: null };
 }
 
-export async function obtenerHallazgoPorId(id: string): Promise<HallazgoResponse> {
-  const res = await fetch(`${API_BASE}/hallazgos/${id}`, { cache: 'no-store' });
+export async function obtenerHallazgoPorId(id: string, usuarioId?: string): Promise<HallazgoResponse> {
+  const res = await fetch(`${API_BASE}/hallazgos/${id}`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, 'Hallazgo no encontrado en el servidor'));
   }
