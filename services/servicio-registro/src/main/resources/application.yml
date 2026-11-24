@@ -20,6 +20,11 @@ spring:
     username: ${RABBIT_USUARIO:biohub}
     password: ${RABBIT_CLAVE:biohub}
 
+identidad:
+  claves-url: ${AUTORIZACION_URL:http://localhost:8082}/api/v1/autorizacion/claves
+  emisor: biohub-autorizacion
+  espera: 3s
+
 biohub:
   eventos:
     exchange: biohub.eventos

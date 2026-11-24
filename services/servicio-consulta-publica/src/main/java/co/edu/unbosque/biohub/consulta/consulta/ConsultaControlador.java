@@ -26,11 +26,13 @@ public class ConsultaControlador {
                                   @RequestParam(required = false) String especieId,
                                   @RequestParam(required = false) String departamento,
                                   @RequestParam(required = false) String especie,
+                                  @RequestParam(required = false) String texto,
                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
                                   @RequestParam(defaultValue = "0") int pagina,
                                   @RequestParam(defaultValue = "20") int tamano) {
-        return servicio.listar(usuarioId, especieId, departamento, especie, fechaDesde, fechaHasta, pagina, tamano);
+        FiltroHallazgos filtro = new FiltroHallazgos(especieId, departamento, especie, texto, fechaDesde, fechaHasta);
+        return servicio.listar(usuarioId, filtro, pagina, tamano);
     }
 
     @GetMapping("/hallazgos/{id}")

@@ -10,13 +10,13 @@ import { SiteHeader } from '@/components/biohub/SiteHeader';
 import { TerrenoTopografico } from '@/components/ui/TerrenoTopografico';
 import {
   BioHubUser,
-  clearStoredSession,
   crearSesionInvitado,
   getStoredSession,
   ID_INVITADO,
   saveStoredSession,
 } from '@/lib/permissions';
 import { obtenerAcceso } from '@/lib/autorizacion-api';
+import { borrarCookieSesion, cerrarSesion } from '@/lib/sesion';
 import { useSeccionActiva } from '@/lib/useSeccionActiva';
 
 const TITULO = 'Sistema Nacional de Registro y Vigilancia de Biodiversidad'.split(' ');
@@ -63,7 +63,7 @@ export default function HomePage() {
   }, []);
 
   const handleLogout = () => {
-    clearStoredSession();
+    cerrarSesion();
     setSessionUser(null);
   };
 
@@ -71,6 +71,7 @@ export default function HomePage() {
   const handleInvitado = async () => {
     setEntrandoInvitado(true);
     try {
+      await borrarCookieSesion();
       const sesion = crearSesionInvitado(await obtenerAcceso(ID_INVITADO));
       saveStoredSession(sesion);
       router.push('/panel');

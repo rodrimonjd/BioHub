@@ -56,7 +56,19 @@ public class ServicioUsuarios {
         if (encontrado.isEmpty() || !claveCorrecta || !encontrado.get().isActivo()) {
             throw new NoAutenticadoException(CREDENCIALES_INVALIDAS);
         }
-        Usuario u = encontrado.get();
+        return sesion(encontrado.get());
+    }
+
+    @Transactional(readOnly = true)
+    public RespuestaSesion sesionDe(String usuarioId) {
+        return Optional.ofNullable(usuarioId)
+                .flatMap(id -> usuarios.findById(id))
+                .filter(u -> u.isActivo())
+                .map(u -> sesion(u))
+                .orElseThrow(() -> new NoAutenticadoException("Se requiere iniciar sesión"));
+    }
+
+    private RespuestaSesion sesion(Usuario u) {
         return new RespuestaSesion(u.getId(), u.getNombre(), u.getCorreo(),
                 autorizacion.rolesDe(u.getId()), autorizacion.permisosDe(u.getId()));
     }

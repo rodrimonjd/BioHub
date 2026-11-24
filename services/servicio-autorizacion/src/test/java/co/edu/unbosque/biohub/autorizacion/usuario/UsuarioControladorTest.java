@@ -3,6 +3,7 @@ package co.edu.unbosque.biohub.autorizacion.usuario;
 import co.edu.unbosque.biohub.autorizacion.compartido.Dtos.RespuestaSesion;
 import co.edu.unbosque.biohub.autorizacion.compartido.NoAutenticadoException;
 import co.edu.unbosque.biohub.autorizacion.compartido.ProhibidoException;
+import co.edu.unbosque.biohub.autorizacion.identidad.ServicioTokens;
 import co.edu.unbosque.biohub.autorizacion.rol.RolServicio;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.containsString;
@@ -38,16 +40,22 @@ class UsuarioControladorTest {
     @MockitoBean
     private RolServicio roles;
 
+    @MockitoBean
+    private ServicioTokens tokens;
+
     @Test
     void sesionCorrectaDevuelvePermisosSinLaClave() throws Exception {
         when(servicio.iniciarSesion("inv", "Clave-Segura-1")).thenReturn(new RespuestaSesion("inv", "Investigadora",
                 "inv@biohub.gov.co", Set.of("INVESTIGADOR"), Set.of("hallazgo:crear")));
+        when(tokens.paraSesion("inv")).thenReturn(new ServicioTokens.Token("token-firmado", Instant.parse("2026-11-24T20:00:00Z")));
 
         mvc.perform(post("/api/v1/autorizacion/sesiones").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"usuario\":\"inv\",\"clave\":\"Clave-Segura-1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.usuarioId").value("inv"))
                 .andExpect(jsonPath("$.permisos[0]").value("hallazgo:crear"))
+                .andExpect(jsonPath("$.token").value("token-firmado"))
+                .andExpect(jsonPath("$.venceEn").value("2026-11-24T20:00:00Z"))
                 .andExpect(content().string(not(containsString("Clave-Segura-1"))));
     }
 
@@ -59,6 +67,23 @@ class UsuarioControladorTest {
                         .content("{\"usuario\":\"inv\",\"clave\":\"mala\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.mensaje").value("Usuario o contraseña incorrectos"));
+    }
+
+    @Test
+    void sesionIncorrectaNoEmiteToken() throws Exception {
+        when(servicio.iniciarSesion("inv", "mala")).thenThrow(new NoAutenticadoException("Usuario o contraseña incorrectos"));
+
+        mvc.perform(post("/api/v1/autorizacion/sesiones").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"usuario\":\"inv\",\"clave\":\"mala\"}"));
+
+        verify(tokens, never()).paraSesion(any());
+    }
+
+    @Test
+    void sesionActualSinIdentidadDa401() throws Exception {
+        when(servicio.sesionDe(null)).thenThrow(new NoAutenticadoException("Se requiere iniciar sesión"));
+
+        mvc.perform(get("/api/v1/autorizacion/sesiones/actual")).andExpect(status().isUnauthorized());
     }
 
     @Test

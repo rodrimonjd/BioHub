@@ -16,8 +16,10 @@ Consumidor ── GET /api/v1/inventario + X-API-Key ──► ApiGateway
    2. ConsumidorExterno.registrarSolicitud()        → 429 + Retry-After si pasa de 60 en el minuto
    3. servicio-autorizacion: validarConsumidor(id)   → 403 si no tiene permiso, 503 si no responde
    4. Ruta /api/v1/inventario → servicio-consulta-publica /api/v1/consulta/hallazgos
-      (con la cabecera X-Usuario-Id = id del consumidor)       → 200 + JSON
+      (con un token de 1 minuto del consumidor, que da autorización)  → 200 + JSON
 ```
+- `/gateway/consumo` y `/gateway/limite` exigen el token de una cuenta con permiso; el token se verifica con la clave pública de autorización (HU-8.2).
+- `SECRETO_SERVICIOS` debe ser igual en el gateway y en autorización; si falta, la consulta se reenvía como anónima.
 - El límite es por consumidor y por minuto del reloj: al empezar el minuto siguiente el contador vuelve a 0.
 - Consulta pública decide qué tan exacta es la ubicación según los permisos del consumidor (por defecto, región o departamento).
 

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Fraunces, Inter, JetBrains_Mono } from 'next/font/google';
+import { VigilanteSesion } from '@/components/biohub/VigilanteSesion';
 import { NotificacionesProvider } from '@/components/ui/Notificaciones';
 import './globals.css';
 
@@ -38,7 +39,10 @@ export default function RootLayout({
       className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-paper text-ink antialiased selection:bg-forest-700 selection:text-white">
-        <NotificacionesProvider>{children}</NotificacionesProvider>
+        <NotificacionesProvider>
+          <VigilanteSesion />
+          {children}
+        </NotificacionesProvider>
       </body>
     </html>
   );

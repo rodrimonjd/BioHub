@@ -30,11 +30,11 @@ class ConsultaControladorTest {
 
     private static final VistaHallazgoPublico VISTA = new VistaHallazgoPublico("h1", "e1", "Crocodylus intermedius",
             "Caimán del Orinoco", "CR", Instant.parse("2026-11-01T10:00:00Z"), "Adulto", "Meta", null, null, null,
-            NivelVisibilidad.DEPARTAMENTO);
+            NivelVisibilidad.DEPARTAMENTO, 1);
 
     @Test
     void listaHallazgosComoAnonimo() throws Exception {
-        when(servicio.listar(isNull(), isNull(), eq("Meta"), isNull(), isNull(), isNull(), eq(0), eq(20)))
+        when(servicio.listar(isNull(), eq(new FiltroHallazgos(null, "Meta", null, null, null, null)), eq(0), eq(20)))
                 .thenReturn(new PaginaHallazgos(List.of(VISTA), 0, 20, 1, 1));
 
         mvc.perform(get("/api/v1/consulta/hallazgos").param("departamento", "Meta"))
@@ -46,8 +46,8 @@ class ConsultaControladorTest {
 
     @Test
     void filtraPorRangoDeFechas() throws Exception {
-        when(servicio.listar(isNull(), isNull(), isNull(), isNull(),
-                eq(java.time.LocalDate.parse("2026-11-01")), eq(java.time.LocalDate.parse("2026-11-30")), eq(0), eq(20)))
+        when(servicio.listar(isNull(), eq(new FiltroHallazgos(null, null, null, null,
+                java.time.LocalDate.parse("2026-11-01"), java.time.LocalDate.parse("2026-11-30"))), eq(0), eq(20)))
                 .thenReturn(new PaginaHallazgos(List.of(VISTA), 0, 20, 1, 1));
 
         mvc.perform(get("/api/v1/consulta/hallazgos")
@@ -57,6 +57,17 @@ class ConsultaControladorTest {
 
         mvc.perform(get("/api/v1/consulta/hallazgos").param("fechaDesde", "01/11/2026"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void buscaPorEspecieYPalabraClave() throws Exception {
+        when(servicio.listar(isNull(), eq(new FiltroHallazgos(null, null, "caimán", "orilla meta", null, null)), eq(0), eq(20)))
+                .thenReturn(new PaginaHallazgos(List.of(VISTA), 0, 20, 1, 1));
+
+        mvc.perform(get("/api/v1/consulta/hallazgos").param("especie", " caimán ").param("texto", "orilla meta"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[0].nombreComun").value("Caimán del Orinoco"))
+                .andExpect(jsonPath("$.contenido[0].version").value(1));
     }
 
     @Test
@@ -79,7 +90,7 @@ class ConsultaControladorTest {
 
     @Test
     void parametrosInvalidosDan400() throws Exception {
-        when(servicio.listar(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), anyInt()))
+        when(servicio.listar(isNull(), eq(new FiltroHallazgos(null, null, null, null, null, null)), eq(0), anyInt()))
                 .thenThrow(new IllegalArgumentException("tamano debe estar entre 1 y 100"));
 
         mvc.perform(get("/api/v1/consulta/hallazgos").param("tamano", "500"))

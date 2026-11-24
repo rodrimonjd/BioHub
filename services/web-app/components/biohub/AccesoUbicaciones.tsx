@@ -8,7 +8,6 @@ import { ListaDesplazable } from '@/components/ui/ListaDesplazable';
 import { useNotificar } from '@/components/ui/Notificaciones';
 import { avisoDeError } from '@/lib/avisos';
 import { tituloDeDia } from '@/lib/fechas';
-import { BioHubUser } from '@/lib/permissions';
 import {
   AccesoUbicacionVigente,
   CambioAccesoUbicacion,
@@ -23,7 +22,6 @@ import { EspecieRegistro } from '@/lib/taxonomia-api';
 import { CLASE_INPUT, Encabezado } from './campo-ui';
 
 export interface AccesoUbicacionesProps {
-  usuario: BioHubUser;
   especies: EspecieRegistro[];
   /** Se llama tras dar o quitar un acceso, por si la cuenta actual cambia lo que ve. */
   onCambio?: () => void;
@@ -40,7 +38,7 @@ function fechaHora(iso: string): string {
  * La autoridad ambiental (ubicacion:administrar) decide quién ve la ubicación exacta y de qué especies.
  * Cada acceso que da o quita queda en un historial que no se puede modificar.
  */
-export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicacionesProps) {
+export function AccesoUbicaciones({ especies, onCambio }: AccesoUbicacionesProps) {
   const [usuarios, setUsuarios] = useState<ResumenUsuario[]>([]);
   const [accesos, setAccesos] = useState<AccesoUbicacionVigente[]>([]);
   const [historial, setHistorial] = useState<CambioAccesoUbicacion[]>([]);
@@ -57,8 +55,8 @@ export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicaci
   const recargar = useCallback(async () => {
     try {
       const [lista, cambios] = await Promise.all([
-        listarAccesosUbicacion(usuario.id),
-        historialAccesosUbicacion(usuario.id),
+        listarAccesosUbicacion(),
+        historialAccesosUbicacion(),
       ]);
       setAccesos(lista);
       setHistorial(cambios);
@@ -71,19 +69,19 @@ export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicaci
         })
       );
     }
-  }, [usuario.id, notificar]);
+  }, [notificar]);
 
   useEffect(() => {
-    usuariosParaUbicacion(usuario.id).then(setUsuarios).catch(() => setUsuarios([]));
+    usuariosParaUbicacion().then(setUsuarios).catch(() => setUsuarios([]));
     recargar();
-  }, [usuario.id, recargar]);
+  }, [recargar]);
 
   const handleOtorgar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!usuarioId || !especieId) return;
     setGuardando(true);
     try {
-      const acceso = await otorgarAccesoUbicacion(usuario.id, usuarioId, especieId);
+      const acceso = await otorgarAccesoUbicacion(usuarioId, especieId);
       notificar({
         tipo: 'ok',
         titulo: 'Acceso dado',
@@ -106,7 +104,7 @@ export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicaci
 
   const handleRevocar = async (acceso: AccesoUbicacionVigente) => {
     try {
-      await revocarAccesoUbicacion(usuario.id, acceso.usuarioId, acceso.especieId);
+      await revocarAccesoUbicacion(acceso.usuarioId, acceso.especieId);
       notificar({
         tipo: 'ok',
         titulo: 'Acceso quitado',

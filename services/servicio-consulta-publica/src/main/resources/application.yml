@@ -38,6 +38,11 @@ consulta:
     especies-ttl: 5m
     visibilidad-ttl: 60s
 
+identidad:
+  claves-url: ${AUTORIZACION_URL:http://localhost:8082}/api/v1/autorizacion/claves
+  emisor: biohub-autorizacion
+  espera: 3s
+
 management:
   endpoints:
     web:

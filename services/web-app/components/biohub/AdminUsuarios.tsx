@@ -37,7 +37,7 @@ function fechaHora(iso: string): string {
 }
 
 export interface AdminUsuariosProps {
-  /** Usuario con el permiso roles:administrar: sus peticiones van con su X-Usuario-Id. */
+  /** Usuario con el permiso roles:administrar. */
   admin: BioHubUser;
 }
 
@@ -69,9 +69,9 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
     setCargando(true);
     try {
       const [listaRoles, listaUsuarios, cambios] = await Promise.all([
-        listarRoles(admin.id),
-        listarUsuarios(admin.id),
-        historialRoles(admin.id),
+        listarRoles(),
+        listarUsuarios(),
+        historialRoles(),
       ]);
       setRoles(listaRoles);
       setUsuarios(listaUsuarios);
@@ -87,7 +87,7 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
     } finally {
       setCargando(false);
     }
-  }, [admin.id, notificar]);
+  }, [notificar]);
 
   useEffect(() => {
     cargar();
@@ -97,7 +97,7 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
     e.preventDefault();
     setGuardando(true);
     try {
-      const creado = await crearUsuario(admin.id, {
+      const creado = await crearUsuario({
         id: id.trim(),
         nombre: nombre.trim(),
         correo: correo.trim(),
@@ -134,7 +134,7 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
     setCambiando(u.id);
     let guardado = false;
     try {
-      await cambiarRol(admin.id, u.id, nuevo);
+      await cambiarRol(u.id, nuevo);
       notificar({
         tipo: 'ok',
         titulo: 'Rol cambiado',

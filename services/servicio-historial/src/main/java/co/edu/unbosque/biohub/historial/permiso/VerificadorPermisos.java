@@ -17,7 +17,7 @@ public class VerificadorPermisos {
 
     public void exigir(String usuarioId) {
         if (usuarioId == null || usuarioId.isBlank()) {
-            throw new ProhibidoException("Se requiere la cabecera X-Usuario-Id con el permiso " + permiso);
+            throw new ProhibidoException("Se requiere iniciar sesión con el permiso " + permiso);
         }
         if (!autorizacion.tienePermiso(usuarioId.trim(), permiso)) {
             throw new ProhibidoException("Se requiere el permiso " + permiso);

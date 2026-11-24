@@ -53,8 +53,10 @@ public class ApiGateway {
                     .body(cuerpoError(HttpStatus.TOO_MANY_REQUESTS, "Supero el limite de " + consumidor.getLimitePorMinuto() + " solicitudes por minuto"));
         }
 
+        ClienteAutorizacion.RespuestaConsumidor acceso;
         try {
-            if (!autorizacion.validarConsumidor(consumidor.getId())) {
+            acceso = autorizacion.validarConsumidor(consumidor.getId());
+            if (!acceso.valido()) {
                 return error(HttpStatus.FORBIDDEN, "El consumidor no tiene permiso para usar la API externa");
             }
         } catch (RestClientException e) {
@@ -68,7 +70,7 @@ public class ApiGateway {
         if (consulta != null && !consulta.isBlank()) {
             destino = destino + "?" + consulta;
         }
-        return reenviar(destino, consumidor.getId());
+        return reenviar(destino, acceso.token());
     }
 
     public record ConsumoConsumidor(String id, String organizacion, int solicitudes, int rechazadas,
@@ -122,11 +124,13 @@ public class ApiGateway {
         return null;
     }
 
-    private ResponseEntity<String> reenviar(String destino, String consumidorId) {
+    private ResponseEntity<String> reenviar(String destino, String token) {
         try {
             return http.get()
                     .uri(destino)
-                    .header(CABECERA_USUARIO, consumidorId)
+                    .headers(cabeceras -> {
+                        if (token != null) cabeceras.setBearerAuth(token);
+                    })
                     .exchange((solicitud, respuesta) -> ResponseEntity.status(respuesta.getStatusCode())
                             .contentType(MediaType.APPLICATION_JSON)
                             .body(new String(respuesta.getBody().readAllBytes())));

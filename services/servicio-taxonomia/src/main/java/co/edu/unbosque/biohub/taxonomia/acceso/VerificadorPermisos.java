@@ -28,7 +28,7 @@ public class VerificadorPermisos {
     private String exigir(String usuarioId, String permiso) {
         if (usuarioId == null || usuarioId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Se requiere la cabecera " + CABECERA_USUARIO + " con el permiso " + permiso);
+                    "Se requiere iniciar sesión con el permiso " + permiso);
         }
         String usuario = usuarioId.trim();
         if (!autorizacion.tienePermiso(usuario, permiso)) {

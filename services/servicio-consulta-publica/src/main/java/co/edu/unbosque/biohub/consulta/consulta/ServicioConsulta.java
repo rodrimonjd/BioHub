@@ -3,6 +3,7 @@ package co.edu.unbosque.biohub.consulta.consulta;
 import co.edu.unbosque.biohub.consulta.compartido.NoEncontradoException;
 import co.edu.unbosque.biohub.consulta.especie.CatalogoEspecies;
 import co.edu.unbosque.biohub.consulta.especie.EspecieInfo;
+import co.edu.unbosque.biohub.consulta.lectura.BusquedaHallazgos;
 import co.edu.unbosque.biohub.consulta.lectura.HallazgoLectura;
 import co.edu.unbosque.biohub.consulta.lectura.HallazgoLecturaRepositorio;
 import co.edu.unbosque.biohub.consulta.visibilidad.ClienteAutorizacion;
@@ -36,19 +37,14 @@ public class ServicioConsulta {
         this.autorizacion = autorizacion;
     }
 
-    public PaginaHallazgos listar(String usuarioId, String especieId, String departamento, String especie,
-                                  LocalDate fechaDesde, LocalDate fechaHasta, int pagina, int tamano) {
+    public PaginaHallazgos listar(String usuarioId, FiltroHallazgos filtro, int pagina, int tamano) {
         if (pagina < 0) throw new IllegalArgumentException("pagina debe ser 0 o mayor");
         if (tamano < 1 || tamano > TAMANO_MAXIMO) {
             throw new IllegalArgumentException("tamano debe estar entre 1 y " + TAMANO_MAXIMO);
         }
-        if (fechaDesde != null && fechaHasta != null && fechaDesde.isAfter(fechaHasta)) {
-            throw new IllegalArgumentException("fechaDesde no puede ser posterior a fechaHasta");
-        }
-        Instant desde = fechaDesde == null ? null : fechaDesde.atStartOfDay(ZONA_COLOMBIA).toInstant();
-        Instant hasta = fechaHasta == null ? null : fechaHasta.plusDays(1).atStartOfDay(ZONA_COLOMBIA).toInstant();
-        Page<HallazgoLectura> resultado = repositorio.buscar(vacioANull(especieId), vacioANull(departamento),
-                vacioANull(especie), desde, hasta, PageRequest.of(pagina, tamano));
+        filtro.validar();
+        Page<HallazgoLectura> resultado = repositorio.findAll(busqueda(filtro).especificacion(),
+                PageRequest.of(pagina, tamano, BusquedaHallazgos.ORDEN));
         List<VistaHallazgoPublico> contenido = resultado.getContent().stream()
                 .map(h -> presentar(usuarioId, h))
                 .toList();
@@ -61,6 +57,27 @@ public class ServicioConsulta {
         return presentar(usuarioId, h);
     }
 
+    private BusquedaHallazgos busqueda(FiltroHallazgos filtro) {
+        BusquedaHallazgos busqueda = new BusquedaHallazgos()
+                .especieId(filtro.especieId())
+                .departamento(filtro.departamento())
+                .desde(inicioDelDia(filtro.fechaDesde()))
+                .hasta(inicioDelDia(filtro.fechaHasta() == null ? null : filtro.fechaHasta().plusDays(1)));
+        if (filtro.especie() != null) {
+            busqueda.especie(filtro.especie(), catalogo.porNombreComun(filtro.especie()));
+        }
+        if (filtro.texto() != null) {
+            for (String palabra : filtro.texto().split("\\s+")) {
+                busqueda.palabra(palabra, catalogo.porNombreComun(palabra));
+            }
+        }
+        return busqueda;
+    }
+
+    private static Instant inicioDelDia(LocalDate dia) {
+        return dia == null ? null : dia.atStartOfDay(ZONA_COLOMBIA).toInstant();
+    }
+
     private VistaHallazgoPublico presentar(String usuarioId, HallazgoLectura h) {
         EspecieInfo especie = catalogo.porId(h.getEspecieId())
                 .or(() -> catalogo.porNombreCientifico(h.getEspecie()))
@@ -68,9 +85,5 @@ public class ServicioConsulta {
         String categoria = especie == null ? null : especie.estadoConservacion();
         NivelVisibilidad nivel = autorizacion.visibilidad(usuarioId, categoria, h.getEspecieId());
         return PresentadorUbicacion.presentar(h, especie, nivel);
-    }
-
-    private static String vacioANull(String valor) {
-        return valor == null || valor.isBlank() ? null : valor.trim();
     }
 }

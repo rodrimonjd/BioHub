@@ -1,3 +1,5 @@
+import { pedir } from '@/lib/pedir';
+
 const API_BASE = '/api/reportes';
 
 export type EstadoReporte = 'EN_COLA' | 'GENERANDO' | 'LISTO' | 'SIN_DATOS' | 'ERROR';
@@ -26,10 +28,7 @@ export interface SolicitudReporte {
   solicitadoPor: string;
 }
 
-/** El servicio de reportes exige el usuario (reporte:ver para consultar, reporte:generar para pedir). */
-function cabeceraUsuario(usuarioId: string): Record<string, string> {
-  return { 'X-Usuario-Id': usuarioId };
-}
+// El servicio de reportes exige una sesión con reporte:ver para consultar y reporte:generar para pedir.
 
 async function mensajeDeError(res: Response, porDefecto: string): Promise<string> {
   try {
@@ -43,9 +42,9 @@ async function mensajeDeError(res: Response, porDefecto: string): Promise<string
 
 /** Pide un reporte nuevo. El servicio responde 202 con el reporte EN_COLA. */
 export async function solicitarReporte(solicitud: SolicitudReporte): Promise<Reporte> {
-  const res = await fetch(API_BASE, {
+  const res = await pedir(API_BASE, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...cabeceraUsuario(solicitud.solicitadoPor) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(solicitud),
   });
   if (!res.ok) {
@@ -54,8 +53,8 @@ export async function solicitarReporte(solicitud: SolicitudReporte): Promise<Rep
   return res.json();
 }
 
-export async function obtenerReporte(id: string, usuarioId: string): Promise<Reporte> {
-  const res = await fetch(`${API_BASE}/${id}`, { cache: 'no-store', headers: cabeceraUsuario(usuarioId) });
+export async function obtenerReporte(id: string): Promise<Reporte> {
+  const res = await pedir(`${API_BASE}/${id}`, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(await mensajeDeError(res, 'No se pudo consultar el reporte'));
   }
@@ -65,9 +64,8 @@ export async function obtenerReporte(id: string, usuarioId: string): Promise<Rep
 /** Último reporte pedido por el usuario, o null si no tiene o el servicio no responde. */
 export async function ultimoReporteDe(usuarioId: string): Promise<Reporte | null> {
   try {
-    const res = await fetch(`${API_BASE}?solicitadoPor=${encodeURIComponent(usuarioId)}`, {
+    const res = await pedir(`${API_BASE}?solicitadoPor=${encodeURIComponent(usuarioId)}`, {
       cache: 'no-store',
-      headers: cabeceraUsuario(usuarioId),
     });
     if (!res.ok) return null;
     const reportes: Reporte[] = await res.json();
@@ -81,11 +79,10 @@ export async function ultimoReporteDe(usuarioId: string): Promise<Reporte | null
   }
 }
 
-/** Descarga el PDF del reporte; se pide con fetch porque un enlace no puede enviar la cabecera del usuario. */
-export async function descargarPdf(id: string, usuarioId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/${id}/exportar?formato=pdf`, {
+/** Descarga el PDF del reporte. */
+export async function descargarPdf(id: string): Promise<void> {
+  const res = await pedir(`${API_BASE}/${id}/exportar?formato=pdf`, {
     cache: 'no-store',
-    headers: cabeceraUsuario(usuarioId),
   });
   if (!res.ok) {
     throw new Error(await mensajeDeError(res, 'No se pudo descargar el reporte'));

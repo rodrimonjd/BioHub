@@ -2,6 +2,7 @@ package co.edu.unbosque.biohub.autorizacion.compartido;
 
 import co.edu.unbosque.biohub.autorizacion.autorizacion.AutorizacionControlador;
 import co.edu.unbosque.biohub.autorizacion.autorizacion.ServicioAutorizacion;
+import co.edu.unbosque.biohub.autorizacion.identidad.ServicioTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -26,6 +27,9 @@ class ManejadorExcepcionesTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @MockitoBean
+    private ServicioTokens tokens;
 
     @MockitoBean
     private ServicioAutorizacion autorizacion;

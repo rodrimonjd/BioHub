@@ -10,6 +10,7 @@ public record GatewayProperties(
         String urlPublica,
         int limitePorMinuto,
         String autorizacionUrl,
+        String secretoServicios,
         Map<String, String> rutas,
         List<Consumidor> consumidores) {
 

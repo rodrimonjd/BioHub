@@ -20,6 +20,7 @@ import {
 import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
 import { avisoDeError } from '@/lib/avisos';
 import { tituloDeDia } from '@/lib/fechas';
+import { listarHallazgosPublicos } from '@/lib/consulta-api';
 import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
 import { FichaTaxonomica } from '@/lib/taxonomia-api';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
@@ -187,6 +188,9 @@ export function FieldStationWorkspace({
   const [hallazgos, setHallazgos] = useState<HallazgoResponse[]>(
     INITIAL_LOCAL_HALLAZGOS
   );
+  // Cuándo se guardó el último hallazgo, para que la consulta pública lo vuelva a pedir
+  const [ultimoCambio, setUltimoCambio] = useState<number>(0);
+  const recargarConsulta = () => setUltimoCambio(Date.now());
 
   // Formulario Avistamiento
   const [avEspecieId, setAvEspecieId] = useState(catalogo[0].id);
@@ -266,7 +270,7 @@ export function FieldStationWorkspace({
   const puedeVerExacta = useAccesoUbicacion(currentUser);
 
   useEffect(() => {
-    listarUsuariosConPermiso(currentUser.id, PERMISOS.VALIDAR_HALLAZGO).then((lista) => {
+    listarUsuariosConPermiso(PERMISOS.VALIDAR_HALLAZGO).then((lista) => {
       setAutorizadores(lista);
       const propio = lista.find((u) => u.id === currentUser.id);
       setRecAutorizador((propio ?? lista[0])?.id ?? '');
@@ -277,7 +281,7 @@ export function FieldStationWorkspace({
     autorizadores.find((u) => u.id === id)?.nombre ?? id;
 
   const syncWithBackend = async () => {
-    const res = await listarAvistamientos(currentUser.id);
+    const res = await listarAvistamientos();
     if (res.online && res.data) {
       setAvistamientos((prev) => {
         const pendingItems = prev.filter((item) => item.pendingSync);
@@ -285,7 +289,11 @@ export function FieldStationWorkspace({
       });
     }
 
-    const resHallazgos = await listarHallazgos(currentUser.id);
+    // Quien registra o edita trabaja con servicio-registro; los demás solo con la consulta pública
+    const resHallazgos =
+      canWrite || canEdit
+        ? await listarHallazgos()
+        : await listarHallazgosPublicos();
     if (resHallazgos.online && resHallazgos.data) {
       const guardados = resHallazgos.data;
       setHallazgos((prev) => [...prev.filter((h) => h.pendingSync), ...guardados]);
@@ -318,7 +326,7 @@ export function FieldStationWorkspace({
     setLoading(true);
     setErrorFormulario(null);
     try {
-      const saved = await registrarAvistamiento(item.originalPayload, currentUser.id);
+      const saved = await registrarAvistamiento(item.originalPayload);
       setAvistamientos((prev) =>
         prev.map((av) => (av.id === item.id ? { ...saved, pendingSync: false } : av))
       );
@@ -378,7 +386,7 @@ export function FieldStationWorkspace({
     };
 
     try {
-      const saved = await registrarAvistamiento(payload, currentUser.id);
+      const saved = await registrarAvistamiento(payload);
       setAvistamientos((prev) => [{ ...saved, pendingSync: false }, ...prev]);
       notificar({
         tipo: 'ok',
@@ -533,7 +541,7 @@ export function FieldStationWorkspace({
       catalogo[0];
 
     try {
-      const result = await registrarHallazgo(payload, currentUser.id);
+      const result = await registrarHallazgo(payload);
       const created: HallazgoResponse = result.hallazgo || {
         id: result.id || crypto.randomUUID(),
         investigadorId: payload.investigadorId,
@@ -560,6 +568,7 @@ export function FieldStationWorkspace({
 
       setHallazgos((prev) => [created, ...prev]);
       setTargetHallazgoId(created.id);
+      recargarConsulta();
       setHaDescripcion('');
 
       onNewSpeciesCardCreated({
@@ -724,10 +733,11 @@ export function FieldStationWorkspace({
         campo: modCampo,
         valor: modValor.trim(),
         autor: currentUser.id,
-      }, currentUser.id);
+      });
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
       );
+      recargarConsulta();
       onNewHistoryEventAdded(
         {
           id: `EVT-${Date.now().toString().slice(-4)}`,
@@ -856,10 +866,11 @@ export function FieldStationWorkspace({
         motivo: recMotivo.trim(),
         autor: currentUser.id,
         autorizador: recAutorizador,
-      }, currentUser.id);
+      });
       setHallazgos((prev) =>
         prev.map((h) => (h.id === updated.id ? updated : h))
       );
+      recargarConsulta();
       onNewHistoryEventAdded(
         {
           id: `EVT-${Date.now().toString().slice(-4)}`,
@@ -962,7 +973,7 @@ export function FieldStationWorkspace({
           {/* Agregar una especie nueva al catálogo, al inicio de la sección (solo con hallazgo:crear) */}
           {canWrite && onEspecieCreada && (
             <div className="lg:col-span-12">
-              <NuevaEspecie usuario={currentUser} onCreada={onEspecieCreada} />
+              <NuevaEspecie onCreada={onEspecieCreada} />
             </div>
           )}
 
@@ -1537,29 +1548,23 @@ export function FieldStationWorkspace({
         {/* Sumar evidencias a un hallazgo ya registrado (solo con hallazgo:editar) */}
         {canEdit && (
           <AgregarEvidencia
-            currentUser={currentUser}
             hallazgos={hallazgos.filter((h) => !h.pendingSync)}
-            onHallazgoActualizado={(actualizado) =>
-              setHallazgos((prev) => prev.map((h) => (h.id === actualizado.id ? actualizado : h)))
-            }
+            onHallazgoActualizado={(actualizado) => {
+              setHallazgos((prev) => prev.map((h) => (h.id === actualizado.id ? actualizado : h)));
+              recargarConsulta();
+            }}
           />
         )}
 
-        {/* Hallazgos guardados en la base de datos, con búsqueda por nombre */}
+        {/* HU-05: consulta por especie, fecha y palabra clave en servicio-consulta-publica */}
         <ListaHallazgos
-          hallazgos={hallazgos}
+          usuario={currentUser}
+          pendientes={hallazgos.filter((h) => h.pendingSync)}
+          ultimoCambio={ultimoCambio}
           catalogo={catalogo}
           fichas={fichas ?? []}
           expediciones={expediciones}
           puedeVerExacta={puedeVerExacta}
-          onModificar={
-            canEdit
-              ? (id) => {
-                  setTargetHallazgoId(id);
-                  setActiveTab('reclasificacion');
-                }
-              : undefined
-          }
         />
         </div>
       )}
@@ -1601,7 +1606,8 @@ export function FieldStationWorkspace({
                   )}
                   {hallazgosFiltrados.map((h) => (
                     <option key={h.id} value={h.id}>
-                      {nombreComunHallazgo(h, catalogo)} ({h.especie}) — {h.departamento} · {h.investigadorId} · v{h.versionActual}
+                      {nombreComunHallazgo(h, catalogo)} ({h.especie}) — {h.departamento}
+                      {h.investigadorId ? ` · ${h.investigadorId}` : ''} · v{h.versionActual}
                     </option>
                   ))}
                 </select>

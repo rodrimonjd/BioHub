@@ -14,11 +14,15 @@ public class ClienteAutorizacion {
 
     private static final Duration DURACION_CACHE = Duration.ofSeconds(30);
 
+    private static final String CABECERA_SECRETO = "X-Secreto-Servicio";
+
     private final RestClient http;
+    private final String secreto;
     private final Map<String, PermisoEnCache> cachePermisos = new ConcurrentHashMap<>();
 
     public ClienteAutorizacion(GatewayProperties propiedades) {
         this.http = RestClient.create(propiedades.autorizacionUrl());
+        this.secreto = propiedades.secretoServicios() == null ? "" : propiedades.secretoServicios();
     }
 
     public boolean tienePermiso(String usuarioId, String permiso) {
@@ -39,17 +43,18 @@ public class ClienteAutorizacion {
         return permitido;
     }
 
-    public boolean validarConsumidor(String consumidorId) {
+    public RespuestaConsumidor validarConsumidor(String consumidorId) {
         RespuestaConsumidor respuesta = http.post()
                 .uri("/api/v1/autorizacion/consumidores/validar")
+                .header(CABECERA_SECRETO, secreto)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("consumidorId", consumidorId))
                 .retrieve()
                 .body(RespuestaConsumidor.class);
-        return respuesta != null && respuesta.valido();
+        return respuesta == null ? new RespuestaConsumidor(consumidorId, false, null) : respuesta;
     }
 
-    record RespuestaConsumidor(String consumidorId, boolean valido) { }
+    record RespuestaConsumidor(String consumidorId, boolean valido, String token) { }
 
     record RespuestaVerificacion(String usuarioId, String permiso, boolean permitido) { }
 

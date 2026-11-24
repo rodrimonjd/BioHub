@@ -4,7 +4,7 @@ Hallazgos, fichas taxonómicas flexibles, evidencias, equipos y avistamientos. B
 
 **ASR:** ASR-05, ASR-06, ASR-08, ASR-09
 
-**Permisos (ASR-05):** toda escritura exige la cabecera `X-Usuario-Id` y registro pregunta a `servicio-autorizacion` (`POST /verificar`, con caché de 60 s) si ese usuario tiene el permiso. Sin cabecera o sin permiso responde 403; si autorización no responde, 503 (no se escribe nada).
+**Permisos (ASR-05):** toda escritura exige un token (`Authorization: Bearer`) que se verifica con la clave pública de autorización, y registro pregunta a `servicio-autorizacion` (`POST /verificar`, con caché de 60 s) si ese usuario tiene el permiso. Con un token falso o vencido responde 401; sin token o sin permiso, 403; si autorización no responde, 503 (no se escribe nada).
 
 | Operación | Permiso |
 |---|---|
