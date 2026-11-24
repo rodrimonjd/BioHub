@@ -4,8 +4,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { ListaDesplazable } from '@/components/ui/ListaDesplazable';
 import { useNotificar } from '@/components/ui/Notificaciones';
 import { avisoDeError } from '@/lib/avisos';
+import { tituloDeDia } from '@/lib/fechas';
 import { BioHubUser, etiquetaRoles } from '@/lib/permissions';
 import {
   AccionRol,
@@ -26,6 +28,9 @@ const ETIQUETA_ACCION: Record<AccionRol, string> = {
   ROL_CREADO: 'Rol creado',
   PERMISOS_CAMBIADOS: 'Permisos del rol cambiados',
 };
+
+const claveDeCambio = (c: CambioRol) => String(c.id);
+const diaDeCambio = (c: CambioRol) => tituloDeDia(c.realizadoEn);
 
 function fechaHora(iso: string): string {
   return new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
@@ -377,9 +382,15 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
         {historial.length === 0 ? (
           <p className="text-sm text-ink-muted">Todavía no hay cambios de roles registrados.</p>
         ) : (
-          <ol className="max-h-96 space-y-2 overflow-y-auto">
-            {historial.map((c) => (
-              <li key={c.id} className="rounded-md border border-line px-3 py-2 text-xs">
+          <ListaDesplazable
+            items={historial}
+            etiqueta="Historial de cambios de roles"
+            clave={claveDeCambio}
+            grupo={diaDeCambio}
+            className="max-h-96"
+          >
+            {(c) => (
+              <div className="rounded-md border border-line bg-paper px-3 py-2 text-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span
                     className={`rounded px-2 py-0.5 font-mono text-[11px] font-semibold text-ink ${
@@ -403,9 +414,9 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
                 <p className="font-mono text-[11px] text-ink-muted">
                   Por {c.realizadoPor === 'sin registro' ? 'autor no registrado (cambio anterior al historial)' : c.realizadoPor}
                 </p>
-              </li>
-            ))}
-          </ol>
+              </div>
+            )}
+          </ListaDesplazable>
         )}
       </Card>
     </div>

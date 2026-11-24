@@ -58,6 +58,45 @@
   }
 }
 
+/* Barra de scroll delgada y sin flechas en toda la página */
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: var(--bg-paper);
+  }
+
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-moss-500) 55%, transparent) content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    border-width: 2px;
+    background: var(--accent-moss-500) content-box;
+  }
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent-moss-500) 60%, transparent) transparent;
+  }
+}
+
 @keyframes fadeInScroll {
   from {
     opacity: 0;

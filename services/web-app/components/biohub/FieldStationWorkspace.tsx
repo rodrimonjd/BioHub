@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { ErrorFormulario } from '@/components/ui/ErrorFormulario';
+import { ListaDesplazable } from '@/components/ui/ListaDesplazable';
 import { useNotificar } from '@/components/ui/Notificaciones';
 import { ConservationBadge } from '@/components/ui/ConservationBadge';
 import {
@@ -17,6 +18,7 @@ import {
 } from '@/lib/permissions';
 import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
 import { avisoDeError } from '@/lib/avisos';
+import { tituloDeDia } from '@/lib/fechas';
 import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
 import { FichaTaxonomica } from '@/lib/taxonomia-api';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
@@ -143,7 +145,8 @@ const INITIAL_LOCAL_HALLAZGOS: HallazgoResponse[] = [
   },
 ];
 
-const PAGE_SIZE = 3;
+const claveDeAvistamiento = (av: AvistamientoResponse) => av.id;
+const diaDeAvistamiento = (av: AvistamientoResponse) => tituloDeDia(av.fechaHora);
 
 export function FieldStationWorkspace({
   currentUser,
@@ -166,11 +169,10 @@ export function FieldStationWorkspace({
   } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Bitácora con paginación incremental
+  // Bitácora de avistamientos
   const [avistamientos, setAvistamientos] = useState<AvistamientoResponse[]>(
     INITIAL_LOCAL_AVISTAMIENTOS
   );
-  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
   const [hallazgos, setHallazgos] = useState<HallazgoResponse[]>(
     INITIAL_LOCAL_HALLAZGOS
   );
@@ -914,7 +916,10 @@ export function FieldStationWorkspace({
   const targetNewSpecies = catalogo.find(
     (s) => s.id === recNuevaEspecieId
   );
-  const visibleAvistamientos = avistamientos.slice(0, visibleCount);
+  const avistamientosRecientes = useMemo(
+    () => [...avistamientos].sort((a, b) => Date.parse(b.fechaHora) - Date.parse(a.fechaHora)),
+    [avistamientos]
+  );
 
   return (
     <div className="space-y-6">
@@ -1147,9 +1152,10 @@ export function FieldStationWorkspace({
           </Card>
           )}
 
-          {/* Bitácora con layout unificado y paginación incremental (a todo el ancho si no hay formulario) */}
-          <Card as="section" className={`${canWrite ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-4`}>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+          {/* Bitácora con scroll propio: junto al formulario tiene una altura fija; sin él ocupa todo el ancho */}
+          <div className={canWrite ? 'lg:col-span-7 lg:relative lg:min-h-[42rem] lg:self-stretch' : 'lg:col-span-12'}>
+          <Card as="section" className={`flex flex-col gap-4 ${canWrite ? 'lg:absolute lg:inset-0' : ''}`}>
+            <div className="border-b border-line pb-3">
               <div>
                 <span className="font-mono text-xs uppercase tracking-wider text-ink-muted">
                   Orden cronológico descendente
@@ -1158,17 +1164,19 @@ export function FieldStationWorkspace({
                   Bitácora de avistamientos ({avistamientos.length})
                 </h3>
               </div>
-              <span className="font-mono text-xs text-ink-muted">
-                Mostrando {visibleAvistamientos.length} de {avistamientos.length}
-              </span>
             </div>
 
-            <div className="space-y-3">
-              {visibleAvistamientos.map((av) => {
+            <ListaDesplazable
+              items={avistamientosRecientes}
+              etiqueta="Bitácora de avistamientos"
+              clave={claveDeAvistamiento}
+              grupo={diaDeAvistamiento}
+              className={`max-h-[66vh] ${canWrite ? 'lg:max-h-none lg:min-h-0 lg:flex-1' : ''}`}
+            >
+              {(av) => {
                 const spMeta = catalogo.find((s) => s.id === av.especieId);
                 return (
                   <article
-                    key={av.id}
                     className={`rounded-lg border p-4 space-y-3 ${
                       av.pendingSync
                         ? 'border-sun-500 bg-sun-500/5'
@@ -1237,21 +1245,10 @@ export function FieldStationWorkspace({
                     </div>
                   </article>
                 );
-              })}
-            </div>
-
-            {visibleCount < avistamientos.length && (
-              <div className="pt-2 flex justify-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-                  className="text-xs"
-                >
-                  Cargar más avistamientos ({avistamientos.length - visibleCount} restantes)
-                </Button>
-              </div>
-            )}
+              }}
+            </ListaDesplazable>
           </Card>
+          </div>
         </div>
       )}
 
