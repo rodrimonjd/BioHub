@@ -44,7 +44,7 @@ Para entrar al panel hace falta `servicio-autorizacion` en marcha (`docker compo
 | Ver coordenadas exactas de especies sensibles | `ubicacion:ver_exacta` |
 | Solicitar reportes científicos | `reporte:generar` |
 
-Esto solo muestra u oculta botones: la protección real está en el backend. Cada escritura a registro envía la cabecera `X-Usuario-Id` y registro valida el permiso con autorización. Si responde 403 o 400, el panel muestra el motivo; solo si el servidor no responde guarda el registro en el equipo para reintentarlo.
+Esto solo muestra u oculta botones: la protección real está en el backend. Al iniciar sesión, `app/api/sesion` guarda el token en una cookie `HttpOnly` que el JavaScript no puede leer, y `middleware.ts` lo agrega a cada petición como `Authorization: Bearer`; cada servicio lo verifica y valida el permiso con autorización. Si el token vence, la web lleva al login. Si responde 403 o 400, el panel muestra el motivo; solo si el servidor no responde guarda el registro en el equipo para reintentarlo.
 
 ### Verificación de calidad
 

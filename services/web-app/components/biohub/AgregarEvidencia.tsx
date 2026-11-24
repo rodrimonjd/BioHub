@@ -5,19 +5,17 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { useNotificar } from '@/components/ui/Notificaciones';
-import { BioHubUser } from '@/lib/permissions';
 import { agregarEvidencia, HallazgoResponse, TipoEvidencia } from '@/lib/registro-api';
 import { avisoDeError } from '@/lib/avisos';
 import { CLASE_INPUT, Encabezado } from './campo-ui';
 
 export interface AgregarEvidenciaProps {
-  currentUser: BioHubUser;
   hallazgos: HallazgoResponse[];
   onHallazgoActualizado: (hallazgo: HallazgoResponse) => void;
 }
 
 /** Suma una evidencia a un hallazgo ya registrado; el back la guarda como una nueva versión. */
-export function AgregarEvidencia({ currentUser, hallazgos, onHallazgoActualizado }: AgregarEvidenciaProps) {
+export function AgregarEvidencia({ hallazgos, onHallazgoActualizado }: AgregarEvidenciaProps) {
   const [evHallazgoId, setEvHallazgoId] = useState('');
   const [evTipo, setEvTipo] = useState<TipoEvidencia>('TEMPERATURA');
   const [evValor, setEvValor] = useState('');
@@ -39,8 +37,7 @@ export function AgregarEvidencia({ currentUser, hallazgos, onHallazgoActualizado
           unidad: evTipo === 'TEMPERATURA' ? evUnidad.trim() : undefined,
           urlArchivo: evTipo === 'AUDIO' ? evUrl.trim() : undefined,
           atributoTaxonomico: evAtributo.trim() || undefined,
-        },
-        currentUser.id
+        }
       );
       notificar({
         tipo: 'ok',

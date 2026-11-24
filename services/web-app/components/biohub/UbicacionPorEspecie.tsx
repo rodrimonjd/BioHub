@@ -44,7 +44,7 @@ export function UbicacionPorEspecie({ usuario, especies, recarga = 0 }: Ubicacio
   useEffect(() => {
     let vigente = true;
     const consultar = () =>
-      listarHallazgosPublicos(usuario.id).then(({ data }) => {
+      listarHallazgosPublicos().then(({ data }) => {
         if (vigente && data) setHallazgos(data);
       });
     consultar();

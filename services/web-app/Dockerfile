@@ -31,7 +31,10 @@ RUN npm run build
 # Etapa de ejecucion: solo el servidor standalone de Next
 FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production \
+# La usa /api/sesion para iniciar sesion (se lee al ejecutar, no al compilar)
+ARG AUTORIZACION_URL=http://servicio-autorizacion:8082
+ENV AUTORIZACION_URL=$AUTORIZACION_URL \
+    NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0

@@ -1,4 +1,5 @@
 import type { ConservationStatus } from '@/components/ui/ConservationBadge';
+import { pedir } from '@/lib/pedir';
 import type { HallazgoResponse } from '@/lib/registro-api';
 
 const API_BASE = '/api/consulta';
@@ -51,7 +52,6 @@ async function pedirPagina(
   filtro: FiltroHallazgos,
   pagina: number,
   tamano: number,
-  usuarioId: string,
   signal?: AbortSignal
 ): Promise<PaginaHallazgos> {
   const parametros = new URLSearchParams({ pagina: String(pagina), tamano: String(tamano) });
@@ -60,9 +60,8 @@ async function pedirPagina(
   }
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/hallazgos?${parametros}`, {
+    res = await pedir(`${API_BASE}/hallazgos?${parametros}`, {
       cache: 'no-store',
-      headers: { 'X-Usuario-Id': usuarioId },
       signal,
     });
   } catch (error) {
@@ -82,26 +81,25 @@ async function pedirPagina(
 export async function consultarHallazgos(
   filtro: FiltroHallazgos,
   cantidad: number,
-  usuarioId: string,
   signal?: AbortSignal
 ): Promise<{ hallazgos: HallazgoPublico[]; total: number }> {
   const tamano = Math.min(cantidad, TAMANO_MAXIMO);
-  const primera = await pedirPagina(filtro, 0, tamano, usuarioId, signal);
+  const primera = await pedirPagina(filtro, 0, tamano, signal);
   const hallazgos = [...primera.contenido];
   const paginas = Math.min(Math.ceil(cantidad / tamano), primera.totalPaginas);
   for (let pagina = 1; pagina < paginas; pagina++) {
-    hallazgos.push(...(await pedirPagina(filtro, pagina, tamano, usuarioId, signal)).contenido);
+    hallazgos.push(...(await pedirPagina(filtro, pagina, tamano, signal)).contenido);
   }
   return { hallazgos: hallazgos.slice(0, cantidad), total: primera.totalElementos };
 }
 
 /** Todos los hallazgos públicos con la forma de registro, sin los datos internos. */
-export async function listarHallazgosPublicos(usuarioId: string): Promise<{
+export async function listarHallazgosPublicos(): Promise<{
   data: HallazgoResponse[] | null;
   online: boolean;
 }> {
   try {
-    const { hallazgos } = await consultarHallazgos({}, 1000, usuarioId);
+    const { hallazgos } = await consultarHallazgos({}, 1000);
     return {
       online: true,
       data: hallazgos.map((h) => ({

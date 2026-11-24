@@ -6,12 +6,10 @@ import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 import { useNotificar } from '@/components/ui/Notificaciones';
-import { BioHubUser } from '@/lib/permissions';
 import { avisoDeError } from '@/lib/avisos';
 import { crearEspecie } from '@/lib/registro-api';
 
 export interface NuevaEspecieProps {
-  usuario: BioHubUser;
   /** Se llama tras guardar, para recargar el inventario desde la base de datos. */
   onCreada: () => Promise<void> | void;
 }
@@ -32,7 +30,7 @@ function nombreCategoria(estado: ConservationStatus): string {
 }
 
 /** Formulario para agregar una especie al catálogo (servicio-registro, permiso hallazgo:crear). */
-export function NuevaEspecie({ usuario, onCreada }: NuevaEspecieProps) {
+export function NuevaEspecie({ onCreada }: NuevaEspecieProps) {
   const [cientifico, setCientifico] = useState<string>('');
   const [comun, setComun] = useState<string>('');
   const [estado, setEstado] = useState<ConservationStatus>('LC');
@@ -49,8 +47,7 @@ export function NuevaEspecie({ usuario, onCreada }: NuevaEspecieProps) {
           nombreCientifico: cientifico.trim(),
           nombreComun: comun.trim() || null,
           estadoConservacion: estado,
-        },
-        usuario.id
+        }
       );
       notificar({
         tipo: 'ok',

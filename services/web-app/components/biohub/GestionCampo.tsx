@@ -47,7 +47,7 @@ export function GestionCampo({
 
   useEffect(() => {
     recargarEquipos();
-    listarUsuariosConPermiso(currentUser.id, PERMISOS.CREAR_HALLAZGO).then(setLideres);
+    listarUsuariosConPermiso(PERMISOS.CREAR_HALLAZGO).then(setLideres);
   }, [currentUser.id]);
 
   // Equipo
@@ -59,8 +59,7 @@ export function GestionCampo({
     e.preventDefault();
     try {
       const creado = await crearEquipo(
-        { numeroSerie: eqSerie.trim(), tipo: eqTipo, modelo: eqModelo.trim() || null },
-        currentUser.id
+        { numeroSerie: eqSerie.trim(), tipo: eqTipo, modelo: eqModelo.trim() || null }
       );
       notificar({
         tipo: 'ok',
@@ -98,8 +97,7 @@ export function GestionCampo({
           fechaInicio: exInicio,
           fechaFin: exFin || null,
           liderId: exLider,
-        },
-        currentUser.id
+        }
       );
       notificar({
         tipo: 'ok',
@@ -128,7 +126,7 @@ export function GestionCampo({
     e.preventDefault();
     if (!asExpedicionId || !asEquipoId) return;
     try {
-      const expedicion = await asignarEquipoAExpedicion(asExpedicionId, asEquipoId, currentUser.id);
+      const expedicion = await asignarEquipoAExpedicion(asExpedicionId, asEquipoId);
       notificar({
         tipo: 'ok',
         titulo: 'Equipo asignado',

@@ -41,14 +41,14 @@ export function ApiUsagePanel({ usuarioId, puedeConfigurar }: ApiUsagePanelProps
   const notificar = useNotificar();
 
   const recargar = async () => {
-    const datos = await obtenerConsumo(usuarioId);
+    const datos = await obtenerConsumo();
     setConectado(datos !== null);
     if (datos) setResumen(datos);
   };
 
   useEffect(() => {
     const consultar = async () => {
-      const datos = await obtenerConsumo(usuarioId);
+      const datos = await obtenerConsumo();
       setConectado(datos !== null);
       if (datos) setResumen(datos);
     };
@@ -83,7 +83,7 @@ export function ApiUsagePanel({ usuarioId, puedeConfigurar }: ApiUsagePanelProps
     e.preventDefault();
     setGuardandoLimite(true);
     try {
-      const actualizado = await cambiarLimite(Number(nuevoLimite), usuarioId);
+      const actualizado = await cambiarLimite(Number(nuevoLimite));
       setResumen(actualizado);
       setNuevoLimite('');
       notificar({

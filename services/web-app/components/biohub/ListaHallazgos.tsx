@@ -123,7 +123,6 @@ export function ListaHallazgos({
     consultarHallazgos(
       { especie, texto: textoBuscado, fechaDesde: desde, fechaHasta: hasta },
       visibles,
-      usuario.id,
       control.signal
     )
       .then((r) => {
@@ -339,7 +338,6 @@ export function ListaHallazgos({
                       <DatosInternos
                         key={`${h.id}-${h.version}`}
                         id={h.id}
-                        usuarioId={usuario.id}
                         fichas={fichas}
                         expediciones={expediciones}
                       />
@@ -386,25 +384,24 @@ export function ListaHallazgos({
 
 interface DatosInternosProps {
   id: string;
-  usuarioId: string;
   fichas: FichaTaxonomica[];
   expediciones: Expedicion[];
 }
 
 /** Investigador, expedición, ficha y evidencias: no son públicos, así que se piden a servicio-registro al abrir. */
-function DatosInternos({ id, usuarioId, fichas, expediciones }: DatosInternosProps) {
+function DatosInternos({ id, fichas, expediciones }: DatosInternosProps) {
   const [hallazgo, setHallazgo] = useState<HallazgoResponse | null>(null);
   const [fallo, setFallo] = useState<boolean>(false);
 
   useEffect(() => {
     let vigente = true;
-    obtenerHallazgoPorId(id, usuarioId)
+    obtenerHallazgoPorId(id)
       .then((h) => vigente && setHallazgo(h))
       .catch(() => vigente && setFallo(true));
     return () => {
       vigente = false;
     };
-  }, [id, usuarioId]);
+  }, [id]);
 
   if (fallo) {
     return <p className="text-ink-muted">No se pudieron cargar las evidencias y los datos internos de este hallazgo.</p>;

@@ -27,13 +27,13 @@ import {
   canManageLocationAccess,
   canViewApiUsage,
   canViewReports,
-  clearStoredSession,
   getStoredSession,
   PERMISOS,
   saveStoredSession,
   tienePermiso,
 } from '@/lib/permissions';
-import { obtenerAcceso } from '@/lib/autorizacion-api';
+import { obtenerAcceso, obtenerSesionActual } from '@/lib/autorizacion-api';
+import { cerrarSesion } from '@/lib/sesion';
 import { AdminUsuarios } from '@/components/biohub/AdminUsuarios';
 import { NuevaFicha } from '@/components/biohub/NuevaFicha';
 import {
@@ -167,7 +167,8 @@ export default function PanelPage() {
     setCheckingSession(false);
 
     // Los permisos pueden haber cambiado desde el inicio de sesión: se piden de nuevo a autorización.
-    obtenerAcceso(stored.id).then((acceso) => {
+    // Si el token venció, el servicio responde 401 y VigilanteSesion lleva al login.
+    (stored.invitado ? obtenerAcceso(stored.id) : obtenerSesionActual()).then((acceso) => {
       if (!acceso) return; // servicio caído: se mantiene la sesión guardada
       const actualizado = actualizarAcceso(stored, acceso);
       saveStoredSession(actualizado);
@@ -199,7 +200,7 @@ export default function PanelPage() {
 
   // Al cerrar sesión se vuelve a la página principal
   const handleLogout = () => {
-    clearStoredSession();
+    cerrarSesion();
     setCurrentUser(null);
     router.push('/');
   };
@@ -496,7 +497,7 @@ export default function PanelPage() {
                     const onDesactivar =
                       ficha && canDeactivateFichas(currentUser)
                         ? async (motivo: string) => {
-                            await desactivarFicha(ficha.id, motivo, currentUser.id);
+                            await desactivarFicha(ficha.id, motivo);
                             await recargarInventario();
                           }
                         : undefined;
@@ -507,7 +508,6 @@ export default function PanelPage() {
 
               {inventario && canEditFichas(currentUser) && (
                 <NuevaFicha
-                  usuarioId={currentUser.id}
                   especies={inventario.especies}
                   fichas={inventario.fichas}
                   onCreada={recargarInventario}
@@ -696,7 +696,7 @@ export default function PanelPage() {
                     Decide qué cuentas ven las coordenadas exactas de cada especie y revisa el historial de esos cambios.
                   </p>
                 </div>
-                <AccesoUbicaciones usuario={currentUser} especies={inventario?.especies ?? []} />
+                <AccesoUbicaciones especies={inventario?.especies ?? []} />
               </div>
             )}
 
