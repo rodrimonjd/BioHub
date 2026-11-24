@@ -49,4 +49,28 @@ class ExpedicionTest {
         assertThat(expedicion.listarEquipos()).isEmpty();
         assertThat(equipo.getResponsableId()).isNull();
     }
+
+    @Test
+    void noAsignaElMismoEquipoDosVeces() {
+        Expedicion expedicion = new Expedicion("Orinoquia", "Meta", inicio, null, "inv-1");
+        EquipoCampo equipo = new EquipoCampo("CT-03", "camara trampa", null);
+        expedicion.asignarEquipo(equipo);
+
+        assertThatThrownBy(() -> expedicion.asignarEquipo(equipo))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ya esta asignado");
+        assertThat(expedicion.listarEquipos()).containsExactly(equipo);
+    }
+
+    @Test
+    void elMismoEquipoPuedeIrAOtraExpedicion() {
+        Expedicion primera = new Expedicion("Orinoquia", "Meta", inicio, null, "inv-1");
+        Expedicion segunda = new Expedicion("Amazonia", "Amazonas", inicio, null, "inv-2");
+        EquipoCampo equipo = new EquipoCampo("CT-04", "camara trampa", null);
+
+        primera.asignarEquipo(equipo);
+        segunda.asignarEquipo(equipo);
+
+        assertThat(segunda.listarEquipos()).containsExactly(equipo);
+    }
 }

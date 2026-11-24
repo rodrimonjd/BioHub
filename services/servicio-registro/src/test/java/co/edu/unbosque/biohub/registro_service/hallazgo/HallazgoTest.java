@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 
 import co.edu.unbosque.biohub.registro_service.especie.Especie;
 import co.edu.unbosque.biohub.registro_service.evidencia.DatosInvalidosException;
+import co.edu.unbosque.biohub.registro_service.evidencia.FabricaEvidencia;
+import co.edu.unbosque.biohub.registro_service.evidencia.TipoEvidencia;
 
 class HallazgoTest {
 
@@ -75,5 +77,29 @@ class HallazgoTest {
 
         assertThatThrownBy(() -> h.reclasificar(especie, "x", "inv-1", "aut-9"))
                 .isInstanceOf(DatosInvalidosException.class);
+    }
+
+    @Test
+    void registrarEvidenciaLaAgregaYSubeLaVersion() {
+        Hallazgo h = nuevoHallazgo();
+
+        CambioHallazgo cambio = h.registrarEvidencia(
+                FabricaEvidencia.crear(TipoEvidencia.TEMPERATURA, "28.5", "C", null, "Temperatura del agua"), "inv-1");
+
+        assertThat(h.getEvidencias()).hasSize(1);
+        assertThat(h.getVersionActual()).isEqualTo(2);
+        assertThat(cambio.campo()).isEqualTo("evidencia");
+        assertThat(cambio.valorNuevo()).isEqualTo("TEMPERATURA: 28.5 C");
+    }
+
+    @Test
+    void registrarEvidenciaInvalidaNoCambiaLaVersion() {
+        Hallazgo h = nuevoHallazgo();
+
+        assertThatThrownBy(() -> h.registrarEvidencia(
+                FabricaEvidencia.crear(TipoEvidencia.AUDIO, null, null, null, null), "inv-1"))
+                .isInstanceOf(DatosInvalidosException.class);
+        assertThat(h.getEvidencias()).isEmpty();
+        assertThat(h.getVersionActual()).isEqualTo(1);
     }
 }

@@ -10,9 +10,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos;
 import jakarta.validation.Valid;
 
 @RestController
@@ -20,14 +22,19 @@ import jakarta.validation.Valid;
 public class AvistamientoControlador {
 
     private final AvistamientoServicio service;
+    private final VerificadorPermisos permisos;
 
-    public AvistamientoControlador(AvistamientoServicio service) {
+    public AvistamientoControlador(AvistamientoServicio service, VerificadorPermisos permisos) {
         this.service = service;
+        this.permisos = permisos;
     }
 
     @PostMapping
-    public ResponseEntity<RespuestaAvistamiento> registrar(@Valid @RequestBody SolicitudAvistamiento request) {
-        Avistamiento guardado = service.registrar(request);
+    public ResponseEntity<RespuestaAvistamiento> registrar(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @Valid @RequestBody SolicitudAvistamiento request) {
+        String investigador = permisos.exigir(usuario, VerificadorPermisos.CREAR_HALLAZGO);
+        Avistamiento guardado = service.registrar(request.conInvestigador(investigador));
         return ResponseEntity.status(HttpStatus.CREATED).body(RespuestaAvistamiento.desde(guardado));
     }
 

@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import co.edu.unbosque.biohub.registro_service.configuracion.PropiedadesRegistro;
 import org.springframework.data.domain.Limit;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -19,10 +19,10 @@ public class RetransmisorOutbox {
     private final PublicadorEventos publicador;
     private final int lote;
 
-    public RetransmisorOutbox(OutboxEventoRepositorio repositorio, PublicadorEventos publicador, @Value("${biohub.eventos.lote}") int lote) {
+    public RetransmisorOutbox(OutboxEventoRepositorio repositorio, PublicadorEventos publicador, PropiedadesRegistro propiedades) {
         this.repositorio = repositorio;
         this.publicador = publicador;
-        this.lote = lote;
+        this.lote = propiedades.eventos().lote();
     }
 
     @Scheduled(fixedDelayString = "${biohub.eventos.intervalo-ms}")

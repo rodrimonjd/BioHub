@@ -55,6 +55,10 @@ export function SiteHeader({
         { href: '#inventario', label: 'Inventario' },
         { href: '#trazabilidad', label: 'Trazabilidad' },
         { href: '#operacion', label: 'API' },
+        // Solo para quien administra cuentas (permiso roles:administrar)
+        ...(user?.permisos.includes('roles:administrar')
+          ? [{ href: '#administracion', label: 'Usuarios' }]
+          : []),
       ]
     : [{ href: '#desafios', label: 'Desafíos científicos' }];
 

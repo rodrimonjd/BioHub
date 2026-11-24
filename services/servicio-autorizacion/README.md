@@ -44,8 +44,26 @@ Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL,
 | GET/POST | `/roles` | Listar / crear roles (admin) |
 | PUT | `/roles/{nombre}/permisos` | Reemplazar los permisos de un rol (admin) |
 | POST/DELETE | `/usuarios/{usuarioId}/roles/{nombreRol}` | Asignar / revocar rol (admin) |
+| POST | `/sesiones` | Inicio de sesión: `{usuario (id o correo), clave}` → `{usuarioId, nombre, correo, roles, permisos}`. 401 con un mensaje genérico si no coinciden |
+| GET/POST | `/usuarios` | Listar / crear cuentas `{id, nombre, correo, clave, rol?}` (admin) |
+| GET | `/usuarios/con-permiso/{permiso}` | Cuentas activas con un permiso (solo id y nombre), p. ej. `hallazgo:validar` para elegir quién autoriza una reclasificación. Exige `X-Usuario-Id` de una cuenta activa |
 
 Los endpoints de administración exigen la cabecera `X-Usuario-Id` (la pone el API Gateway) con el permiso `roles:administrar`.
+
+## Cuentas e inicio de sesión
+La identidad y el acceso están centralizados en este servicio (ASR-05): la tabla `usuarios` (migración V4) guarda cada cuenta y `usuario_roles` sus roles. El id de la cuenta es el mismo `X-Usuario-Id` que reciben los demás servicios.
+
+- Las contraseñas se guardan **solo como hash BCrypt** (`spring-security-crypto`), nunca en texto plano, y la respuesta nunca las incluye.
+- Usuario inexistente, cuenta inactiva o contraseña incorrecta dan el mismo 401 *"Usuario o contraseña incorrectos"*, y se compara un hash aunque el usuario no exista, para no revelar qué cuentas existen.
+- La interfaz web (`services/web-app`) inicia sesión con `/sesiones` y muestra u oculta cada acción según los **permisos** recibidos (`hallazgo:crear`, `hallazgo:validar`, `ubicacion:ver_exacta`, `historial:ver`...).
+
+Cuentas iniciales **solo para desarrollo** (cámbialas en cualquier entorno real):
+
+| Usuario | Correo | Contraseña | Rol |
+|---|---|---|---|
+| `admin` | admin@biohub.gov.co | `BioHub-Admin-2026` | ADMIN |
+| `investigador.campo` | investigador@biohub.gov.co | `BioHub-Invest-2026` | INVESTIGADOR |
+| `autoridad.ambiental` | autoridad@biohub.gov.co | `BioHub-Autoridad-2026` | AUTORIDAD_AMBIENTAL |
 
 ## Ejemplos (PowerShell)
 ```powershell

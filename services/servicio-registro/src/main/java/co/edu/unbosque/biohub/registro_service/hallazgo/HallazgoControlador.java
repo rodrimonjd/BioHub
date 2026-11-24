@@ -1,27 +1,46 @@
 package co.edu.unbosque.biohub.registro_service.hallazgo;
 
+import co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos;
+import co.edu.unbosque.biohub.registro_service.evidencia.SolicitudEvidencia;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+
+import static co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos.CABECERA_USUARIO;
 
 @RestController
 @RequestMapping("/hallazgos")
 public class HallazgoControlador {
 
     private final HallazgoServicio service;
+    private final VerificadorPermisos permisos;
 
-    public HallazgoControlador(HallazgoServicio service) {
+    public HallazgoControlador(HallazgoServicio service, VerificadorPermisos permisos) {
         this.service = service;
+        this.permisos = permisos;
     }
 
     @PostMapping
-    public ResponseEntity<Void> registrar(@Valid @RequestBody SolicitudHallazgo request) {
-        Hallazgo guardado = service.registrar(request);
+    public ResponseEntity<Void> registrar(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                          @Valid @RequestBody SolicitudHallazgo request) {
+        String investigador = permisos.exigir(usuario, VerificadorPermisos.CREAR_HALLAZGO);
+        Hallazgo guardado = service.registrar(request.conInvestigador(investigador));
         URI location = URI.create("/hallazgos/" + guardado.getId());
         return ResponseEntity.created(location).build();
+    }
+
+    @GetMapping
+    public List<RespuestaHallazgo> listar(@RequestParam(required = false) String investigadorId) {
+        List<RespuestaHallazgo> respuesta = new ArrayList<>();
+        for (Hallazgo h : service.listar(investigadorId)) {
+            respuesta.add(RespuestaHallazgo.desde(h));
+        }
+        return respuesta;
     }
 
     @GetMapping("/{id}")
@@ -30,12 +49,24 @@ public class HallazgoControlador {
     }
 
     @PatchMapping("/{id}")
-    public RespuestaHallazgo modificar(@PathVariable UUID id, @Valid @RequestBody SolicitudModificarHallazgo request) {
-        return RespuestaHallazgo.desde(service.modificar(id, request));
+    public RespuestaHallazgo modificar(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                       @PathVariable UUID id, @Valid @RequestBody SolicitudModificarHallazgo request) {
+        String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
+        return RespuestaHallazgo.desde(service.modificar(id, request.conAutor(autor)));
+    }
+
+    @PostMapping("/{id}/evidencias")
+    public RespuestaHallazgo agregarEvidencia(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                              @PathVariable UUID id, @Valid @RequestBody SolicitudEvidencia request) {
+        String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
+        return RespuestaHallazgo.desde(service.agregarEvidencia(id, request, autor));
     }
 
     @PostMapping("/{id}/reclasificacion")
-    public RespuestaHallazgo reclasificar(@PathVariable UUID id,@Valid @RequestBody SolicitudReclasificarHallazgo request) {
-        return RespuestaHallazgo.desde(service.reclasificar(id, request));
+    public RespuestaHallazgo reclasificar(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                          @PathVariable UUID id, @Valid @RequestBody SolicitudReclasificarHallazgo request) {
+        String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
+        permisos.exigirAutorizador(request.autorizador());
+        return RespuestaHallazgo.desde(service.reclasificar(id, request.conAutor(autor)));
     }
 }

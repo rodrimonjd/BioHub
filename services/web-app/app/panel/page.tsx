@@ -10,24 +10,33 @@ import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
 import { SiteHeader } from '@/components/biohub/SiteHeader';
 import { SpeciesCard, SpeciesCardProps } from '@/components/biohub/SpeciesCard';
-import {
-  HistoryTimeline,
-  HistoryEventItem,
-} from '@/components/biohub/HistoryTimeline';
+import { HistorialRegistros } from '@/components/biohub/HistorialRegistros';
 import { ProtectedLocation } from '@/components/biohub/ProtectedLocation';
 import { ApiUsagePanel } from '@/components/biohub/ApiUsagePanel';
-import { ReportStatus } from '@/components/biohub/ReportStatus';
+import { ReportesPanel } from '@/components/biohub/ReportesPanel';
 import { FieldStationWorkspace } from '@/components/biohub/FieldStationWorkspace';
 import {
+  actualizarAcceso,
   BioHubUser,
+  canEditFichas,
+  canViewExactCoordinates,
   clearStoredSession,
   getStoredSession,
-  UserRole,
+  PERMISOS,
+  saveStoredSession,
+  tienePermiso,
 } from '@/lib/permissions';
+import { obtenerAcceso } from '@/lib/autorizacion-api';
+import { AdminUsuarios } from '@/components/biohub/AdminUsuarios';
 import { BACKEND_SEED_SPECIES } from '@/lib/registro-api';
+import {
+  cargarInventario,
+  EspecieRegistro,
+  FichaTaxonomica,
+  guardarAtributoEnFicha,
+} from '@/lib/taxonomia-api';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
 
-// Categoría UICN unificada desde BACKEND_SEED_SPECIES (Panthera onca -> NT, Crocodylus intermedius -> CR, Ara macao -> LC)
 const JAGUAR_SEED = BACKEND_SEED_SPECIES[1];
 
 const INITIAL_SPECIES_CARDS: SpeciesCardProps[] = [
@@ -75,36 +84,37 @@ const INITIAL_SPECIES_CARDS: SpeciesCardProps[] = [
   },
 ];
 
-const INITIAL_HISTORY_EVENTS: HistoryEventItem[] = [
-  {
-    id: 'EVT-2026-0114',
-    version: 'v1',
-    date: '2026-01-14 · 09:20 UTC-5',
-    previousBelief: 'Sin registro previo (ingreso en estación base)',
-    currentKnowledge: 'Crocodylus acutus (Clasificación morfológica preliminar)',
-    authorizedBy: 'Sebastián García (Investigador de campo)',
-    reason:
-      'Registro inicial al regresar de expedición de campo con mediciones de temperatura del agua y canto.',
-  },
-  {
-    id: 'EVT-2026-0619',
-    version: 'v2',
-    date: '2026-06-19 · 16:45 UTC-5',
-    previousBelief: 'Crocodylus acutus',
-    currentKnowledge: 'Crocodylus intermedius',
-    authorizedBy: 'Sebastián García · Autorizó: Dra. Elena Escobar',
-    reason:
-      'Secuenciación genética de muestra ADN-ORI-2026-884 confirma reclasificación definitiva tras análisis de laboratorio.',
-  },
-];
+const ILUSTRACION_POR_ESPECIE: Record<string, SpeciesCardProps['illustrationVariant']> = {
+  'Crocodylus intermedius': 'reptile',
+  'Ara macao': 'avian',
+};
+
+function codigoFicha(especieId: string): string {
+  return especieId.slice(0, 8).toUpperCase();
+}
+
+function tarjetaDesde(especie: EspecieRegistro, ficha: FichaTaxonomica | undefined): SpeciesCardProps {
+  const atributos = (ficha?.atributos ?? [])
+    .filter((a) => a.atributo && a.valor)
+    .map((a) => ({
+      label: a.atributo!.unidad ? `${a.atributo!.nombre} (${a.atributo!.unidad})` : a.atributo!.nombre,
+      value: a.valor as string,
+    }));
+  return {
+    id: codigoFicha(especie.id),
+    commonName: especie.nombreComun ?? especie.nombreCientifico,
+    scientificName: especie.nombreCientifico,
+    status: especie.estadoConservacion as ConservationStatus,
+    specimenCode: ficha ? `Ficha v${ficha.version}` : 'Sin ficha taxonómica',
+    illustrationVariant: ILUSTRACION_POR_ESPECIE[especie.nombreCientifico],
+    attributes: atributos,
+  };
+}
 
 export default function PanelPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<BioHubUser | null>(null);
   const [checkingSession, setCheckingSession] = useState<boolean>(true);
-
-  // Vista previa local "Ver como..." para la tarjeta del corredor biológico (sin alterar la sesión real)
-  const [locationPreviewRole, setLocationPreviewRole] = useState<UserRole>('public');
 
   // Estado de fichas taxonómicas
   const [speciesList, setSpeciesList] = useState<SpeciesCardProps[]>(
@@ -113,19 +123,23 @@ export default function PanelPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ConservationStatus>('ALL');
 
-  // Formulario para agregar atributo a una ficha
   const [selectedCardIdForAttr, setSelectedCardIdForAttr] = useState<string>(
     INITIAL_SPECIES_CARDS[0].id
   );
   const [newAttrLabel, setNewAttrLabel] = useState<string>('');
   const [newAttrValue, setNewAttrValue] = useState<string>('');
   const [attrSavedNotice, setAttrSavedNotice] = useState<string | null>(null);
+  const [attrError, setAttrError] = useState<string | null>(null);
+  const [guardandoAtributo, setGuardandoAtributo] = useState<boolean>(false);
 
-  // Historial científico
-  const [activeFindingId, setActiveFindingId] = useState<string>('HAL-A1B2C3D4');
-  const [historyEvents, setHistoryEvents] = useState<HistoryEventItem[]>(
-    INITIAL_HISTORY_EVENTS
-  );
+  const [inventario, setInventario] = useState<{
+    especies: EspecieRegistro[];
+    fichas: FichaTaxonomica[];
+  } | null>(null);
+
+  // Historial (servicio-historial): hallazgo a mostrar y contador para volver a consultarlo
+  const [hallazgoHistorial, setHallazgoHistorial] = useState<string | null>(null);
+  const [recargaHistorial, setRecargaHistorial] = useState<number>(0);
 
   useEffect(() => {
     const stored = getStoredSession();
@@ -135,14 +149,39 @@ export default function PanelPage() {
       return;
     }
     setCurrentUser(stored);
-    setLocationPreviewRole(stored.role);
     setCheckingSession(false);
+
+    // Los permisos pueden haber cambiado desde el inicio de sesión: se piden de nuevo a autorización.
+    obtenerAcceso(stored.id).then((acceso) => {
+      if (!acceso) return; // servicio caído: se mantiene la sesión guardada
+      const actualizado = actualizarAcceso(stored, acceso);
+      saveStoredSession(actualizado);
+      setCurrentUser(actualizado);
+    });
   }, [router]);
 
+  const recargarInventario = async () => {
+    const datos = await cargarInventario();
+    if (!datos) return;
+    setInventario(datos);
+    const tarjetas = datos.especies.map((especie) =>
+      tarjetaDesde(especie, datos.fichas.find((f) => f.especieId === especie.id))
+    );
+    setSpeciesList(tarjetas);
+    setSelectedCardIdForAttr((actual) =>
+      tarjetas.some((t) => t.id === actual) ? actual : tarjetas[0]?.id ?? actual
+    );
+  };
+
+  useEffect(() => {
+    recargarInventario();
+  }, []);
+
+  // Al cerrar sesión se vuelve a la página principal
   const handleLogout = () => {
     clearStoredSession();
     setCurrentUser(null);
-    router.push('/login');
+    router.push('/');
   };
 
   const filteredSpecies = speciesList.filter((sp) => {
@@ -159,9 +198,38 @@ export default function PanelPage() {
     return matchesText && matchesStatus;
   });
 
-  const handleAddDynamicAttribute = (e: React.FormEvent) => {
+  const handleAddDynamicAttribute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAttrLabel.trim() || !newAttrValue.trim()) return;
+    setAttrError(null);
+    setAttrSavedNotice(null);
+
+    const especie = inventario?.especies.find((sp) => codigoFicha(sp.id) === selectedCardIdForAttr);
+    if (inventario && especie && currentUser) {
+      // Conectado: se guarda en servicio-taxonomia
+      setGuardandoAtributo(true);
+      try {
+        const ficha = await guardarAtributoEnFicha({
+          especieId: especie.id,
+          ficha: inventario.fichas.find((f) => f.especieId === especie.id) ?? null,
+          nombre: newAttrLabel.trim(),
+          valor: newAttrValue.trim(),
+          autor: currentUser.id,
+        });
+        setAttrSavedNotice(
+          `Atributo "${newAttrLabel.trim()}" guardado en la ficha de ${especie.nombreComun ?? especie.nombreCientifico} (versión ${ficha.version}).`
+        );
+        setNewAttrLabel('');
+        setNewAttrValue('');
+        await recargarInventario();
+      } catch (error) {
+        setAttrError(error instanceof Error ? error.message : 'No se pudo guardar el atributo.');
+      } finally {
+        setGuardandoAtributo(false);
+      }
+      return;
+    }
+
     setSpeciesList((prev) =>
       prev.map((card) =>
         card.id === selectedCardIdForAttr
@@ -255,16 +323,51 @@ export default function PanelPage() {
 
             <FieldStationWorkspace
               currentUser={currentUser}
+              especies={inventario?.especies.map((e) => ({
+                id: e.id,
+                scientificName: e.nombreCientifico,
+                commonName: e.nombreComun ?? e.nombreCientifico,
+                status: e.estadoConservacion as ConservationStatus,
+              }))}
+              fichas={inventario?.fichas ?? []}
+              onEspecieCreada={recargarInventario}
               onNewSpeciesCardCreated={(newCard) =>
                 setSpeciesList((prev) => [newCard, ...prev])
               }
-              onNewHistoryEventAdded={(newEvent, findingId) => {
-                setActiveFindingId(`HAL-${findingId}`);
-                setHistoryEvents((prev) => [...prev, newEvent]);
+              onNewHistoryEventAdded={(_evento, hallazgoId) => {
+                // El historial llega por eventos (RabbitMQ): se recarga ya y otra vez unos segundos después
+                setHallazgoHistorial(hallazgoId);
+                setRecargaHistorial((n) => n + 1);
+                window.setTimeout(() => setRecargaHistorial((n) => n + 1), 3000);
               }}
             />
           </div>
         </Section>
+
+        {/* ADMINISTRACIÓN DE USUARIOS: solo con el permiso roles:administrar */}
+        {tienePermiso(currentUser, PERMISOS.ADMINISTRAR_ROLES) && (
+          <Section
+            id="administracion"
+            aria-labelledby="admin-heading"
+            className="border-t border-line"
+          >
+            <div className="space-y-8">
+              <div className="max-w-3xl space-y-2">
+                <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+                  Administración · Acceso controlado
+                </p>
+                <h2 id="admin-heading" className="font-serif text-3xl font-semibold text-ink">
+                  Usuarios y roles
+                </h2>
+                <p className="text-sm text-ink-muted">
+                  Registra las cuentas institucionales del personal y asigna su rol. Los permisos de
+                  cada rol los define el servicio de autorización.
+                </p>
+              </div>
+              <AdminUsuarios admin={currentUser} />
+            </div>
+          </Section>
+        )}
 
         {/* 2. INVENTARIO Y FICHAS TAXONÓMICAS */}
         <Section
@@ -288,6 +391,11 @@ export default function PanelPage() {
                   <p className="text-sm text-ink-muted">
                     Explora las fichas registradas en estación base y despliega los
                     atributos específicos medidos para cada ejemplar.
+                  </p>
+                  <p className="font-mono text-xs text-ink-muted">
+                    {inventario
+                      ? 'Conectado a servicio-taxonomía · especies de servicio-registro'
+                      : 'Fichas de demostración (servicio-taxonomía sin conexión)'}
                   </p>
                 </div>
 
@@ -351,7 +459,8 @@ export default function PanelPage() {
                 </div>
               )}
 
-              {/* Formulario con título y explicación clara: Agregar atributo a una ficha */}
+              {/* Agregar atributo a una ficha: solo con el permiso ficha:editar (el invitado no lo ve) */}
+              {canEditFichas(currentUser) && (
               <Card className="bg-surface space-y-4">
                 <div className="border-b border-line pb-3">
                   <h3 className="font-serif text-lg font-semibold text-ink">
@@ -363,10 +472,15 @@ export default function PanelPage() {
                   </p>
                 </div>
 
-                <div aria-live="polite">
+                <div aria-live="polite" className="space-y-2">
                   {attrSavedNotice && (
                     <p className="rounded-md border border-iucn-lc bg-iucn-lc/10 px-3 py-2 font-mono text-xs text-ink">
                       {attrSavedNotice}
+                    </p>
+                  )}
+                  {attrError && (
+                    <p role="alert" className="rounded-md border border-iucn-cr bg-iucn-cr/10 px-3 py-2 font-mono text-xs text-ink">
+                      {attrError}
                     </p>
                   )}
                 </div>
@@ -427,12 +541,18 @@ export default function PanelPage() {
                   </Field>
 
                   <div className="md:col-span-2">
-                    <Button type="submit" variant="ghost" className="w-full text-xs">
-                      + Agregar atributo
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      className="w-full text-xs"
+                      disabled={guardandoAtributo}
+                    >
+                      {guardandoAtributo ? 'Guardando...' : '+ Agregar atributo'}
                     </Button>
                   </div>
                 </form>
               </Card>
+              )}
             </div>
 
             {/* 3. TRAZABILIDAD Y CORREDOR BIOLÓGICO */}
@@ -450,65 +570,24 @@ export default function PanelPage() {
                     autorizadas.
                   </p>
                 </div>
-                <HistoryTimeline
-                  findingId={activeFindingId}
-                  events={historyEvents}
+                <HistorialRegistros
+                  usuario={currentUser}
+                  fichas={inventario?.fichas ?? []}
+                  especies={inventario?.especies ?? []}
+                  hallazgoActivo={hallazgoHistorial}
+                  recarga={recargaHistorial}
                 />
               </div>
 
               <div className="lg:col-span-5 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
-                      El corredor biológico
-                    </p>
-                    <p className="text-sm text-ink-muted">
-                      Ver tarjeta como:
-                    </p>
-                  </div>
+                <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
+                  El corredor biológico
+                </p>
 
-                  {/* Selector local "Ver como..." que solo cambia la vista previa de esta tarjeta sin alterar la sesión del usuario */}
-                  <div
-                    role="group"
-                    aria-label="Ver ubicación geográfica como"
-                    className="inline-flex rounded-md border border-line bg-surface p-1"
-                  >
-                    <button
-                      type="button"
-                      aria-pressed={locationPreviewRole === 'public'}
-                      onClick={() => setLocationPreviewRole('public')}
-                      className={`min-h-11 rounded px-3 py-1.5 font-mono text-xs transition-colors duration-150 cursor-pointer ${
-                        locationPreviewRole === 'public'
-                          ? 'bg-forest-900 text-white'
-                          : 'text-ink-muted hover:text-ink'
-                      }`}
-                    >
-                      Visitante común
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={
-                        locationPreviewRole === 'senior' ||
-                        locationPreviewRole === 'director' ||
-                        locationPreviewRole === 'auditor'
-                      }
-                      onClick={() => setLocationPreviewRole('senior')}
-                      className={`min-h-11 rounded px-3 py-1.5 font-mono text-xs transition-colors duration-150 cursor-pointer ${
-                        locationPreviewRole === 'senior' ||
-                        locationPreviewRole === 'director' ||
-                        locationPreviewRole === 'auditor'
-                          ? 'bg-forest-900 text-white'
-                          : 'text-ink-muted hover:text-ink'
-                      }`}
-                    >
-                      Alto rango
-                    </button>
-                  </div>
-                </div>
-
-                {/* Panthera onca toma su categoría UICN (NT) directamente de la fuente única BACKEND_SEED_SPECIES */}
+                {/* La visibilidad depende del permiso ubicacion:ver_exacta de la cuenta (servicio-autorizacion) */}
                 <ProtectedLocation
-                  role={locationPreviewRole}
+                  puedeVerExacta={canViewExactCoordinates(currentUser)}
+                  nivelLabel={currentUser.roleLabel}
                   speciesCommonName={`${JAGUAR_SEED.commonName} del corredor Macarena`}
                   speciesScientificName={JAGUAR_SEED.scientificName}
                   status={JAGUAR_SEED.status}
@@ -540,12 +619,7 @@ export default function PanelPage() {
                 <p className="font-mono text-xs uppercase tracking-wider text-water-600 font-semibold">
                   Reportes analíticos sin bloqueo de campo
                 </p>
-                <ReportStatus
-                  reportTitle="Índice mensual de presión sobre ecosistemas y deforestación"
-                  reportId="REP-2026-11"
-                  recordsProcessed="2.450.000 registros"
-                  state="generando"
-                />
+                <ReportesPanel currentUser={currentUser} />
               </div>
             </div>
           </div>

@@ -3,7 +3,7 @@ package co.edu.unbosque.biohub.consulta.especie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import co.edu.unbosque.biohub.consulta.configuracion.PropiedadesConsulta;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -34,9 +34,8 @@ public class CatalogoEspeciesHttp implements CatalogoEspecies {
     private volatile Instant ultimoIntento = Instant.EPOCH;
 
     @Autowired
-    public CatalogoEspeciesHttp(@Value("${consulta.registro-url}") String registroUrl,
-                                @Value("${consulta.cache.especies-ttl}") Duration ttl) {
-        this(crearCliente(registroUrl), ttl, Clock.systemUTC());
+    public CatalogoEspeciesHttp(PropiedadesConsulta propiedades) {
+        this(crearCliente(propiedades.registroUrl().toString()), propiedades.cache().especiesTtl(), Clock.systemUTC());
     }
 
     CatalogoEspeciesHttp(RestClient cliente, Duration ttl, Clock reloj) {

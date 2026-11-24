@@ -10,9 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.edu.unbosque.biohub.registro_service.acceso.VerificadorPermisos;
 import jakarta.validation.Valid;
 
 @RestController
@@ -20,13 +22,18 @@ import jakarta.validation.Valid;
 public class EquipoControlador {
 
     private final EquipoServicio servicio;
+    private final VerificadorPermisos permisos;
 
-    public EquipoControlador(EquipoServicio servicio) {
+    public EquipoControlador(EquipoServicio servicio, VerificadorPermisos permisos) {
         this.servicio = servicio;
+        this.permisos = permisos;
     }
 
     @PostMapping
-    public ResponseEntity<RespuestaEquipo> crear(@Valid @RequestBody SolicitudEquipo request) {
+    public ResponseEntity<RespuestaEquipo> crear(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @Valid @RequestBody SolicitudEquipo request) {
+        permisos.exigir(usuario, VerificadorPermisos.GESTIONAR_EQUIPOS);
         EquipoCampo creado = servicio.crear(request);
         return ResponseEntity.created(URI.create("/equipos/" + creado.getId()))
                 .body(RespuestaEquipo.de(creado));
@@ -43,7 +50,10 @@ public class EquipoControlador {
     }
 
     @PutMapping("/{id}/responsable")
-    public RespuestaEquipo asignarResponsable(@PathVariable UUID id, @Valid @RequestBody SolicitudResponsable request) {
+    public RespuestaEquipo asignarResponsable(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @PathVariable UUID id, @Valid @RequestBody SolicitudResponsable request) {
+        permisos.exigir(usuario, VerificadorPermisos.GESTIONAR_EQUIPOS);
         return RespuestaEquipo.de(servicio.asignarResponsable(id, request.investigadorId()));
     }
 }

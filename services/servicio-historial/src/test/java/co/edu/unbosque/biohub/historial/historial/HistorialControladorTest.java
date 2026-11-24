@@ -5,7 +5,9 @@ import co.edu.unbosque.biohub.historial.compartido.NoEncontradoException;
 import co.edu.unbosque.biohub.historial.compartido.ServicioNoDisponibleException;
 import co.edu.unbosque.biohub.historial.historial.Vistas.VistaHistorial;
 import co.edu.unbosque.biohub.historial.permiso.ClienteAutorizacion;
+import co.edu.unbosque.biohub.historial.configuracion.PropiedadesHistorial;
 import co.edu.unbosque.biohub.historial.permiso.VerificadorPermisos;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(HistorialControlador.class)
 @Import(VerificadorPermisos.class)
+@EnableConfigurationProperties(PropiedadesHistorial.class)
 @TestPropertySource(properties = "historial.permiso-consulta=historial:ver")
 class HistorialControladorTest {
 

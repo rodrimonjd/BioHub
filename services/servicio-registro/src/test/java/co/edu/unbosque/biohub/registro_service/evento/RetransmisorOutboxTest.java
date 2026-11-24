@@ -8,17 +8,24 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import co.edu.unbosque.biohub.registro_service.configuracion.PropiedadesRegistro;
+
 class RetransmisorOutboxTest {
 
     private final OutboxEventoRepositorio repositorio = mock(OutboxEventoRepositorio.class);
     private final PublicadorEventos publicador = mock(PublicadorEventos.class);
-    private final RetransmisorOutbox relay = new RetransmisorOutbox(repositorio, publicador, 50);
+    private final PropiedadesRegistro propiedades = new PropiedadesRegistro(
+            new PropiedadesRegistro.Eventos("biohub.eventos", 5000L, 50),
+            new PropiedadesRegistro.Autorizacion(URI.create("http://localhost:8082"), Duration.ofSeconds(60)));
+    private final RetransmisorOutbox relay = new RetransmisorOutbox(repositorio, publicador, propiedades);
 
     private OutboxEvento evento(String tipo, String payload) {
         return new OutboxEvento(UUID.randomUUID(), tipo, "agregado", Instant.now(), payload);

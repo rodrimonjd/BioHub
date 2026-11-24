@@ -3,7 +3,9 @@ package co.edu.unbosque.biohub.autorizacion.compartido;
 import co.edu.unbosque.biohub.autorizacion.permiso.Permiso;
 import co.edu.unbosque.biohub.autorizacion.rol.Rol;
 import co.edu.unbosque.biohub.autorizacion.visibilidad.NivelVisibilidad;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.util.Set;
@@ -36,6 +38,24 @@ public final class Dtos {
             return new VistaRol(r.getNombre(), r.getDescripcion(), codigos);
         }
     }
+
+    public record SolicitudSesion(@NotBlank(message = "es obligatorio") String usuario,
+                                  @NotBlank(message = "es obligatoria") String clave) {}
+    /** Nunca incluye la contraseña ni su hash. */
+    public record RespuestaSesion(String usuarioId, String nombre, String correo,
+                                  Set<String> roles, Set<String> permisos) {}
+
+    public record SolicitudCrearUsuario(
+            @NotBlank(message = "es obligatorio")
+            @Pattern(regexp = "[a-zA-Z0-9._-]{3,100}", message = "solo letras, números, punto, guion o guion bajo (3 a 100)")
+            String id,
+            @NotBlank(message = "es obligatorio") @Size(max = 150, message = "máximo 150 caracteres") String nombre,
+            @NotBlank(message = "es obligatorio") @Email(message = "no es un correo válido") String correo,
+            @NotBlank(message = "es obligatoria") @Size(min = 8, max = 72, message = "debe tener entre 8 y 72 caracteres")
+            String clave,
+            String rol) {}
+    public record VistaUsuario(String id, String nombre, String correo, boolean activo, Set<String> roles) {}
+    public record ResumenUsuario(String id, String nombre) {}
 
     public record RespuestaError(int estado, String error, String mensaje) {}
 }

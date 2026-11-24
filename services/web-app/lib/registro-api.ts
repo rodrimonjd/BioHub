@@ -97,7 +97,61 @@ export interface HallazgoRequest {
   longitud: number | null;
   departamento: string;
   region: string | null;
+  /** Expedición de servicio-registro en la que se hizo el hallazgo (opcional). */
+  expedicionId?: string;
   evidencias: EvidenciaRequest[];
+}
+
+export interface Expedicion {
+  id: string;
+  nombre: string;
+  zona: string;
+  fechaInicio: string;
+  fechaFin: string | null;
+  liderId: string;
+  equipos?: Equipo[];
+}
+
+export interface Equipo {
+  id: string;
+  numeroSerie: string;
+  tipo: string;
+  modelo: string | null;
+  estado: string;
+  responsableId: string | null;
+}
+
+export interface ExpedicionNueva {
+  nombre: string;
+  zona: string;
+  fechaInicio: string;
+  fechaFin: string | null;
+  liderId: string;
+}
+
+export interface EquipoNuevo {
+  numeroSerie: string;
+  tipo: string;
+  modelo: string | null;
+}
+
+export async function listarEquipos(): Promise<Equipo[]> {
+  try {
+    const res = await fetch(`${API_BASE}/equipos`, { cache: 'no-store' });
+    return res.ok ? res.json() : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Expediciones registradas (GET /expediciones). Lista vacía si registro no responde. */
+export async function listarExpediciones(): Promise<Expedicion[]> {
+  try {
+    const res = await fetch(`${API_BASE}/expediciones`, { cache: 'no-store' });
+    return res.ok ? res.json() : [];
+  } catch {
+    return [];
+  }
 }
 
 export interface HallazgoResponse {
@@ -113,6 +167,7 @@ export interface HallazgoResponse {
   departamento: string;
   region: string | null;
   versionActual: number;
+  expedicionId?: string | null;
   creadoEn: string;
   evidencias: EvidenciaResponse[];
   pendingSync?: boolean;
@@ -158,6 +213,20 @@ export async function listarAvistamientos(): Promise<{
   }
 }
 
+export async function listarHallazgos(): Promise<{
+  data: HallazgoResponse[] | null;
+  online: boolean;
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/hallazgos`, { cache: 'no-store' });
+    if (!res.ok) return { data: null, online: false };
+    const data: HallazgoResponse[] = await res.json();
+    return { data, online: true };
+  } catch {
+    return { data: null, online: false };
+  }
+}
+
 export async function obtenerAvistamientoPorId(id: string): Promise<AvistamientoResponse> {
   const res = await fetch(`${API_BASE}/avistamientos/${id}`, { cache: 'no-store' });
   if (!res.ok) {
@@ -166,31 +235,114 @@ export async function obtenerAvistamientoPorId(id: string): Promise<Avistamiento
   return res.json();
 }
 
-export async function registrarAvistamiento(
-  payload: AvistamientoRequest
-): Promise<AvistamientoResponse> {
-  const res = await fetch(`${API_BASE}/avistamientos`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+/**
+ * El servidor respondió pero rechazó la operación (sin permiso, datos inválidos, no encontrado).
+ * No tiene sentido guardarla localmente para reintentar: hay que mostrar el motivo.
+ * Cualquier otro error (sin conexión, 5xx) significa que el servidor no está disponible.
+ */
+export class ErrorRechazado extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Escritura en servicio-registro. Envía X-Usuario-Id: registro valida el permiso con servicio-autorizacion
+ * y usa ese id como investigador/autor (ignora el que venga en el cuerpo).
+ */
+async function escribir(
+  ruta: string,
+  metodo: 'POST' | 'PATCH',
+  payload: unknown,
+  usuarioId: string,
+  mensajeError: string
+): Promise<Response> {
+  const res = await fetch(`${API_BASE}${ruta}`, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': usuarioId },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'Servicio de registro no disponible'));
+  if (res.ok) return res;
+  const mensaje = await parseErrorMessage(res, mensajeError);
+  if (res.status >= 400 && res.status < 500) {
+    throw new ErrorRechazado(
+      res.status === 403 ? `Sin permiso: ${mensaje}` : mensaje,
+      res.status
+    );
   }
+  throw new Error(mensaje);
+}
+
+export interface EspecieNueva {
+  nombreCientifico: string;
+  nombreComun: string | null;
+  estadoConservacion: ConservationStatus;
+}
+
+export interface EspecieCreada {
+  id: string;
+  nombreCientifico: string;
+  nombreComun: string | null;
+  estadoConservacion: ConservationStatus;
+}
+
+/** Agrega una especie al catálogo de servicio-registro (requiere hallazgo:crear). */
+export async function crearEspecie(payload: EspecieNueva, usuarioId: string): Promise<EspecieCreada> {
+  const res = await escribir('/especies', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function crearEquipo(payload: EquipoNuevo, usuarioId: string): Promise<Equipo> {
+  const res = await escribir('/equipos', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function crearExpedicion(payload: ExpedicionNueva, usuarioId: string): Promise<Expedicion> {
+  const res = await escribir('/expediciones', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function asignarEquipoAExpedicion(
+  expedicionId: string,
+  equipoId: string,
+  usuarioId: string
+): Promise<Expedicion> {
+  const res = await escribir(`/expediciones/${expedicionId}/equipos`, 'POST', { equipoId }, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function agregarEvidencia(
+  hallazgoId: string,
+  evidencia: EvidenciaRequest,
+  usuarioId: string
+): Promise<HallazgoResponse> {
+  const res = await escribir(`/hallazgos/${hallazgoId}/evidencias`, 'POST', evidencia, usuarioId,
+    'Servicio de registro no disponible');
+  return res.json();
+}
+
+export async function registrarAvistamiento(
+  payload: AvistamientoRequest,
+  usuarioId: string
+): Promise<AvistamientoResponse> {
+  const res = await escribir('/avistamientos', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
   return res.json();
 }
 
 export async function registrarHallazgo(
-  payload: HallazgoRequest
+  payload: HallazgoRequest,
+  usuarioId: string
 ): Promise<{ id: string | null; hallazgo: HallazgoResponse | null }> {
-  const res = await fetch(`${API_BASE}/hallazgos`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'Servicio de registro no disponible'));
-  }
+  const res = await escribir('/hallazgos', 'POST', payload, usuarioId,
+    'Servicio de registro no disponible');
   const location = res.headers.get('Location');
   const extractedId = location ? location.split('/').pop() || null : null;
   if (extractedId) {
@@ -210,30 +362,20 @@ export async function obtenerHallazgoPorId(id: string): Promise<HallazgoResponse
 
 export async function modificarHallazgo(
   id: string,
-  payload: ModificarHallazgoRequest
+  payload: ModificarHallazgoRequest,
+  usuarioId: string
 ): Promise<HallazgoResponse> {
-  const res = await fetch(`${API_BASE}/hallazgos/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'No se pudo sincronizar la modificación'));
-  }
+  const res = await escribir(`/hallazgos/${id}`, 'PATCH', payload, usuarioId,
+    'No se pudo sincronizar la modificación');
   return res.json();
 }
 
 export async function reclasificarHallazgo(
   id: string,
-  payload: ReclasificarHallazgoRequest
+  payload: ReclasificarHallazgoRequest,
+  usuarioId: string
 ): Promise<HallazgoResponse> {
-  const res = await fetch(`${API_BASE}/hallazgos/${id}/reclasificacion`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, 'No se pudo sincronizar la reclasificación'));
-  }
+  const res = await escribir(`/hallazgos/${id}/reclasificacion`, 'POST', payload, usuarioId,
+    'No se pudo sincronizar la reclasificación');
   return res.json();
 }

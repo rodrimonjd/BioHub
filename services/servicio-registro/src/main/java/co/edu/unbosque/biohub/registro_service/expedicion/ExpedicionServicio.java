@@ -56,6 +56,8 @@ public class ExpedicionServicio {
             expedicion.asignarEquipo(equipo);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
         }
         outbox.guardar(FabricaEventos.equipoAsignado(expedicion, equipo));
         return expedicion;

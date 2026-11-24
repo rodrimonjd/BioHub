@@ -87,7 +87,7 @@ public class RolServicio {
         usuarioRoles.delete(ur);
         emitir(usuarioId, "usuario.rol_revocado", Map.of("usuario", usuarioId, "rol", ur.getRol().getNombre()));
     }
-
+{}
     private Rol buscarRol(String nombre) {
         return roles.findByNombre(nombre.trim().toUpperCase())
                 .orElseThrow(() -> new NoEncontradoException("Rol no encontrado: " + nombre));

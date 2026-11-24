@@ -4,6 +4,7 @@ import co.edu.unbosque.biohub.registro_service.especie.Especie;
 import co.edu.unbosque.biohub.registro_service.especie.EspecieRepositorio;
 import co.edu.unbosque.biohub.registro_service.evento.FabricaEventos;
 import co.edu.unbosque.biohub.registro_service.evento.OutboxServicio;
+import co.edu.unbosque.biohub.registro_service.evidencia.Evidencia;
 import co.edu.unbosque.biohub.registro_service.evidencia.FabricaEvidencia;
 import co.edu.unbosque.biohub.registro_service.evidencia.SolicitudEvidencia;
 import co.edu.unbosque.biohub.registro_service.expedicion.Expedicion;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -60,6 +62,14 @@ public class HallazgoServicio {
     }
 
     @Transactional(readOnly = true)
+    public List<Hallazgo> listar(String investigadorId) {
+        if (investigadorId == null || investigadorId.isBlank()) {
+            return hallazgos.findAllByOrderByCreadoEnDesc();
+        }
+        return hallazgos.findByInvestigadorIdOrderByCreadoEnDesc(investigadorId.trim());
+    }
+
+    @Transactional(readOnly = true)
     public Hallazgo obtener(UUID id) {
         return hallazgos.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hallazgo no encontrado: " + id));
     }
@@ -68,6 +78,16 @@ public class HallazgoServicio {
     public Hallazgo modificar(UUID id, SolicitudModificarHallazgo r) {
         Hallazgo hallazgo = obtener(id);
         CambioHallazgo cambio = hallazgo.modificar(r.campo().trim(), r.valor().trim(), r.autor());
+        outbox.guardar(FabricaEventos.hallazgoModificado(hallazgo, cambio));
+        return hallazgo;
+    }
+
+    @Transactional
+    public Hallazgo agregarEvidencia(UUID id, SolicitudEvidencia e, String autor) {
+        Hallazgo hallazgo = obtener(id);
+        Evidencia evidencia = FabricaEvidencia.crear(e.tipo(), e.valor(), e.unidad(), e.urlArchivo(), e.atributoTaxonomico());
+        CambioHallazgo cambio = hallazgo.registrarEvidencia(evidencia, autor);
+        hallazgos.saveAndFlush(hallazgo);
         outbox.guardar(FabricaEventos.hallazgoModificado(hallazgo, cambio));
         return hallazgo;
     }
