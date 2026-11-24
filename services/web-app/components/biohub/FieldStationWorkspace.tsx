@@ -10,6 +10,7 @@ import {
   canRegisterFieldData,
   canAuthorizeReclassification,
   canEditFindings,
+  canManageEquipment,
   canViewExactCoordinates,
   PERMISOS,
 } from '@/lib/permissions';
@@ -35,7 +36,7 @@ import {
   TipoEvidencia,
 } from '@/lib/registro-api';
 import { SpeciesCardProps } from './SpeciesCard';
-import { NuevaEspecie } from './NuevaEspecie';
+import { GestionCampo } from './GestionCampo';
 import { ListaHallazgos } from './ListaHallazgos';
 import { HistoryEventItem } from './HistoryTimeline';
 
@@ -150,7 +151,7 @@ export function FieldStationWorkspace({
   // Especies de la base de datos; si registro no responde, el catálogo base para trabajar sin conexión
   const catalogo = especies && especies.length > 0 ? especies : BACKEND_SEED_SPECIES;
   const [activeTab, setActiveTab] = useState<
-    'avistamientos' | 'hallazgos' | 'reclasificacion'
+    'avistamientos' | 'hallazgos' | 'reclasificacion' | 'gestion'
   >('avistamientos');
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [statusBanner, setStatusBanner] = useState<{
@@ -181,6 +182,7 @@ export function FieldStationWorkspace({
   // Expediciones de servicio-registro para asociar el hallazgo
   const [expediciones, setExpediciones] = useState<Expedicion[]>([]);
   const [haExpedicionId, setHaExpedicionId] = useState<string>('');
+  const recargarExpediciones = async () => setExpediciones(await listarExpediciones());
   useEffect(() => {
     listarExpediciones().then((lista) => {
       setExpediciones(lista);
@@ -962,6 +964,24 @@ export function FieldStationWorkspace({
         >
           Reclasificación
         </button>
+        {(canWrite || canEdit || canManageEquipment(currentUser)) && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'gestion'}
+            onClick={() => {
+              setActiveTab('gestion');
+              setStatusBanner(null);
+            }}
+            className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
+              activeTab === 'gestion'
+                ? 'bg-forest-900 text-white'
+                : 'bg-surface text-ink border border-line hover:border-forest-700'
+            }`}
+          >
+            Especies, equipos y expediciones
+          </button>
+        )}
       </div>
 
       {/* Aviso accesible con aria-live */}
@@ -982,16 +1002,22 @@ export function FieldStationWorkspace({
         )}
       </div>
 
+      {activeTab === 'gestion' && (
+        <GestionCampo
+          currentUser={currentUser}
+          hallazgos={hallazgos.filter((h) => !h.pendingSync)}
+          expediciones={expediciones}
+          onExpedicionesCambiaron={recargarExpediciones}
+          onHallazgoActualizado={(actualizado) =>
+            setHallazgos((prev) => prev.map((h) => (h.id === actualizado.id ? actualizado : h)))
+          }
+          onEspecieCreada={onEspecieCreada}
+        />
+      )}
+
       {/* PESTAÑA 1: AVISTAMIENTOS */}
       {activeTab === 'avistamientos' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Agregar especie al catálogo: mismo permiso que registrar datos de campo (hallazgo:crear) */}
-          {canWrite && onEspecieCreada && (
-            <div className="lg:col-span-12">
-              <NuevaEspecie usuario={currentUser} onCreada={onEspecieCreada} />
-            </div>
-          )}
-
           {/* El formulario solo aparece si la cuenta puede registrar (hallazgo:crear); el invitado no lo ve */}
           {canWrite && (
           <Card as="section" className="lg:col-span-5 space-y-4">
