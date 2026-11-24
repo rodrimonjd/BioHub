@@ -56,7 +56,7 @@ public class ServicioAccesoUbicacion {
         }
         boolean todas = autorizacion.verificar(id, PoliticaVisibilidadUbicacion.PERMISO_UBICACION_EXACTA);
         Set<String> especies = accesos.findByUsuarioId(id).stream()
-                .map(AccesoUbicacion::getEspecieId)
+                .map(a -> a.getEspecieId())
                 .collect(Collectors.toCollection(TreeSet::new));
         return new AccesoDeUsuario(id, todas, especies);
     }
@@ -122,7 +122,7 @@ public class ServicioAccesoUbicacion {
     public List<ResumenUsuario> usuarios(String solicitante) {
         exigirAdministrador(solicitante);
         return usuarios.findAllByOrderByIdAsc().stream()
-                .filter(Usuario::isActivo)
+                .filter(u -> u.isActivo())
                 .map(u -> new ResumenUsuario(u.getId(), u.getNombre()))
                 .toList();
     }
@@ -140,13 +140,13 @@ public class ServicioAccesoUbicacion {
         if (id == null) {
             throw new IllegalArgumentException("usuarioId es obligatorio");
         }
-        return usuarios.findById(id).filter(Usuario::isActivo)
+        return usuarios.findById(id).filter(u -> u.isActivo())
                 .orElseThrow(() -> new NoEncontradoException("No existe una cuenta activa con id " + id));
     }
 
     private Map<String, String> nombresDeUsuarios() {
         return usuarios.findAllByOrderByIdAsc().stream()
-                .collect(Collectors.toMap(Usuario::getId, Usuario::getNombre, (a, b) -> a));
+                .collect(Collectors.toMap(u -> u.getId(), u -> u.getNombre(), (a, b) -> a));
     }
 
     private static String normalizarUsuario(String usuarioId) {

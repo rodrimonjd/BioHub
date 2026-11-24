@@ -78,7 +78,7 @@ public class RolServicio {
 
     public Rol definirPermisos(String nombreRol, Set<String> codigosPermisos, String autor) {
         Rol rol = buscarRol(nombreRol);
-        Set<String> antes = rol.getPermisos().stream().map(Permiso::getCodigo).collect(Collectors.toCollection(TreeSet::new));
+        Set<String> antes = rol.getPermisos().stream().map(p -> p.getCodigo()).collect(Collectors.toCollection(TreeSet::new));
         rol.setPermisos(resolverPermisos(codigosPermisos));
         Set<String> despues = codigosPermisos == null ? new TreeSet<>() : new TreeSet<>(codigosPermisos);
         emitir(rol.getNombre(), "rol.permisos_actualizados", Map.of("rol", rol.getNombre(), "permisos", despues));
