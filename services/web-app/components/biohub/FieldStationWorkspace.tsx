@@ -7,6 +7,7 @@ import { Field } from '@/components/ui/Field';
 import { ErrorFormulario } from '@/components/ui/ErrorFormulario';
 import { ListaDesplazable } from '@/components/ui/ListaDesplazable';
 import { useNotificar } from '@/components/ui/Notificaciones';
+import { idDePestana, Pestana, Pestanas } from '@/components/ui/Pestanas';
 import { ConservationBadge } from '@/components/ui/ConservationBadge';
 import {
   BioHubUser,
@@ -145,6 +146,18 @@ const INITIAL_LOCAL_HALLAZGOS: HallazgoResponse[] = [
   },
 ];
 
+type ModuloCampo = 'avistamientos' | 'hallazgos' | 'reclasificacion' | 'gestion';
+
+const ID_PANEL_CAMPO = 'modulo-estacion-campo';
+
+const MODULOS: Pestana<ModuloCampo>[] = [
+  { id: 'avistamientos', label: 'Avistamientos' },
+  { id: 'hallazgos', label: 'Hallazgos' },
+  { id: 'reclasificacion', label: 'Reclasificación' },
+];
+
+const MODULO_GESTION: Pestana<ModuloCampo> = { id: 'gestion', label: 'Equipos y expediciones' };
+
 const claveDeAvistamiento = (av: AvistamientoResponse) => av.id;
 const diaDeAvistamiento = (av: AvistamientoResponse) => tituloDeDia(av.fechaHora);
 
@@ -158,9 +171,7 @@ export function FieldStationWorkspace({
 }: FieldStationWorkspaceProps) {
   // Especies de la base de datos; si registro no responde, el catálogo base para trabajar sin conexión
   const catalogo = especies && especies.length > 0 ? especies : BACKEND_SEED_SPECIES;
-  const [activeTab, setActiveTab] = useState<
-    'avistamientos' | 'hallazgos' | 'reclasificacion' | 'gestion'
-  >('avistamientos');
+  const [activeTab, setActiveTab] = useState<ModuloCampo>('avistamientos');
   const notificar = useNotificar();
   // Errores de un dato del formulario; los demás avisos son flotantes
   const [errorFormulario, setErrorFormulario] = useState<{
@@ -923,82 +934,20 @@ export function FieldStationWorkspace({
 
   return (
     <div className="space-y-6">
-      {/* Pestañas cortas en una sola fila con role="tablist" */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3">
-      <div
-        role="tablist"
-        aria-label="Módulos de estación de campo"
-        className="flex flex-wrap gap-2"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'avistamientos'}
-          onClick={() => {
-            setActiveTab('avistamientos');
+      <div className="border-b border-line pb-4">
+        <Pestanas
+          etiqueta="Módulos de estación de campo"
+          pestanas={canManageEquipment(currentUser) ? [...MODULOS, MODULO_GESTION] : MODULOS}
+          activa={activeTab}
+          onCambio={(modulo) => {
+            setActiveTab(modulo);
             setErrorFormulario(null);
           }}
-          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'avistamientos'
-              ? 'bg-forest-900 text-white'
-              : 'bg-surface text-ink border border-line hover:border-forest-700'
-          }`}
-        >
-          Avistamientos
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'hallazgos'}
-          onClick={() => {
-            setActiveTab('hallazgos');
-            setErrorFormulario(null);
-          }}
-          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'hallazgos'
-              ? 'bg-forest-900 text-white'
-              : 'bg-surface text-ink border border-line hover:border-forest-700'
-          }`}
-        >
-          Hallazgos
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'reclasificacion'}
-          onClick={() => {
-            setActiveTab('reclasificacion');
-            setErrorFormulario(null);
-          }}
-          className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'reclasificacion'
-              ? 'bg-forest-900 text-white'
-              : 'bg-surface text-ink border border-line hover:border-forest-700'
-          }`}
-        >
-          Reclasificación
-        </button>
-        {canManageEquipment(currentUser) && (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'gestion'}
-            onClick={() => {
-              setActiveTab('gestion');
-              setErrorFormulario(null);
-            }}
-            className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-              activeTab === 'gestion'
-                ? 'bg-forest-900 text-white'
-                : 'bg-surface text-ink border border-line hover:border-forest-700'
-            }`}
-          >
-            Equipos y expediciones
-          </button>
-        )}
-      </div>
+          idPanel={ID_PANEL_CAMPO}
+        />
       </div>
 
+      <div role="tabpanel" id={ID_PANEL_CAMPO} aria-labelledby={idDePestana(ID_PANEL_CAMPO, activeTab)}>
       {activeTab === 'gestion' && (
         <GestionCampo
           currentUser={currentUser}
@@ -1844,6 +1793,8 @@ export function FieldStationWorkspace({
           )}
         </div>
       )}
+
+      </div>
 
       {/* Diálogo nativo <dialog> de confirmación antes de reclasificar */}
       <dialog
