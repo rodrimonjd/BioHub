@@ -151,6 +151,6 @@ class FiltroIdentidadTest {
         Resultado r = enviar(credencial, "admin");
         assertThat(r.estado()).isEqualTo(401);
         assertThat(r.solicitud()).isNull();
-        assertThat(r.cuerpo()).contains("\"estado\":401").contains("La sesión no es válida");
+        assertThat(r.cuerpo()).contains("\"estado\":401", "La sesión no es válida");
     }
 }

@@ -1,5 +1,7 @@
 package co.edu.unbosque.biohub.autorizacion.identidad;
 
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -12,7 +14,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -68,11 +69,11 @@ class ServicioTokensTest {
 
     @Test
     void soloSePublicaLaClavePublica() throws Exception {
-        List<?> claves = (List<?>) servicio(propiedades("s", Duration.ofHours(8))).clavesPublicas().get("keys");
+        List<JWK> claves = JWKSet.parse(servicio(propiedades("s", Duration.ofHours(8))).clavesPublicas()).getKeys();
 
         assertThat(claves).hasSize(1);
-        assertThat(((Map<?, ?>) claves.get(0)).keySet().stream().map(Object::toString))
-                .containsExactlyInAnyOrder("kty", "kid", "n", "e");
+        assertThat(claves.get(0).isPrivate()).isFalse();
+        assertThat(claves.get(0).toJSONObject()).containsOnlyKeys("kty", "kid", "n", "e");
     }
 
     @Test

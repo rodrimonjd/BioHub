@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -36,8 +37,8 @@ public class FiltroIdentidad extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest solicitud, HttpServletResponse respuesta, FilterChain cadena)
-            throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest solicitud, @NonNull HttpServletResponse respuesta,
+                                    @NonNull FilterChain cadena) throws ServletException, IOException {
         String credencial = solicitud.getHeader(HttpHeaders.AUTHORIZATION);
         if (credencial == null) {
             cadena.doFilter(new SolicitudConIdentidad(solicitud, null), respuesta);

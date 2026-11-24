@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.Set;
@@ -22,7 +23,7 @@ public final class Dtos {
     public record RespuestaAccesoUsuario(String usuarioId, Set<String> roles, Set<String> permisos) {}
 
     public record SolicitudConsumidor(@NotBlank(message = "es obligatorio") String consumidorId) {}
-    public record RespuestaConsumidor(String consumidorId, boolean valido, String token) {}
+    public record RespuestaConsumidor(String consumidorId, boolean valido, @Nullable String token) {}
 
     public record SolicitudVisibilidad(String usuarioId, String categoriaConservacion, String especieId) {}
     public record RespuestaVisibilidad(NivelVisibilidad nivel, boolean coordenadasExactas) {}
