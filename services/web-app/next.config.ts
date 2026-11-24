@@ -15,6 +15,8 @@ const REPORTES_URL = process.env.REPORTES_URL ?? 'http://localhost:8085';
 // URL de servicio-historial (cambios y versiones inmutables). Por defecto :8086.
 const HISTORIAL_URL = process.env.HISTORIAL_URL ?? 'http://localhost:8086';
 
+const GATEWAY_URL = process.env.GATEWAY_URL ?? 'http://localhost:8080';
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // El navegador llama a /api/<servicio>/... (mismo origen, sin CORS) y Next lo reenvia al servicio.
@@ -43,6 +45,14 @@ const nextConfig: NextConfig = {
       {
         source: '/api/reportes',
         destination: `${REPORTES_URL}/reportes`,
+      },
+      {
+        source: '/api/gateway/consumo',
+        destination: `${GATEWAY_URL}/gateway/consumo`,
+      },
+      {
+        source: '/api/externa/:path*',
+        destination: `${GATEWAY_URL}/api/v1/:path*`,
       },
     ];
   },
