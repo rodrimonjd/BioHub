@@ -701,11 +701,8 @@ export default function PanelPage() {
             )}
 
             {/* 4. PLATAFORMA ABIERTA Y REPORTES EN SEGUNDO PLANO (sin botones de simulación falsos) */}
-            <div
-              id="operacion"
-              className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-line"
-            >
-              <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-line">
+              <div id="operacion" className="space-y-3">
                 <p className="font-mono text-xs uppercase tracking-wider text-moss-500 font-semibold">
                   Plataforma abierta con límite de peticiones
                 </p>
@@ -720,7 +717,7 @@ export default function PanelPage() {
                 )}
               </div>
 
-              <div className="space-y-3">
+              <div id="reportes" className="space-y-3">
                 <p className="font-mono text-xs uppercase tracking-wider text-water-600 font-semibold">
                   Reportes analíticos sin bloqueo de campo
                 </p>

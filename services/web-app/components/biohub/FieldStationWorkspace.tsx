@@ -997,17 +997,6 @@ export function FieldStationWorkspace({
           </button>
         )}
       </div>
-        {/* Lleva a la sección "Inventario y fichas por especie" del panel */}
-        <a
-          href="#inventario"
-          onClick={(e) => {
-            e.preventDefault();
-            document.getElementById('inventario')?.scrollIntoView({ behavior: 'smooth' });
-          }}
-          className="inline-flex min-h-11 items-center rounded-md border border-line bg-surface px-5 py-2.5 font-mono text-xs font-semibold text-ink transition-colors hover:border-forest-700"
-        >
-          Fichas Taxonómicas
-        </a>
       </div>
 
       {activeTab === 'gestion' && (

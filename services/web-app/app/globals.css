@@ -46,6 +46,11 @@
 }
 
 @layer base {
+  /* Los saltos a una sección dejan el título visible debajo del navbar */
+  html {
+    scroll-padding-top: 5rem;
+  }
+
   body {
     background-color: var(--color-paper);
     color: var(--color-ink);
