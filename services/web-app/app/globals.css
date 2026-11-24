@@ -117,6 +117,57 @@
   animation: fadeInScroll 200ms ease-out both;
 }
 
+/* Entrada de la portada: el título sube palabra por palabra y lo demás aparece detrás */
+@keyframes subirPalabra {
+  from {
+    transform: translateY(115%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes aparecerPortada {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bajarSenal {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.palabra-portada {
+  animation: subirPalabra 800ms cubic-bezier(0.22, 1, 0.36, 1) var(--retraso, 0ms) both;
+}
+
+.aparece-portada {
+  animation: aparecerPortada 600ms ease-out var(--retraso, 0ms) both;
+}
+
+.senal-bajar path {
+  animation: bajarSenal 1.8s ease-in-out infinite;
+}
+
+.senal-bajar path:nth-child(2) {
+  animation-delay: 180ms;
+}
+
+.senal-bajar path:nth-child(3) {
+  animation-delay: 360ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -126,6 +177,9 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .palabra-portada,
+  .aparece-portada,
+  .senal-bajar path,
   .fade-in-section {
     animation: none !important;
     transform: none !important;
