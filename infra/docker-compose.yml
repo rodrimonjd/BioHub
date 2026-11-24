@@ -154,6 +154,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      servicio-autorizacion:
+        condition: service_started
     environment:
       BD_HOST: mysql
       BD_PUERTO: 3306
@@ -164,6 +166,7 @@ services:
       RABBIT_PUERTO: 5672
       RABBIT_USUARIO: ${RABBITMQ_USER:-biohub}
       RABBIT_CLAVE: ${RABBITMQ_PASS:-biohub}
+      AUTORIZACION_URL: http://servicio-autorizacion:8082
       TZ: America/Bogota
     ports:
       - "8085:8085"
@@ -207,6 +210,24 @@ services:
       TZ: America/Bogota
     ports:
       - "8080:8080"
+
+  # Front (Next.js). Las URLs de los servicios se fijan al compilar la imagen (ver services/web-app/Dockerfile).
+  web-app:
+    build:
+      context: ../services/web-app
+    container_name: biohub-web-app
+    restart: unless-stopped
+    depends_on:
+      - servicio-autorizacion
+      - servicio-registro
+      - servicio-taxonomia
+      - servicio-reportes
+      - servicio-historial
+      - api-gateway
+    environment:
+      TZ: America/Bogota
+    ports:
+      - "3000:3000"
 
 volumes:
   mysql_data:

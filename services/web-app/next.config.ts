@@ -19,6 +19,10 @@ const GATEWAY_URL = process.env.GATEWAY_URL ?? 'http://localhost:8080';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Genera un servidor autocontenido (.next/standalone) para la imagen de Docker
+  output: 'standalone',
+  // Oculta el botón "N" de herramientas de desarrollo de Next en la esquina inferior izquierda
+  devIndicators: false,
   // El navegador llama a /api/<servicio>/... (mismo origen, sin CORS) y Next lo reenvia al servicio.
   async rewrites() {
     return [
