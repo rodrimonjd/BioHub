@@ -9,6 +9,7 @@ export interface ConsumoConsumidor {
 
 export interface ResumenConsumo {
   urlPublica: string;
+  limiteMaximo: number;
   consumidores: ConsumoConsumidor[];
 }
 
@@ -23,6 +24,23 @@ export async function obtenerConsumo(usuarioId: string): Promise<ResumenConsumo 
   } catch {
     return null;
   }
+}
+
+export async function cambiarLimite(limitePorMinuto: number, usuarioId: string): Promise<ResumenConsumo> {
+  let res: Response;
+  try {
+    res = await fetch('/api/gateway/limite', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Usuario-Id': usuarioId },
+      body: JSON.stringify({ limitePorMinuto }),
+    });
+  } catch {
+    throw new Error('No hay conexión con el API Gateway.');
+  }
+  if (res.status === 403) throw new Error('Tu cuenta no tiene permiso para cambiar el límite.');
+  if (res.status === 400) throw new Error('El límite no está dentro del rango permitido.');
+  if (!res.ok) throw new Error('No se pudo cambiar el límite.');
+  return res.json();
 }
 
 export async function consultarInventario(apiKey: string): Promise<number> {
