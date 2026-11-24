@@ -1561,19 +1561,10 @@ export function FieldStationWorkspace({
           usuario={currentUser}
           pendientes={hallazgos.filter((h) => h.pendingSync)}
           ultimoCambio={ultimoCambio}
-          sePuedeModificar={(id) => hallazgos.some((h) => h.id === id)}
           catalogo={catalogo}
           fichas={fichas ?? []}
           expediciones={expediciones}
           puedeVerExacta={puedeVerExacta}
-          onModificar={
-            canEdit
-              ? (id) => {
-                  setTargetHallazgoId(id);
-                  setActiveTab('reclasificacion');
-                }
-              : undefined
-          }
         />
         </div>
       )}

@@ -30,10 +30,6 @@ export interface ListaHallazgosProps {
   puedeVerExacta: (especieId: string) => boolean;
   /** Momento (ms) en que se guardó o modificó el último hallazgo; 0 si no ha habido cambios. */
   ultimoCambio?: number;
-  /** Si la cuenta puede modificar hallazgos: lleva el hallazgo a la pestaña de reclasificación. */
-  onModificar?: (id: string) => void;
-  /** Si el hallazgo está en servicio-registro, que es donde se modifica. */
-  sePuedeModificar?: (id: string) => boolean;
 }
 
 const POR_PAGINA = 6;
@@ -84,8 +80,6 @@ export function ListaHallazgos({
   expediciones,
   puedeVerExacta,
   ultimoCambio = 0,
-  onModificar,
-  sePuedeModificar = () => true,
 }: ListaHallazgosProps) {
   const [especie, setEspecie] = useState<string>('');
   const [texto, setTexto] = useState<string>('');
@@ -354,11 +348,6 @@ export function ListaHallazgos({
                   >
                     {expandido ? 'Ocultar detalle' : 'Ver detalle'}
                   </Button>
-                  {onModificar && sePuedeModificar(h.id) && (
-                    <Button variant="ghost" className="text-xs" onClick={() => onModificar(h.id)}>
-                      Modificar o reclasificar
-                    </Button>
-                  )}
                 </div>
               </li>
             );
