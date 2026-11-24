@@ -18,6 +18,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -41,12 +42,11 @@ class ServicioConsultaBusquedaTest {
     private final ServicioConsulta servicio = new ServicioConsulta(repositorio, catalogo, mock(ClienteAutorizacion.class));
 
     private final CriteriaBuilder cb = mock(CriteriaBuilder.class, RETURNS_DEEP_STUBS);
-    @SuppressWarnings("unchecked")
-    private final Root<HallazgoLectura> raiz = mock(Root.class, RETURNS_DEEP_STUBS);
+    private final Root<HallazgoLectura> raiz = mock(RETURNS_DEEP_STUBS);
 
     @BeforeEach
     void preparar() {
-        when(repositorio.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+        when(repositorio.findAll(ArgumentMatchers.<Specification<HallazgoLectura>>any(), any(Pageable.class))).thenReturn(Page.empty());
     }
 
     private static FiltroHallazgos filtro(String especie, String texto, String desde, String hasta) {
@@ -54,10 +54,9 @@ class ServicioConsultaBusquedaTest {
                 desde == null ? null : LocalDate.parse(desde), hasta == null ? null : LocalDate.parse(hasta));
     }
 
-    @SuppressWarnings("unchecked")
     private Pageable ejecutar(FiltroHallazgos filtro) {
         servicio.listar(null, filtro, 0, 20);
-        ArgumentCaptor<Specification<HallazgoLectura>> especificacion = ArgumentCaptor.forClass(Specification.class);
+        ArgumentCaptor<Specification<HallazgoLectura>> especificacion = ArgumentCaptor.captor();
         ArgumentCaptor<Pageable> pagina = ArgumentCaptor.forClass(Pageable.class);
         verify(repositorio).findAll(especificacion.capture(), pagina.capture());
         especificacion.getValue().toPredicate(raiz, mock(CriteriaQuery.class), cb);
