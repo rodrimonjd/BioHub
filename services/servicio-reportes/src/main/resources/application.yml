@@ -40,6 +40,10 @@ reportes:
     cola-errores: reportes.avistamientos.dlq
   # Cada cuanto se revisan los reportes en cola para generarlos
   intervalo-generacion-ms: 3000
+  # Ver reportes exige reporte:ver y generarlos reporte:generar
+  autorizacion:
+    url: ${AUTORIZACION_URL:http://localhost:8082}
+    cache-ttl: 60s
 
 management:
   endpoints:
