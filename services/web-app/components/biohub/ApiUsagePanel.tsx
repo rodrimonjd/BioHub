@@ -22,7 +22,7 @@ function estado(solicitudes: number, rechazadas: number, limite: number): string
   return 'Dentro del límite permitido';
 }
 
-export function ApiUsagePanel() {
+export function ApiUsagePanel({ usuarioId }: { usuarioId: string }) {
   const [resumen, setResumen] = useState<ResumenConsumo | null>(null);
   const [conectado, setConectado] = useState<boolean>(true);
   const [apiKey, setApiKey] = useState<string>('');
@@ -31,16 +31,21 @@ export function ApiUsagePanel() {
   const [resultado, setResultado] = useState<string | null>(null);
 
   const recargar = async () => {
-    const datos = await obtenerConsumo();
+    const datos = await obtenerConsumo(usuarioId);
     setConectado(datos !== null);
     if (datos) setResumen(datos);
   };
 
   useEffect(() => {
-    recargar();
-    const temporizador = setInterval(recargar, INTERVALO_CONSULTA_MS);
+    const consultar = async () => {
+      const datos = await obtenerConsumo(usuarioId);
+      setConectado(datos !== null);
+      if (datos) setResumen(datos);
+    };
+    consultar();
+    const temporizador = setInterval(consultar, INTERVALO_CONSULTA_MS);
     return () => clearInterval(temporizador);
-  }, []);
+  }, [usuarioId]);
 
   const handleEnviar = async (e: React.FormEvent) => {
     e.preventDefault();

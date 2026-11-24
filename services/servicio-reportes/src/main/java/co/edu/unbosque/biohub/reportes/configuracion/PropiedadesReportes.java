@@ -1,5 +1,8 @@
 package co.edu.unbosque.biohub.reportes.configuracion;
 
+import java.net.URI;
+import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -14,10 +17,12 @@ import jakarta.validation.constraints.Positive;
  *
  * @param eventos                 colas de RabbitMQ con los avistamientos que alimentan los reportes
  * @param intervaloGeneracionMs   cada cuántos milisegundos se revisan los reportes en cola para generarlos
+ * @param autorizacion            servicio-autorizacion, que decide quién ve y quién genera reportes
  */
 @Validated
 @ConfigurationProperties(prefix = "reportes")
-public record PropiedadesReportes(@Valid @NotNull Eventos eventos, @NotNull @Positive Long intervaloGeneracionMs) {
+public record PropiedadesReportes(@Valid @NotNull Eventos eventos, @NotNull @Positive Long intervaloGeneracionMs,
+                                  @Valid @NotNull Autorizacion autorizacion) {
 
     /**
      * @param exchange     exchange topic de RabbitMQ donde publica servicio-registro
@@ -25,5 +30,12 @@ public record PropiedadesReportes(@Valid @NotNull Eventos eventos, @NotNull @Pos
      * @param colaErrores  cola de mensajes que no se pudieron procesar (dead letter)
      */
     public record Eventos(@NotBlank String exchange, @NotBlank String cola, @NotBlank String colaErrores) {
+    }
+
+    /**
+     * @param url       URL base de servicio-autorizacion
+     * @param cacheTtl  cuánto se recuerda la respuesta de un permiso
+     */
+    public record Autorizacion(@NotNull URI url, @NotNull Duration cacheTtl) {
     }
 }

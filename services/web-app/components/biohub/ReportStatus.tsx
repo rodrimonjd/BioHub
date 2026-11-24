@@ -8,8 +8,8 @@ export interface ReportStatusProps {
   reportId: string;
   recordsProcessed: string;
   state: BackgroundReportState;
-  /** Enlace al PDF; solo se muestra cuando el reporte está listo. */
-  downloadUrl?: string;
+  /** Descarga el PDF; el botón solo se muestra cuando el reporte está listo. */
+  onDownload?: () => void;
   /** Mensaje del servicio (por ejemplo, el motivo de un error). */
   message?: string | null;
 }
@@ -54,7 +54,7 @@ export function ReportStatus({
   reportId,
   recordsProcessed,
   state,
-  downloadUrl,
+  onDownload,
   message,
 }: ReportStatusProps) {
   const info = STATE_DETAILS[state];
@@ -114,13 +114,14 @@ export function ReportStatus({
 
       <p className="text-xs text-ink-muted leading-relaxed">{message || info.description}</p>
 
-      {state === 'listo' && downloadUrl && (
-        <a
-          href={downloadUrl}
-          className="inline-flex min-h-11 items-center rounded-md bg-forest-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-700"
+      {state === 'listo' && onDownload && (
+        <button
+          type="button"
+          onClick={onDownload}
+          className="inline-flex min-h-11 cursor-pointer items-center rounded-md bg-forest-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-700"
         >
           Descargar PDF
-        </a>
+        </button>
       )}
     </Card>
   );

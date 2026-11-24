@@ -12,9 +12,13 @@ export interface ResumenConsumo {
   consumidores: ConsumoConsumidor[];
 }
 
-export async function obtenerConsumo(): Promise<ResumenConsumo | null> {
+/** Consumo de la API externa; el gateway exige el permiso api_externa:monitorear. */
+export async function obtenerConsumo(usuarioId: string): Promise<ResumenConsumo | null> {
   try {
-    const res = await fetch('/api/gateway/consumo', { cache: 'no-store' });
+    const res = await fetch('/api/gateway/consumo', {
+      cache: 'no-store',
+      headers: { 'X-Usuario-Id': usuarioId },
+    });
     return res.ok ? res.json() : null;
   } catch {
     return null;

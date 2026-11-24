@@ -4,88 +4,38 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
-import { NuevaEspecie } from './NuevaEspecie';
 import {
   BioHubUser,
-  canEditFindings,
   canManageEquipment,
-  canRegisterFieldData,
   PERMISOS,
 } from '@/lib/permissions';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
 import {
-  agregarEvidencia,
   asignarEquipoAExpedicion,
   crearEquipo,
   crearExpedicion,
   Equipo,
-  ErrorRechazado,
   Expedicion,
-  HallazgoResponse,
   listarEquipos,
-  TipoEvidencia,
 } from '@/lib/registro-api';
+import { Aviso, CLASE_INPUT, Encabezado, MensajeAviso, mensajeDeError } from './campo-ui';
 
 export interface GestionCampoProps {
   currentUser: BioHubUser;
-  hallazgos: HallazgoResponse[];
   expediciones: Expedicion[];
   onExpedicionesCambiaron: () => Promise<void> | void;
-  onHallazgoActualizado: (hallazgo: HallazgoResponse) => void;
-  onEspecieCreada?: () => Promise<void> | void;
 }
-
-type Aviso = { tipo: 'ok' | 'err'; texto: string } | null;
-
-const CLASE_INPUT =
-  'min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-moss-500';
 
 const TIPOS_EQUIPO = ['GPS', 'Cámara trampa', 'Dron', 'Hidrófono', 'Sensor ambiental'];
 
 const ZONAS = ['Vichada', 'Meta', 'Casanare', 'Amazonas', 'Caquetá', 'Chocó', 'Antioquia'];
 
-function mensajeDeError(error: unknown): string {
-  return error instanceof ErrorRechazado
-    ? error.message
-    : 'No se pudo conectar con el servicio de registro.';
-}
-
-function MensajeAviso({ aviso }: { aviso: Aviso }) {
-  return (
-    <div aria-live="polite">
-      {aviso && (
-        <p
-          role={aviso.tipo === 'err' ? 'alert' : 'status'}
-          className={`rounded-md border px-3 py-2 font-mono text-xs text-ink ${
-            aviso.tipo === 'ok' ? 'border-iucn-lc bg-iucn-lc/10' : 'border-iucn-cr bg-iucn-cr/10'
-          }`}
-        >
-          {aviso.texto}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Encabezado({ titulo, descripcion }: { titulo: string; descripcion: string }) {
-  return (
-    <div className="border-b border-line pb-3">
-      <h3 className="font-serif text-lg font-semibold text-ink">{titulo}</h3>
-      <p className="text-xs text-ink-muted">{descripcion}</p>
-    </div>
-  );
-}
-
 export function GestionCampo({
   currentUser,
-  hallazgos,
   expediciones,
   onExpedicionesCambiaron,
-  onHallazgoActualizado,
-  onEspecieCreada,
 }: GestionCampoProps) {
   const puedeGestionarEquipos = canManageEquipment(currentUser);
-  const puedeEditar = canEditFindings(currentUser);
 
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [lideres, setLideres] = useState<ResumenUsuario[]>([]);
@@ -172,51 +122,8 @@ export function GestionCampo({
     }
   };
 
-  // Evidencia
-  const [evHallazgoId, setEvHallazgoId] = useState('');
-  const [evTipo, setEvTipo] = useState<TipoEvidencia>('TEMPERATURA');
-  const [evValor, setEvValor] = useState('');
-  const [evUnidad, setEvUnidad] = useState('C');
-  const [evUrl, setEvUrl] = useState('');
-  const [evAtributo, setEvAtributo] = useState('');
-  const [avisoEvidencia, setAvisoEvidencia] = useState<Aviso>(null);
-  const hallazgoElegido = evHallazgoId || hallazgos[0]?.id || '';
-
-  const handleAgregarEvidencia = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hallazgoElegido) return;
-    setAvisoEvidencia(null);
-    try {
-      const actualizado = await agregarEvidencia(
-        hallazgoElegido,
-        {
-          tipo: evTipo,
-          valor: evTipo === 'AUDIO' ? undefined : evValor.trim(),
-          unidad: evTipo === 'TEMPERATURA' ? evUnidad.trim() : undefined,
-          urlArchivo: evTipo === 'AUDIO' ? evUrl.trim() : undefined,
-          atributoTaxonomico: evAtributo.trim() || undefined,
-        },
-        currentUser.id
-      );
-      setAvisoEvidencia({
-        tipo: 'ok',
-        texto: `Evidencia agregada al hallazgo ${actualizado.id.slice(0, 8)} (ahora v${actualizado.versionActual}).`,
-      });
-      setEvValor('');
-      setEvUrl('');
-      setEvAtributo('');
-      onHallazgoActualizado(actualizado);
-    } catch (error) {
-      setAvisoEvidencia({ tipo: 'err', texto: mensajeDeError(error) });
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {canRegisterFieldData(currentUser) && onEspecieCreada && (
-        <NuevaEspecie usuario={currentUser} onCreada={onEspecieCreada} />
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {puedeGestionarEquipos && (
           <Card className="space-y-4">
@@ -381,108 +288,6 @@ export function GestionCampo({
               <Button type="submit" variant="ghost" className="w-full text-xs">
                 Asignar equipo
               </Button>
-            </form>
-          </Card>
-        )}
-
-        {puedeEditar && (
-          <Card className="space-y-4 lg:col-span-2">
-            <Encabezado
-              titulo="Agregar evidencia a un hallazgo"
-              descripcion="Suma una medición, muestra genética o grabación a un hallazgo ya registrado. Queda como una nueva versión en el historial."
-            />
-            <MensajeAviso aviso={avisoEvidencia} />
-            <form onSubmit={handleAgregarEvidencia} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-              <Field id="ev-hallazgo" label="Hallazgo" className="md:col-span-5">
-                <select
-                  id="ev-hallazgo"
-                  value={hallazgoElegido}
-                  onChange={(e) => setEvHallazgoId(e.target.value)}
-                  className={`${CLASE_INPUT} font-mono`}
-                >
-                  {hallazgos.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      [v{h.versionActual}] {h.especie} — {h.departamento} ({h.id.slice(0, 8)})
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field id="ev-tipo" label="Tipo" className="md:col-span-3">
-                <select
-                  id="ev-tipo"
-                  value={evTipo}
-                  onChange={(e) => setEvTipo(e.target.value as TipoEvidencia)}
-                  className={CLASE_INPUT}
-                >
-                  <option value="TEMPERATURA">Temperatura</option>
-                  <option value="ADN">Muestra ADN</option>
-                  <option value="AUDIO">Audio bioacústico</option>
-                </select>
-              </Field>
-              <Field id="ev-atributo" label="Parámetro medido (opcional)" className="md:col-span-4">
-                <input
-                  id="ev-atributo"
-                  value={evAtributo}
-                  onChange={(e) => setEvAtributo(e.target.value)}
-                  placeholder="Temperatura del agua"
-                  className={CLASE_INPUT}
-                />
-              </Field>
-
-              {evTipo === 'TEMPERATURA' && (
-                <>
-                  <Field id="ev-valor" label="Valor numérico" className="md:col-span-4">
-                    <input
-                      id="ev-valor"
-                      required
-                      inputMode="decimal"
-                      value={evValor}
-                      onChange={(e) => setEvValor(e.target.value)}
-                      placeholder="28.5"
-                      className={`${CLASE_INPUT} font-mono`}
-                    />
-                  </Field>
-                  <Field id="ev-unidad" label="Unidad" className="md:col-span-2">
-                    <input
-                      id="ev-unidad"
-                      required
-                      value={evUnidad}
-                      onChange={(e) => setEvUnidad(e.target.value)}
-                      className={`${CLASE_INPUT} font-mono`}
-                    />
-                  </Field>
-                </>
-              )}
-              {evTipo === 'ADN' && (
-                <Field id="ev-codigo" label="Código de muestra genética" className="md:col-span-6">
-                  <input
-                    id="ev-codigo"
-                    required
-                    value={evValor}
-                    onChange={(e) => setEvValor(e.target.value)}
-                    placeholder="ADN-2026-901"
-                    className={`${CLASE_INPUT} font-mono`}
-                  />
-                </Field>
-              )}
-              {evTipo === 'AUDIO' && (
-                <Field id="ev-url" label="Enlace del archivo acústico" className="md:col-span-6">
-                  <input
-                    id="ev-url"
-                    type="url"
-                    required
-                    value={evUrl}
-                    onChange={(e) => setEvUrl(e.target.value)}
-                    placeholder="https://archivo.biohub.gov.co/canto.wav"
-                    className={`${CLASE_INPUT} font-mono`}
-                  />
-                </Field>
-              )}
-              <div className="md:col-span-6">
-                <Button type="submit" variant="ghost" className="w-full text-xs" disabled={!hallazgoElegido}>
-                  + Agregar evidencia
-                </Button>
-              </div>
             </form>
           </Card>
         )}
