@@ -11,7 +11,7 @@ public class ConsumidorExterno {
     private final String id;
     private final String organizacion;
     private final String hashApiKey;
-    private final int limitePorMinuto;
+    private int limitePorMinuto;
 
     private long minutoActual = -1;
     private int solicitudesMinutoActual = 0;
@@ -65,7 +65,12 @@ public class ConsumidorExterno {
 
     public String getId() { return id; }
     public String getOrganizacion() { return organizacion; }
-    public int getLimitePorMinuto() { return limitePorMinuto; }
+    public synchronized int getLimitePorMinuto() { return limitePorMinuto; }
+
+    public synchronized void cambiarLimite(int limitePorMinuto) {
+        this.limitePorMinuto = limitePorMinuto;
+    }
+
     public synchronized int getSolicitudesMinutoActual() { return solicitudesMinutoActual; }
 
     synchronized int solicitudesEn(Instant ahora) {
