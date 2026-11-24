@@ -34,7 +34,7 @@ class ConsultaControladorTest {
 
     @Test
     void listaHallazgosComoAnonimo() throws Exception {
-        when(servicio.listar(isNull(), isNull(), eq("Meta"), isNull(), eq(0), eq(20)))
+        when(servicio.listar(isNull(), isNull(), eq("Meta"), isNull(), isNull(), isNull(), eq(0), eq(20)))
                 .thenReturn(new PaginaHallazgos(List.of(VISTA), 0, 20, 1, 1));
 
         mvc.perform(get("/api/v1/consulta/hallazgos").param("departamento", "Meta"))
@@ -42,6 +42,21 @@ class ConsultaControladorTest {
                 .andExpect(jsonPath("$.totalElementos").value(1))
                 .andExpect(jsonPath("$.contenido[0].nivelUbicacion").value("DEPARTAMENTO"))
                 .andExpect(jsonPath("$.contenido[0].latitud").isEmpty());
+    }
+
+    @Test
+    void filtraPorRangoDeFechas() throws Exception {
+        when(servicio.listar(isNull(), isNull(), isNull(), isNull(),
+                eq(java.time.LocalDate.parse("2026-11-01")), eq(java.time.LocalDate.parse("2026-11-30")), eq(0), eq(20)))
+                .thenReturn(new PaginaHallazgos(List.of(VISTA), 0, 20, 1, 1));
+
+        mvc.perform(get("/api/v1/consulta/hallazgos")
+                        .param("fechaDesde", "2026-11-01").param("fechaHasta", "2026-11-30"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[0].id").value("h1"));
+
+        mvc.perform(get("/api/v1/consulta/hallazgos").param("fechaDesde", "01/11/2026"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -64,7 +79,7 @@ class ConsultaControladorTest {
 
     @Test
     void parametrosInvalidosDan400() throws Exception {
-        when(servicio.listar(isNull(), isNull(), isNull(), isNull(), eq(0), anyInt()))
+        when(servicio.listar(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), anyInt()))
                 .thenThrow(new IllegalArgumentException("tamano debe estar entre 1 y 100"));
 
         mvc.perform(get("/api/v1/consulta/hallazgos").param("tamano", "500"))

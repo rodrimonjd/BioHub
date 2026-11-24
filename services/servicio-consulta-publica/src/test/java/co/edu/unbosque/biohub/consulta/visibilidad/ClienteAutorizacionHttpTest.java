@@ -12,6 +12,6 @@ class ClienteAutorizacionHttpTest {
     void siAutorizacionNoRespondeSeAplicaElNivelMasRestrictivo() {
         ClienteAutorizacionHttp cliente = new ClienteAutorizacionHttp(
                 PropiedadesDePrueba.con("http://localhost:1", "consulta-publica.hallazgos.dlq"));
-        assertEquals(NivelVisibilidad.DEPARTAMENTO, cliente.visibilidad("admin", "LC"));
+        assertEquals(NivelVisibilidad.DEPARTAMENTO, cliente.visibilidad("admin", "LC", null));
     }
 }

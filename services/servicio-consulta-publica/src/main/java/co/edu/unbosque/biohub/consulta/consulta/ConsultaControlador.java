@@ -1,11 +1,14 @@
 package co.edu.unbosque.biohub.consulta.consulta;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/consulta")
@@ -23,9 +26,11 @@ public class ConsultaControlador {
                                   @RequestParam(required = false) String especieId,
                                   @RequestParam(required = false) String departamento,
                                   @RequestParam(required = false) String especie,
+                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
                                   @RequestParam(defaultValue = "0") int pagina,
                                   @RequestParam(defaultValue = "20") int tamano) {
-        return servicio.listar(usuarioId, especieId, departamento, especie, pagina, tamano);
+        return servicio.listar(usuarioId, especieId, departamento, especie, fechaDesde, fechaHasta, pagina, tamano);
     }
 
     @GetMapping("/hallazgos/{id}")

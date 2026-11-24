@@ -12,6 +12,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -19,6 +22,9 @@ import java.util.List;
 public class ServicioConsulta {
 
     public static final int TAMANO_MAXIMO = 100;
+
+    /** Las fechas de búsqueda se interpretan como días completos en Colombia. */
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     private final HallazgoLecturaRepositorio repositorio;
     private final CatalogoEspecies catalogo;
@@ -31,14 +37,23 @@ public class ServicioConsulta {
         this.autorizacion = autorizacion;
     }
 
+    /**
+     * @param fechaDesde primer día incluido (hora de Colombia), o null
+     * @param fechaHasta último día incluido (hora de Colombia), o null
+     */
     public PaginaHallazgos listar(String usuarioId, String especieId, String departamento, String especie,
-                                  int pagina, int tamano) {
+                                  LocalDate fechaDesde, LocalDate fechaHasta, int pagina, int tamano) {
         if (pagina < 0) throw new IllegalArgumentException("pagina debe ser 0 o mayor");
         if (tamano < 1 || tamano > TAMANO_MAXIMO) {
             throw new IllegalArgumentException("tamano debe estar entre 1 y " + TAMANO_MAXIMO);
         }
+        if (fechaDesde != null && fechaHasta != null && fechaDesde.isAfter(fechaHasta)) {
+            throw new IllegalArgumentException("fechaDesde no puede ser posterior a fechaHasta");
+        }
+        Instant desde = fechaDesde == null ? null : fechaDesde.atStartOfDay(ZONA_COLOMBIA).toInstant();
+        Instant hasta = fechaHasta == null ? null : fechaHasta.plusDays(1).atStartOfDay(ZONA_COLOMBIA).toInstant();
         Page<HallazgoLectura> resultado = repositorio.buscar(vacioANull(especieId), vacioANull(departamento),
-                vacioANull(especie), PageRequest.of(pagina, tamano));
+                vacioANull(especie), desde, hasta, PageRequest.of(pagina, tamano));
         List<VistaHallazgoPublico> contenido = resultado.getContent().stream()
                 .map(h -> presentar(usuarioId, h))
                 .toList();
@@ -56,7 +71,7 @@ public class ServicioConsulta {
                 .or(() -> catalogo.porNombreCientifico(h.getEspecie()))
                 .orElse(null);
         String categoria = especie == null ? null : especie.estadoConservacion();
-        NivelVisibilidad nivel = autorizacion.visibilidad(usuarioId, categoria);
+        NivelVisibilidad nivel = autorizacion.visibilidad(usuarioId, categoria, h.getEspecieId());
         return PresentadorUbicacion.presentar(h, especie, nivel);
     }
 
