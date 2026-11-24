@@ -15,6 +15,11 @@ public record RespuestaAvistamiento(
         String region,
         Instant creadoEn) {
 
+    public RespuestaAvistamiento sinCoordenadas() {
+        return new RespuestaAvistamiento(id, especieId, especie, fechaHora, cantidad, null, null,
+                departamento, region, creadoEn);
+    }
+
     public static RespuestaAvistamiento desde(Avistamiento a) {
         return new RespuestaAvistamiento(
                 a.getId(),
