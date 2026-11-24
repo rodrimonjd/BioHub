@@ -35,31 +35,35 @@ public class HallazgoControlador {
     }
 
     @GetMapping
-    public List<RespuestaHallazgo> listar(@RequestParam(required = false) String investigadorId) {
+    public List<RespuestaHallazgo> listar(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                          @RequestParam(required = false) String investigadorId) {
+        boolean verExacta = permisos.puedeVerUbicacionExacta(usuario);
         List<RespuestaHallazgo> respuesta = new ArrayList<>();
         for (Hallazgo h : service.listar(investigadorId)) {
-            respuesta.add(RespuestaHallazgo.desde(h));
+            RespuestaHallazgo r = RespuestaHallazgo.desde(h);
+            respuesta.add(verExacta ? r : r.sinCoordenadas());
         }
         return respuesta;
     }
 
     @GetMapping("/{id}")
-    public RespuestaHallazgo obtener(@PathVariable UUID id) {
-        return RespuestaHallazgo.desde(service.obtener(id));
+    public RespuestaHallazgo obtener(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
+                                     @PathVariable UUID id) {
+        return vista(service.obtener(id), usuario);
     }
 
     @PatchMapping("/{id}")
     public RespuestaHallazgo modificar(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                                        @PathVariable UUID id, @Valid @RequestBody SolicitudModificarHallazgo request) {
         String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
-        return RespuestaHallazgo.desde(service.modificar(id, request.conAutor(autor)));
+        return vista(service.modificar(id, request.conAutor(autor)), autor);
     }
 
     @PostMapping("/{id}/evidencias")
     public RespuestaHallazgo agregarEvidencia(@RequestHeader(value = CABECERA_USUARIO, required = false) String usuario,
                                               @PathVariable UUID id, @Valid @RequestBody SolicitudEvidencia request) {
         String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
-        return RespuestaHallazgo.desde(service.agregarEvidencia(id, request, autor));
+        return vista(service.agregarEvidencia(id, request, autor), autor);
     }
 
     @PostMapping("/{id}/reclasificacion")
@@ -67,6 +71,11 @@ public class HallazgoControlador {
                                           @PathVariable UUID id, @Valid @RequestBody SolicitudReclasificarHallazgo request) {
         String autor = permisos.exigir(usuario, VerificadorPermisos.EDITAR_HALLAZGO);
         permisos.exigirAutorizador(request.autorizador());
-        return RespuestaHallazgo.desde(service.reclasificar(id, request.conAutor(autor)));
+        return vista(service.reclasificar(id, request.conAutor(autor)), autor);
+    }
+
+    private RespuestaHallazgo vista(Hallazgo h, String usuario) {
+        RespuestaHallazgo r = RespuestaHallazgo.desde(h);
+        return permisos.puedeVerUbicacionExacta(usuario) ? r : r.sinCoordenadas();
     }
 }

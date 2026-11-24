@@ -256,7 +256,7 @@ export function FieldStationWorkspace({
     autorizadores.find((u) => u.id === id)?.nombre ?? id;
 
   const syncWithBackend = async () => {
-    const res = await listarAvistamientos();
+    const res = await listarAvistamientos(currentUser.id);
     setBackendOnline(res.online);
     if (res.online && res.data) {
       setAvistamientos((prev) => {
@@ -265,7 +265,7 @@ export function FieldStationWorkspace({
       });
     }
 
-    const resHallazgos = await listarHallazgos();
+    const resHallazgos = await listarHallazgos(currentUser.id);
     if (resHallazgos.online && resHallazgos.data) {
       const guardados = resHallazgos.data;
       setHallazgos((prev) => [...prev.filter((h) => h.pendingSync), ...guardados]);
@@ -1189,10 +1189,15 @@ export function FieldStationWorkspace({
                         {av.departamento}
                         {av.region ? ` · Región ${av.region}` : ''}
                       </span>
-                      {av.latitud !== null && av.longitud !== null && (
-                        <span className="font-mono ml-2">
-                          ({av.latitud.toFixed(4)}, {av.longitud.toFixed(4)})
-                        </span>
+                      {!canViewExactCoordinates(currentUser) ? (
+                        <span className="font-mono ml-2">· Coordenadas exactas ocultas</span>
+                      ) : (
+                        av.latitud !== null &&
+                        av.longitud !== null && (
+                          <span className="font-mono ml-2">
+                            ({av.latitud.toFixed(4)}, {av.longitud.toFixed(4)})
+                          </span>
+                        )
                       )}
                     </div>
 

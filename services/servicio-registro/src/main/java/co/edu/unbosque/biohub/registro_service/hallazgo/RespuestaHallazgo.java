@@ -23,6 +23,11 @@ public record RespuestaHallazgo(
         Instant creadoEn,
         List<RespuestaEvidencia> evidencias) {
 
+    public RespuestaHallazgo sinCoordenadas() {
+        return new RespuestaHallazgo(id, investigadorId, especieId, especie, fichaId, fecha, descripcion,
+                null, null, departamento, region, expedicionId, versionActual, creadoEn, evidencias);
+    }
+
     public static RespuestaHallazgo desde(Hallazgo h) {
         UUID expedicionId = null;
         if (h.getExpedicion() != null) {

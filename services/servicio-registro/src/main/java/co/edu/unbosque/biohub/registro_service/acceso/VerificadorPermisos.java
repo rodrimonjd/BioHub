@@ -17,6 +17,7 @@ public class VerificadorPermisos {
     public static final String EDITAR_HALLAZGO = "hallazgo:editar";
     public static final String VALIDAR_HALLAZGO = "hallazgo:validar";
     public static final String GESTIONAR_EQUIPOS = "equipo:gestionar";
+    public static final String VER_UBICACION_EXACTA = "ubicacion:ver_exacta";
 
     private final ClienteAutorizacion autorizacion;
 
@@ -35,6 +36,13 @@ public class VerificadorPermisos {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Se requiere el permiso " + permiso);
         }
         return usuario;
+    }
+
+    public boolean puedeVerUbicacionExacta(String usuarioId) {
+        if (usuarioId == null || usuarioId.isBlank()) {
+            return false;
+        }
+        return autorizacion.tienePermiso(usuarioId.trim(), VER_UBICACION_EXACTA);
     }
 
     /** La reclasificación necesita un autorizador con permiso hallazgo:validar (HU-10). */

@@ -35,21 +35,30 @@ public class AvistamientoControlador {
             @Valid @RequestBody SolicitudAvistamiento request) {
         String investigador = permisos.exigir(usuario, VerificadorPermisos.CREAR_HALLAZGO);
         Avistamiento guardado = service.registrar(request.conInvestigador(investigador));
-        return ResponseEntity.status(HttpStatus.CREATED).body(RespuestaAvistamiento.desde(guardado));
+        return ResponseEntity.status(HttpStatus.CREATED).body(vista(guardado, usuario));
     }
 
     @GetMapping("/{id}")
-    public RespuestaAvistamiento obtener(@PathVariable UUID id) {
-        Avistamiento a = service.obtener(id);
-        return RespuestaAvistamiento.desde(a);
+    public RespuestaAvistamiento obtener(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario,
+            @PathVariable UUID id) {
+        return vista(service.obtener(id), usuario);
     }
 
     @GetMapping
-    public List<RespuestaAvistamiento> listar() {
+    public List<RespuestaAvistamiento> listar(
+            @RequestHeader(value = VerificadorPermisos.CABECERA_USUARIO, required = false) String usuario) {
+        boolean verExacta = permisos.puedeVerUbicacionExacta(usuario);
         List<RespuestaAvistamiento> respuesta = new ArrayList<>();
         for (Avistamiento a : service.listar()) {
-            respuesta.add(RespuestaAvistamiento.desde(a));
+            RespuestaAvistamiento r = RespuestaAvistamiento.desde(a);
+            respuesta.add(verExacta ? r : r.sinCoordenadas());
         }
         return respuesta;
+    }
+
+    private RespuestaAvistamiento vista(Avistamiento a, String usuario) {
+        RespuestaAvistamiento r = RespuestaAvistamiento.desde(a);
+        return permisos.puedeVerUbicacionExacta(usuario) ? r : r.sinCoordenadas();
     }
 }
