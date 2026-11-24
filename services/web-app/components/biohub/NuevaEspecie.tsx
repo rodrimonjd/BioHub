@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { ConservationStatus } from '@/components/ui/ConservationBadge';
+import { useNotificar } from '@/components/ui/Notificaciones';
 import { BioHubUser } from '@/lib/permissions';
-import { crearEspecie, ErrorRechazado } from '@/lib/registro-api';
+import { avisoDeError } from '@/lib/avisos';
+import { crearEspecie } from '@/lib/registro-api';
 
 export interface NuevaEspecieProps {
   usuario: BioHubUser;
@@ -25,18 +27,21 @@ const CATEGORIAS: { valor: ConservationStatus; etiqueta: string }[] = [
   { valor: 'CR', etiqueta: 'CR · En peligro crítico' },
 ];
 
+function nombreCategoria(estado: ConservationStatus): string {
+  return CATEGORIAS.find((c) => c.valor === estado)?.etiqueta.split(' · ')[1] ?? estado;
+}
+
 /** Formulario para agregar una especie al catálogo (servicio-registro, permiso hallazgo:crear). */
 export function NuevaEspecie({ usuario, onCreada }: NuevaEspecieProps) {
   const [cientifico, setCientifico] = useState<string>('');
   const [comun, setComun] = useState<string>('');
   const [estado, setEstado] = useState<ConservationStatus>('LC');
   const [guardando, setGuardando] = useState<boolean>(false);
-  const [aviso, setAviso] = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
+  const notificar = useNotificar();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cientifico.trim()) return;
-    setAviso(null);
     setGuardando(true);
     try {
       const creada = await crearEspecie(
@@ -47,22 +52,25 @@ export function NuevaEspecie({ usuario, onCreada }: NuevaEspecieProps) {
         },
         usuario.id
       );
-      setAviso({
+      notificar({
         tipo: 'ok',
-        texto: `Especie "${creada.nombreCientifico}" agregada al catálogo (${creada.estadoConservacion}).`,
+        titulo: 'Especie agregada',
+        detalle: `${creada.nombreComun ?? creada.nombreCientifico} ya está en el catálogo como ${nombreCategoria(
+          creada.estadoConservacion
+        )}.`,
       });
       setCientifico('');
       setComun('');
       setEstado('LC');
       await onCreada();
     } catch (error) {
-      setAviso({
-        tipo: 'err',
-        texto:
-          error instanceof ErrorRechazado
-            ? error.message
-            : 'No se pudo conectar con el servicio de registro.',
-      });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se agregó la especie',
+          sinConexion: 'La especie no se guardó',
+          accion: 'agregar especies al catálogo',
+        })
+      );
     } finally {
       setGuardando(false);
     }
@@ -76,19 +84,6 @@ export function NuevaEspecie({ usuario, onCreada }: NuevaEspecieProps) {
           Registra una especie que aún no está en el inventario. Luego podrás crear su ficha
           taxonómica agregándole atributos.
         </p>
-      </div>
-
-      <div aria-live="polite">
-        {aviso && (
-          <p
-            role={aviso.tipo === 'err' ? 'alert' : 'status'}
-            className={`rounded-md border px-3 py-2 font-mono text-xs text-ink ${
-              aviso.tipo === 'ok' ? 'border-iucn-lc bg-iucn-lc/10' : 'border-iucn-cr bg-iucn-cr/10'
-            }`}
-          >
-            {aviso.texto}
-          </p>
-        )}
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">

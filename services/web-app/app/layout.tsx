@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Fraunces, Inter, JetBrains_Mono } from 'next/font/google';
+import { NotificacionesProvider } from '@/components/ui/Notificaciones';
 import './globals.css';
 
 const fraunces = Fraunces({
@@ -37,7 +38,7 @@ export default function RootLayout({
       className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-paper text-ink antialiased selection:bg-forest-700 selection:text-white">
-        {children}
+        <NotificacionesProvider>{children}</NotificacionesProvider>
       </body>
     </html>
   );

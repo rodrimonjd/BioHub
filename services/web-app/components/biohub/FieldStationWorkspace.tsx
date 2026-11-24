@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { ErrorFormulario } from '@/components/ui/ErrorFormulario';
+import { useNotificar } from '@/components/ui/Notificaciones';
 import { ConservationBadge } from '@/components/ui/ConservationBadge';
 import {
   BioHubUser,
@@ -14,6 +16,7 @@ import {
   PERMISOS,
 } from '@/lib/permissions';
 import { useAccesoUbicacion } from '@/lib/useAccesoUbicacion';
+import { avisoDeError } from '@/lib/avisos';
 import { coincideHallazgo, nombreComunHallazgo } from '@/lib/hallazgos';
 import { FichaTaxonomica } from '@/lib/taxonomia-api';
 import { listarUsuariosConPermiso, ResumenUsuario } from '@/lib/autorizacion-api';
@@ -155,9 +158,11 @@ export function FieldStationWorkspace({
   const [activeTab, setActiveTab] = useState<
     'avistamientos' | 'hallazgos' | 'reclasificacion' | 'gestion'
   >('avistamientos');
-  const [statusBanner, setStatusBanner] = useState<{
-    type: 'ok' | 'warn' | 'err';
-    text: string;
+  const notificar = useNotificar();
+  // Errores de un dato del formulario; los demás avisos son flotantes
+  const [errorFormulario, setErrorFormulario] = useState<{
+    formulario: 'hallazgo' | 'modificar' | 'reclasificar';
+    texto: string;
   } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -298,24 +303,32 @@ export function FieldStationWorkspace({
   const handleRetrySyncAvistamiento = async (item: AvistamientoResponse) => {
     if (!item.originalPayload) return;
     setLoading(true);
-    setStatusBanner(null);
+    setErrorFormulario(null);
     try {
       const saved = await registrarAvistamiento(item.originalPayload, currentUser.id);
       setAvistamientos((prev) =>
         prev.map((av) => (av.id === item.id ? { ...saved, pendingSync: false } : av))
       );
-      setStatusBanner({
-        type: 'ok',
-        text: `Avistamiento sincronizado con el servidor central (${saved.id.slice(0, 8)}).`,
+      notificar({
+        tipo: 'ok',
+        titulo: 'Avistamiento sincronizado',
+        detalle: `Ya está en la base de datos con el código ${saved.id.slice(0, 8)}.`,
       });
     } catch (error) {
       if (error instanceof ErrorRechazado) {
-        setStatusBanner({ type: 'err', text: error.message });
+        notificar(
+          avisoDeError(error, {
+            titulo: 'No se sincronizó el avistamiento',
+            sinConexion: 'El cambio no se guardó',
+            accion: 'registrar avistamientos',
+          })
+        );
         return;
       }
-      setStatusBanner({
-        type: 'warn',
-        text: 'El servidor central aún no responde. El registro continúa guardado en este equipo.',
+      notificar({
+        tipo: 'aviso',
+        titulo: 'Sigue sin conexión',
+        detalle: 'El avistamiento continúa guardado en este equipo. Inténtalo más tarde.',
       });
     } finally {
       setLoading(false);
@@ -325,12 +338,13 @@ export function FieldStationWorkspace({
   // Registrar Avistamiento Diario
   const handleRegistrarAvistamiento = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatusBanner(null);
+    setErrorFormulario(null);
 
     if (!canWrite) {
-      setStatusBanner({
-        type: 'err',
-        text: 'Tu cuenta no tiene el permiso para registrar datos de campo (hallazgo:crear).',
+      notificar({
+        tipo: 'error',
+        titulo: 'No tienes permiso',
+        detalle: 'Tu rol no puede registrar avistamientos.',
       });
       return;
     }
@@ -353,16 +367,20 @@ export function FieldStationWorkspace({
     try {
       const saved = await registrarAvistamiento(payload, currentUser.id);
       setAvistamientos((prev) => [{ ...saved, pendingSync: false }, ...prev]);
-      setStatusBanner({
-        type: 'ok',
-        text: `Avistamiento sincronizado en el servidor central con código ${saved.id.slice(
-          0,
-          8
-        )}.`,
+      notificar({
+        tipo: 'ok',
+        titulo: 'Avistamiento registrado',
+        detalle: `${saved.cantidad} ${saved.cantidad === 1 ? 'individuo' : 'individuos'} de ${saved.especie}. Código ${saved.id.slice(0, 8)}.`,
       });
     } catch (error) {
       if (error instanceof ErrorRechazado) {
-        setStatusBanner({ type: 'err', text: error.message });
+        notificar(
+          avisoDeError(error, {
+            titulo: 'No se registró el avistamiento',
+            sinConexion: 'El cambio no se guardó',
+            accion: 'registrar avistamientos',
+          })
+        );
         return;
       }
       const espObj = catalogo.find((s) => s.id === avEspecieId);
@@ -381,9 +399,10 @@ export function FieldStationWorkspace({
         originalPayload: payload,
       };
       setAvistamientos((prev) => [localSaved, ...prev]);
-      setStatusBanner({
-        type: 'warn',
-        text: 'Guardado solo en este equipo, sin sincronizar. Puedes reintentar el envío desde la bitácora cuando el servidor esté activo.',
+      notificar({
+        tipo: 'aviso',
+        titulo: 'Guardado solo en este equipo',
+        detalle: 'No hay conexión con el servidor. Reintenta el envío desde la bitácora.',
       });
     } finally {
       setLoading(false);
@@ -427,12 +446,13 @@ export function FieldStationWorkspace({
 
   const handleRegistrarHallazgo = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatusBanner(null);
+    setErrorFormulario(null);
 
     if (!canWrite) {
-      setStatusBanner({
-        type: 'err',
-        text: 'Tu cuenta no tiene el permiso para registrar hallazgos (hallazgo:crear).',
+      notificar({
+        tipo: 'error',
+        titulo: 'No tienes permiso',
+        detalle: 'Tu rol no puede registrar hallazgos.',
       });
       return;
     }
@@ -440,9 +460,9 @@ export function FieldStationWorkspace({
     const hasLat = haLat.trim() !== '';
     const hasLon = haLon.trim() !== '';
     if (hasLat !== hasLon) {
-      setStatusBanner({
-        type: 'err',
-        text: 'Debes indicar tanto la latitud como la longitud, o dejar ambas en blanco.',
+      setErrorFormulario({
+        formulario: 'hallazgo',
+        texto: 'Escribe la latitud y la longitud, o deja las dos en blanco.',
       });
       return;
     }
@@ -450,29 +470,31 @@ export function FieldStationWorkspace({
     for (const ev of haEvidencias) {
       if (ev.tipo === 'TEMPERATURA') {
         if (!ev.valor?.trim() || isNaN(Number(ev.valor))) {
-          setStatusBanner({
-            type: 'err',
-            text: `El valor de la temperatura debe ser numérico (${ev.valor || 'vacío'}).`,
+          setErrorFormulario({
+            formulario: 'hallazgo',
+            texto: ev.valor?.trim()
+              ? `La temperatura debe ser un número: "${ev.valor}" no lo es.`
+              : 'Falta el valor de la temperatura.',
           });
           return;
         }
         if (!ev.unidad?.trim()) {
-          setStatusBanner({
-            type: 'err',
-            text: 'La medición de temperatura requiere una unidad (por ejemplo, °C).',
+          setErrorFormulario({
+            formulario: 'hallazgo',
+            texto: 'Falta la unidad de la temperatura, por ejemplo °C.',
           });
           return;
         }
       } else if (ev.tipo === 'ADN' && !ev.valor?.trim()) {
-        setStatusBanner({
-          type: 'err',
-          text: 'La evidencia de ADN requiere el código de la muestra recolectada.',
+        setErrorFormulario({
+          formulario: 'hallazgo',
+          texto: 'Falta el código de la muestra de ADN.',
         });
         return;
       } else if (ev.tipo === 'AUDIO' && !ev.urlArchivo?.trim()) {
-        setStatusBanner({
-          type: 'err',
-          text: 'La evidencia acústica requiere el enlace al archivo de audio.',
+        setErrorFormulario({
+          formulario: 'hallazgo',
+          texto: 'Falta el enlace del archivo de audio.',
         });
         return;
       }
@@ -556,16 +578,20 @@ export function FieldStationWorkspace({
         ],
       });
 
-      setStatusBanner({
-        type: 'ok',
-        text: `Hallazgo sincronizado en el servidor central con código ${created.id.slice(
-          0,
-          8
-        )}.`,
+      notificar({
+        tipo: 'ok',
+        titulo: 'Hallazgo registrado',
+        detalle: `${espMeta.commonName} en ${created.departamento}. Código ${created.id.slice(0, 8)}.`,
       });
     } catch (error) {
       if (error instanceof ErrorRechazado) {
-        setStatusBanner({ type: 'err', text: error.message });
+        notificar(
+          avisoDeError(error, {
+            titulo: 'No se registró el hallazgo',
+            sinConexion: 'El cambio no se guardó',
+            accion: 'registrar hallazgos',
+          })
+        );
         return;
       }
       const localCreated: HallazgoResponse = {
@@ -625,12 +651,10 @@ export function FieldStationWorkspace({
         ],
       });
 
-      setStatusBanner({
-        type: 'warn',
-        text: `Guardado solo en este equipo, sin sincronizar (${localCreated.id.slice(
-          0,
-          8
-        )}). Se incorporó temporalmente al inventario local.`,
+      notificar({
+        tipo: 'aviso',
+        titulo: 'Guardado solo en este equipo',
+        detalle: 'No hay conexión con el servidor, así que el hallazgo aún no está en la base de datos.',
       });
     } finally {
       setLoading(false);
@@ -654,11 +678,12 @@ export function FieldStationWorkspace({
   // Modificar Hallazgo
   const handleModificarHallazgo = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatusBanner(null);
+    setErrorFormulario(null);
     if (!canEdit) {
-      setStatusBanner({
-        type: 'err',
-        text: 'Tu cuenta no tiene el permiso para modificar hallazgos (hallazgo:editar).',
+      notificar({
+        tipo: 'error',
+        titulo: 'No tienes permiso',
+        detalle: 'Tu rol no puede modificar hallazgos.',
       });
       return;
     }
@@ -673,9 +698,9 @@ export function FieldStationWorkspace({
         : current.region || '';
 
     if (prevValue === modValor.trim()) {
-      setStatusBanner({
-        type: 'err',
-        text: 'El nuevo valor ingresado es idéntico al valor actual.',
+      setErrorFormulario({
+        formulario: 'modificar',
+        texto: 'El valor nuevo es igual al actual.',
       });
       return;
     }
@@ -703,13 +728,20 @@ export function FieldStationWorkspace({
         updated.id
       );
       setModValor('');
-      setStatusBanner({
-        type: 'ok',
-        text: `Hallazgo actualizado a la versión v${updated.versionActual}.`,
+      notificar({
+        tipo: 'ok',
+        titulo: 'Hallazgo actualizado',
+        detalle: `Quedó en la versión ${updated.versionActual} y el cambio está en el historial.`,
       });
     } catch (error) {
       if (error instanceof ErrorRechazado) {
-        setStatusBanner({ type: 'err', text: error.message });
+        notificar(
+          avisoDeError(error, {
+            titulo: 'No se actualizó el hallazgo',
+            sinConexion: 'El cambio no se guardó',
+            accion: 'modificar hallazgos',
+          })
+        );
         return;
       }
       const nextVersion = current.versionActual + 1;
@@ -735,9 +767,10 @@ export function FieldStationWorkspace({
         current.id
       );
       setModValor('');
-      setStatusBanner({
-        type: 'warn',
-        text: `Modificación guardada solo en este equipo, sin sincronizar (versión local v${nextVersion}).`,
+      notificar({
+        tipo: 'aviso',
+        titulo: 'Cambio guardado solo en este equipo',
+        detalle: 'No hay conexión con el servidor, así que el hallazgo no cambió en la base de datos.',
       });
     } finally {
       setLoading(false);
@@ -747,11 +780,12 @@ export function FieldStationWorkspace({
   // Paso 1 de Reclasificación: Validar y abrir diálogo de confirmación (<dialog>)
   const handlePrepareReclasificacion = (e: React.FormEvent) => {
     e.preventDefault();
-    setStatusBanner(null);
+    setErrorFormulario(null);
     if (!canEdit) {
-      setStatusBanner({
-        type: 'err',
-        text: 'Tu cuenta no tiene el permiso para reclasificar hallazgos (hallazgo:editar).',
+      notificar({
+        tipo: 'error',
+        titulo: 'No tienes permiso',
+        detalle: 'Tu rol no puede reclasificar hallazgos.',
       });
       return;
     }
@@ -759,25 +793,25 @@ export function FieldStationWorkspace({
     if (!current) return;
 
     if (current.especieId === recNuevaEspecieId) {
-      setStatusBanner({
-        type: 'err',
-        text: 'El hallazgo ya se encuentra clasificado bajo esa especie.',
+      setErrorFormulario({
+        formulario: 'reclasificar',
+        texto: 'El hallazgo ya está clasificado con esa especie.',
       });
       return;
     }
 
     if (!recMotivo.trim()) {
-      setStatusBanner({
-        type: 'err',
-        text: 'Debes indicar la justificación científica de la reclasificación.',
+      setErrorFormulario({
+        formulario: 'reclasificar',
+        texto: 'Escribe la justificación científica de la reclasificación.',
       });
       return;
     }
 
     if (!recAutorizador) {
-      setStatusBanner({
-        type: 'err',
-        text: 'No hay ningún científico autorizador disponible. Revisa la conexión con el servicio de autorización.',
+      setErrorFormulario({
+        formulario: 'reclasificar',
+        texto: 'No hay ninguna persona disponible para autorizar la reclasificación.',
       });
       return;
     }
@@ -826,13 +860,20 @@ export function FieldStationWorkspace({
         updated.id
       );
       setRecMotivo('');
-      setStatusBanner({
-        type: 'ok',
-        text: `Reclasificación sincronizada (${current.especie} → ${updated.especie}, v${updated.versionActual}).`,
+      notificar({
+        tipo: 'ok',
+        titulo: 'Hallazgo reclasificado',
+        detalle: `De ${current.especie} a ${updated.especie}. Quedó en la versión ${updated.versionActual}.`,
       });
     } catch (error) {
       if (error instanceof ErrorRechazado) {
-        setStatusBanner({ type: 'err', text: error.message });
+        notificar(
+          avisoDeError(error, {
+            titulo: 'No se reclasificó el hallazgo',
+            sinConexion: 'El cambio no se guardó',
+            accion: 'reclasificar hallazgos',
+          })
+        );
         return;
       }
       const nextVersion = current.versionActual + 1;
@@ -859,9 +900,10 @@ export function FieldStationWorkspace({
         current.id
       );
       setRecMotivo('');
-      setStatusBanner({
-        type: 'warn',
-        text: `Reclasificación guardada solo en este equipo, sin sincronizar (${current.especie} → ${nuevaEsp.scientificName}, v${nextVersion}).`,
+      notificar({
+        tipo: 'aviso',
+        titulo: 'Reclasificación guardada solo en este equipo',
+        detalle: 'No hay conexión con el servidor, así que el hallazgo no cambió en la base de datos.',
       });
     } finally {
       setLoading(false);
@@ -889,7 +931,7 @@ export function FieldStationWorkspace({
           aria-selected={activeTab === 'avistamientos'}
           onClick={() => {
             setActiveTab('avistamientos');
-            setStatusBanner(null);
+            setErrorFormulario(null);
           }}
           className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
             activeTab === 'avistamientos'
@@ -905,7 +947,7 @@ export function FieldStationWorkspace({
           aria-selected={activeTab === 'hallazgos'}
           onClick={() => {
             setActiveTab('hallazgos');
-            setStatusBanner(null);
+            setErrorFormulario(null);
           }}
           className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
             activeTab === 'hallazgos'
@@ -921,7 +963,7 @@ export function FieldStationWorkspace({
           aria-selected={activeTab === 'reclasificacion'}
           onClick={() => {
             setActiveTab('reclasificacion');
-            setStatusBanner(null);
+            setErrorFormulario(null);
           }}
           className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
             activeTab === 'reclasificacion'
@@ -938,7 +980,7 @@ export function FieldStationWorkspace({
             aria-selected={activeTab === 'gestion'}
             onClick={() => {
               setActiveTab('gestion');
-              setStatusBanner(null);
+              setErrorFormulario(null);
             }}
             className={`min-h-11 rounded-md px-5 py-2.5 font-mono text-xs font-semibold transition-colors cursor-pointer ${
               activeTab === 'gestion'
@@ -961,24 +1003,6 @@ export function FieldStationWorkspace({
         >
           Fichas Taxonómicas
         </a>
-      </div>
-
-      {/* Aviso accesible con aria-live */}
-      <div aria-live="polite" aria-atomic="true">
-        {statusBanner && (
-          <div
-            role="status"
-            className={`rounded-lg border p-4 text-xs font-mono ${
-              statusBanner.type === 'ok'
-                ? 'border-iucn-lc bg-iucn-lc/10 text-ink'
-                : statusBanner.type === 'warn'
-                ? 'border-sun-500 bg-sun-500/15 text-ink'
-                : 'border-iucn-cr bg-iucn-cr/10 text-ink'
-            }`}
-          >
-            {statusBanner.text}
-          </div>
-        )}
       </div>
 
       {activeTab === 'gestion' && (
@@ -1561,6 +1585,9 @@ export function FieldStationWorkspace({
               </div>
             </div>
 
+            <ErrorFormulario
+              texto={errorFormulario?.formulario === 'hallazgo' ? errorFormulario.texto : null}
+            />
             <div className="flex justify-end">
               <Button type="submit" variant="primary" disabled={loading}>
                 {loading
@@ -1727,6 +1754,9 @@ export function FieldStationWorkspace({
                   />
                 </Field>
 
+                <ErrorFormulario
+                  texto={errorFormulario?.formulario === 'modificar' ? errorFormulario.texto : null}
+                />
                 <Button
                   type="submit"
                   variant="primary"
@@ -1809,6 +1839,9 @@ export function FieldStationWorkspace({
                   </Field>
                 </div>
 
+                <ErrorFormulario
+                  texto={errorFormulario?.formulario === 'reclasificar' ? errorFormulario.texto : null}
+                />
                 <Button
                   type="submit"
                   variant="secondary"

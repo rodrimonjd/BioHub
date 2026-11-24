@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { useNotificar } from '@/components/ui/Notificaciones';
 import { BioHubUser } from '@/lib/permissions';
 import { agregarEvidencia, HallazgoResponse, TipoEvidencia } from '@/lib/registro-api';
-import { Aviso, CLASE_INPUT, Encabezado, MensajeAviso, mensajeDeError } from './campo-ui';
+import { avisoDeError } from '@/lib/avisos';
+import { CLASE_INPUT, Encabezado } from './campo-ui';
 
 export interface AgregarEvidenciaProps {
   currentUser: BioHubUser;
@@ -22,13 +24,12 @@ export function AgregarEvidencia({ currentUser, hallazgos, onHallazgoActualizado
   const [evUnidad, setEvUnidad] = useState('C');
   const [evUrl, setEvUrl] = useState('');
   const [evAtributo, setEvAtributo] = useState('');
-  const [avisoEvidencia, setAvisoEvidencia] = useState<Aviso>(null);
+  const notificar = useNotificar();
   const hallazgoElegido = evHallazgoId || hallazgos[0]?.id || '';
 
   const handleAgregarEvidencia = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hallazgoElegido) return;
-    setAvisoEvidencia(null);
     try {
       const actualizado = await agregarEvidencia(
         hallazgoElegido,
@@ -41,16 +42,23 @@ export function AgregarEvidencia({ currentUser, hallazgos, onHallazgoActualizado
         },
         currentUser.id
       );
-      setAvisoEvidencia({
+      notificar({
         tipo: 'ok',
-        texto: `Evidencia agregada al hallazgo ${actualizado.id.slice(0, 8)} (ahora v${actualizado.versionActual}).`,
+        titulo: 'Evidencia agregada',
+        detalle: `El hallazgo ${actualizado.id.slice(0, 8)} quedó en la versión ${actualizado.versionActual}.`,
       });
       setEvValor('');
       setEvUrl('');
       setEvAtributo('');
       onHallazgoActualizado(actualizado);
     } catch (error) {
-      setAvisoEvidencia({ tipo: 'err', texto: mensajeDeError(error) });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se agregó la evidencia',
+          sinConexion: 'La evidencia no se guardó',
+          accion: 'agregar evidencias',
+        })
+      );
     }
   };
 
@@ -60,7 +68,6 @@ export function AgregarEvidencia({ currentUser, hallazgos, onHallazgoActualizado
         titulo="Agregar evidencia a un hallazgo"
         descripcion="Suma una medición, muestra genética o grabación a un hallazgo ya registrado. Queda como una nueva versión en el historial."
       />
-      <MensajeAviso aviso={avisoEvidencia} />
       <form onSubmit={handleAgregarEvidencia} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
         <Field id="ev-hallazgo" label="Hallazgo" className="md:col-span-5">
           <select

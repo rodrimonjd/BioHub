@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { useNotificar } from '@/components/ui/Notificaciones';
+import { avisoDeError } from '@/lib/avisos';
 import { BioHubUser } from '@/lib/permissions';
 import {
   AccesoUbicacionVigente,
@@ -16,7 +18,7 @@ import {
   usuariosParaUbicacion,
 } from '@/lib/autorizacion-api';
 import { EspecieRegistro } from '@/lib/taxonomia-api';
-import { Aviso, CLASE_INPUT, Encabezado, MensajeAviso } from './campo-ui';
+import { CLASE_INPUT, Encabezado } from './campo-ui';
 
 export interface AccesoUbicacionesProps {
   usuario: BioHubUser;
@@ -39,7 +41,7 @@ export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicaci
   const [historial, setHistorial] = useState<CambioAccesoUbicacion[]>([]);
   const [usuarioId, setUsuarioId] = useState('');
   const [especieId, setEspecieId] = useState('');
-  const [aviso, setAviso] = useState<Aviso>(null);
+  const notificar = useNotificar();
   const [guardando, setGuardando] = useState(false);
 
   const nombreEspecie = (id: string) => {
@@ -56,9 +58,15 @@ export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicaci
       setAccesos(lista);
       setHistorial(cambios);
     } catch (error) {
-      setAviso({ tipo: 'err', texto: error instanceof Error ? error.message : 'No se pudieron cargar los accesos.' });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se cargaron los accesos',
+          sinConexion: 'No se pudo leer la lista de accesos',
+          accion: 'administrar accesos a ubicaciones',
+        })
+      );
     }
-  }, [usuario.id]);
+  }, [usuario.id, notificar]);
 
   useEffect(() => {
     usuariosParaUbicacion(usuario.id).then(setUsuarios).catch(() => setUsuarios([]));
@@ -69,34 +77,46 @@ export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicaci
     e.preventDefault();
     if (!usuarioId || !especieId) return;
     setGuardando(true);
-    setAviso(null);
     try {
       const acceso = await otorgarAccesoUbicacion(usuario.id, usuarioId, especieId);
-      setAviso({
+      notificar({
         tipo: 'ok',
-        texto: `${acceso.nombreUsuario} ahora ve la ubicación exacta de ${nombreEspecie(acceso.especieId)}.`,
+        titulo: 'Acceso dado',
+        detalle: `${acceso.nombreUsuario} ahora ve la ubicación exacta de ${nombreEspecie(acceso.especieId)}.`,
       });
       await recargar();
       onCambio?.();
     } catch (error) {
-      setAviso({ tipo: 'err', texto: error instanceof Error ? error.message : 'No se pudo dar el acceso.' });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se dio el acceso',
+          sinConexion: 'El acceso no cambió',
+          accion: 'administrar accesos a ubicaciones',
+        })
+      );
     } finally {
       setGuardando(false);
     }
   };
 
   const handleRevocar = async (acceso: AccesoUbicacionVigente) => {
-    setAviso(null);
     try {
       await revocarAccesoUbicacion(usuario.id, acceso.usuarioId, acceso.especieId);
-      setAviso({
+      notificar({
         tipo: 'ok',
-        texto: `${acceso.nombreUsuario} ya no ve la ubicación exacta de ${nombreEspecie(acceso.especieId)}.`,
+        titulo: 'Acceso quitado',
+        detalle: `${acceso.nombreUsuario} ya no ve la ubicación exacta de ${nombreEspecie(acceso.especieId)}.`,
       });
       await recargar();
       onCambio?.();
     } catch (error) {
-      setAviso({ tipo: 'err', texto: error instanceof Error ? error.message : 'No se pudo quitar el acceso.' });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se quitó el acceso',
+          sinConexion: 'El acceso no cambió',
+          accion: 'administrar accesos a ubicaciones',
+        })
+      );
     }
   };
 
@@ -107,7 +127,6 @@ export function AccesoUbicaciones({ usuario, especies, onCambio }: AccesoUbicaci
           titulo="Quién ve la ubicación exacta"
           descripcion="Da acceso a las coordenadas exactas de una especie a una cuenta que no las ve por su rol. Quien tiene el permiso general ya ve todas."
         />
-        <MensajeAviso aviso={aviso} />
         <form onSubmit={handleOtorgar} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
           <Field id="acceso-usuario" label="Cuenta">
             <select

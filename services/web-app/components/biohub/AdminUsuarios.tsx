@@ -4,13 +4,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { useNotificar } from '@/components/ui/Notificaciones';
+import { avisoDeError } from '@/lib/avisos';
 import { BioHubUser, etiquetaRoles } from '@/lib/permissions';
 import {
   AccionRol,
   asignarRol,
   CambioRol,
   crearUsuario,
-  ErrorAdministracion,
   historialRoles,
   listarRoles,
   listarUsuarios,
@@ -38,8 +39,6 @@ export interface AdminUsuariosProps {
 const CLASE_INPUT =
   'min-h-11 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-moss-500';
 
-type Aviso = { tipo: 'ok' | 'err'; texto: string } | null;
-
 /**
  * Registro de cuentas nuevas con su rol. Todo lo valida servicio-autorizacion: id y correo únicos,
  * contraseña de 8 a 72 caracteres (se guarda solo como hash BCrypt) y que quien registra sea administrador.
@@ -49,7 +48,7 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
   const [usuarios, setUsuarios] = useState<VistaUsuario[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
   const [guardando, setGuardando] = useState<boolean>(false);
-  const [aviso, setAviso] = useState<Aviso>(null);
+  const notificar = useNotificar();
 
   const [id, setId] = useState<string>('');
   const [nombre, setNombre] = useState<string>('');
@@ -74,14 +73,17 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
       setUsuarios(listaUsuarios);
       setHistorial(cambios);
     } catch (error) {
-      setAviso({
-        tipo: 'err',
-        texto: error instanceof ErrorAdministracion ? error.message : 'No se pudo cargar la lista de cuentas.',
-      });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se cargaron las cuentas',
+          sinConexion: 'No se pudo leer la lista de cuentas',
+          accion: 'administrar cuentas',
+        })
+      );
     } finally {
       setCargando(false);
     }
-  }, [admin.id]);
+  }, [admin.id, notificar]);
 
   useEffect(() => {
     cargar();
@@ -89,7 +91,6 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
 
   const handleCrear = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAviso(null);
     setGuardando(true);
     try {
       const creado = await crearUsuario(admin.id, {
@@ -99,9 +100,10 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
         clave,
         rol: rol || null,
       });
-      setAviso({
+      notificar({
         tipo: 'ok',
-        texto: `Cuenta "${creado.id}" registrada como ${etiquetaRoles(creado.roles)}.`,
+        titulo: 'Cuenta creada',
+        detalle: `${creado.nombre} puede entrar como ${etiquetaRoles(creado.roles)}.`,
       });
       setId('');
       setNombre('');
@@ -109,10 +111,13 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
       setClave('');
       await cargar();
     } catch (error) {
-      setAviso({
-        tipo: 'err',
-        texto: error instanceof ErrorAdministracion ? error.message : 'No se pudo registrar la cuenta.',
-      });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se creó la cuenta',
+          sinConexion: 'La cuenta no se guardó',
+          accion: 'crear cuentas',
+        })
+      );
     } finally {
       setGuardando(false);
     }
@@ -124,15 +129,24 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
   const handleAsignar = async (u: VistaUsuario) => {
     const nuevo = rolPorAsignar[u.id];
     if (!nuevo) return;
-    setAviso(null);
     setCambiando(u.id);
     try {
       await asignarRol(admin.id, u.id, nuevo);
-      setAviso({ tipo: 'ok', texto: `${u.nombre} ahora tiene el rol ${etiquetaRoles([nuevo])}.` });
+      notificar({
+        tipo: 'ok',
+        titulo: 'Rol asignado',
+        detalle: `${u.nombre} ahora tiene el rol ${etiquetaRoles([nuevo])}.`,
+      });
       setRolPorAsignar((prev) => ({ ...prev, [u.id]: '' }));
       await cargar();
     } catch (error) {
-      setAviso({ tipo: 'err', texto: error instanceof Error ? error.message : 'No se pudo asignar el rol.' });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se asignó el rol',
+          sinConexion: 'El rol no cambió',
+          accion: 'cambiar roles',
+        })
+      );
     } finally {
       setCambiando(null);
     }
@@ -140,14 +154,23 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
 
   const handleQuitar = async (u: VistaUsuario, r: string) => {
     if (!window.confirm(`¿Quitar el rol ${etiquetaRoles([r])} a ${u.nombre}?`)) return;
-    setAviso(null);
     setCambiando(u.id);
     try {
       await quitarRol(admin.id, u.id, r);
-      setAviso({ tipo: 'ok', texto: `Se quitó el rol ${etiquetaRoles([r])} a ${u.nombre}.` });
+      notificar({
+        tipo: 'ok',
+        titulo: 'Rol quitado',
+        detalle: `${u.nombre} ya no tiene el rol ${etiquetaRoles([r])}.`,
+      });
       await cargar();
     } catch (error) {
-      setAviso({ tipo: 'err', texto: error instanceof Error ? error.message : 'No se pudo quitar el rol.' });
+      notificar(
+        avisoDeError(error, {
+          titulo: 'No se quitó el rol',
+          sinConexion: 'El rol no cambió',
+          accion: 'cambiar roles',
+        })
+      );
     } finally {
       setCambiando(null);
     }
@@ -155,21 +178,6 @@ export function AdminUsuarios({ admin }: AdminUsuariosProps) {
 
   return (
     <div className="space-y-4">
-      <div aria-live="polite">
-        {aviso && (
-          <div
-            role="status"
-            className={`rounded-lg border p-4 text-xs font-mono ${
-              aviso.tipo === 'ok'
-                ? 'border-iucn-lc bg-iucn-lc/10 text-ink'
-                : 'border-iucn-cr bg-iucn-cr/10 text-ink'
-            }`}
-          >
-            {aviso.texto}
-          </div>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <Card as="section" className="lg:col-span-5 space-y-4">
           <div className="border-b border-line pb-3">
