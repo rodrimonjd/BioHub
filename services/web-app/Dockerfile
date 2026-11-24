@@ -11,12 +11,14 @@ WORKDIR /app
 # Por defecto, los nombres de los servicios dentro de la red de docker compose.
 ARG REGISTRO_URL=http://servicio-registro:8081
 ARG AUTORIZACION_URL=http://servicio-autorizacion:8082
+ARG CONSULTA_URL=http://servicio-consulta-publica:8083
 ARG TAXONOMIA_URL=http://servicio-taxonomia:8084
 ARG REPORTES_URL=http://servicio-reportes:8085
 ARG HISTORIAL_URL=http://servicio-historial:8086
 ARG GATEWAY_URL=http://api-gateway:8080
 ENV REGISTRO_URL=$REGISTRO_URL \
     AUTORIZACION_URL=$AUTORIZACION_URL \
+    CONSULTA_URL=$CONSULTA_URL \
     TAXONOMIA_URL=$TAXONOMIA_URL \
     REPORTES_URL=$REPORTES_URL \
     HISTORIAL_URL=$HISTORIAL_URL \

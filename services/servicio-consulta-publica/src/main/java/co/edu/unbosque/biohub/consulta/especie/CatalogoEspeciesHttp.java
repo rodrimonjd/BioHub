@@ -9,6 +9,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.text.Normalizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -57,6 +58,18 @@ public class CatalogoEspeciesHttp implements CatalogoEspecies {
         return buscar(() -> porNombre.get(clave));
     }
 
+    @Override
+    public List<EspecieInfo> porNombreComun(String texto) {
+        Instant ahora = reloj.instant();
+        if (cargadoEn.plus(ttl).isBefore(ahora) && ultimoIntento.plus(ESPERA_MINIMA_RECARGA).isBefore(ahora)) {
+            recargar(ahora);
+        }
+        String buscado = sinTildes(texto);
+        return porId.values().stream()
+                .filter(e -> e.nombreComun() != null && sinTildes(e.nombreComun()).contains(buscado))
+                .toList();
+    }
+
     private Optional<EspecieInfo> buscar(java.util.function.Supplier<EspecieInfo> consulta) {
         Instant ahora = reloj.instant();
         boolean vencido = cargadoEn.plus(ttl).isBefore(ahora);
@@ -90,6 +103,10 @@ public class CatalogoEspeciesHttp implements CatalogoEspecies {
 
     private static String normalizar(String texto) {
         return texto.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String sinTildes(String texto) {
+        return Normalizer.normalize(normalizar(texto), Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
     }
 
     private static RestClient crearCliente(String baseUrl) {

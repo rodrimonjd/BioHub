@@ -220,6 +220,7 @@ services:
     depends_on:
       - servicio-autorizacion
       - servicio-registro
+      - servicio-consulta-publica
       - servicio-taxonomia
       - servicio-reportes
       - servicio-historial

@@ -28,6 +28,7 @@ El navegador llama a rutas del mismo origen y Next las reenvía (`next.config.ts
 | Ruta del front | Servicio | Variable de entorno (por defecto) |
 |---|---|---|
 | `/api/registro/...` | servicio-registro | `REGISTRO_URL` (`http://localhost:8081`) |
+| `/api/consulta/...` | servicio-consulta-publica (`/api/v1/consulta/...`) | `CONSULTA_URL` (`http://localhost:8083`) |
 | `/api/autorizacion/...` | servicio-autorizacion (`/api/v1/autorizacion/...`) | `AUTORIZACION_URL` (`http://localhost:8082`) |
 
 Para entrar al panel hace falta `servicio-autorizacion` en marcha (`docker compose -f infra/docker-compose.yml up -d`). Las cuentas de desarrollo están en el README de `servicio-autorizacion`.

@@ -16,4 +16,5 @@ public record VistaHallazgoPublico(
         String region,
         Double latitud,
         Double longitud,
-        NivelVisibilidad nivelUbicacion) {}
+        NivelVisibilidad nivelUbicacion,
+        int version) {}
