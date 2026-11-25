@@ -1,9 +1,9 @@
 # servicio-consulta-publica
 
-Modelo de lectura con caché para consultar hallazgos. Muestra coordenadas exactas, región o solo departamento según lo que decida `servicio-autorizacion`. Se suscribe al broker.
+Modelo de lectura para consultar hallazgos; lo usan la web (búsqueda de hallazgos y ubicación por especie) y el API Gateway. Muestra coordenadas exactas, región o solo departamento según lo que decida `servicio-autorizacion`. Se suscribe al broker.
 
 **ASR:** ASR-01, ASR-02, ASR-04, ASR-05
-**Historias:** HU-05 (consultar hallazgos), HU-06 (consultar ubicación), HU-07 (coordenadas exactas)
+**Historias:** HU-05 (consultar hallazgos), HU-06 (consultar ubicación), HU-07 (coordenadas exactas), HU-14.1 (respuesta en menos de 1 segundo)
 **Eventos que consume:** `HALLAZGO_REGISTRADO`, `HALLAZGO_MODIFICADO` (de `servicio-registro`, exchange `biohub.eventos`)
 **Eventos que publica:** ninguno
 
@@ -34,11 +34,13 @@ GET /api/v1/consulta/hallazgos ──► ServicioConsulta ──┬── Catalo
 ```
 src/main/java/co/edu/unbosque/biohub/consulta/
 ├── ConsultaPublicaApplication.java
-├── consulta/      ConsultaControlador, ServicioConsulta, PresentadorUbicacion, VistaHallazgoPublico
+├── consulta/      ConsultaControlador, ServicioConsulta, FiltroHallazgos, PresentadorUbicacion, VistaHallazgoPublico
 ├── evento/        ConfiguracionBroker, ConsumidorEventos (Observer), ProyectorHallazgos
-├── lectura/       HallazgoLectura, HallazgoLecturaRepositorio (modelo de lectura)
+├── lectura/       HallazgoLectura, HallazgoLecturaRepositorio, BusquedaHallazgos (modelo de lectura)
 ├── especie/       CatalogoEspecies (Adapter) + CatalogoEspeciesHttp
 ├── visibilidad/   ClienteAutorizacion + ClienteAutorizacionHttp, NivelVisibilidad
+├── identidad/     FiltroIdentidad (verifica el token), ConfiguracionIdentidad
+├── configuracion/ PropiedadesConsulta
 └── compartido/    ManejadorExcepciones, RespuestaError, NoEncontradoException
 src/main/resources/db/migration/   V1 (tabla hallazgo_lectura)
 ```
@@ -81,7 +83,10 @@ Token opcional (`Authorization: Bearer`, lo ponen el API Gateway y la web). Sin 
 | `REGION` | — | ✅ | ✅ |
 | `DEPARTAMENTO` | — | — | ✅ |
 
-Con las reglas actuales de `servicio-autorizacion`: quien no tiene permiso nunca ve coordenadas (solo departamento en CR/EN y región en las demás); quien tiene `ubicacion:ver_exacta` (ADMIN, AUTORIDAD_AMBIENTAL) siempre ve coordenadas.
+Con las reglas actuales de `servicio-autorizacion`: quien no tiene permiso nunca ve coordenadas (solo departamento en CR/EN y región en las demás); quien tiene `ubicacion:ver_exacta` (ADMIN, AUTORIDAD_AMBIENTAL) siempre ve coordenadas, y quien tiene acceso a una especie ve las de esa especie.
+
+## Rendimiento (HU-14.1)
+`node tests/rendimiento/consulta-publica.mjs`, desde la raíz y con el entorno encendido, mide el servicio directo y el paso por el API Gateway. Necesita hallazgos registrados. El último informe está en [resultados-HU-14.1.md](../../docs/entrega-3-implementacion/rendimiento/resultados-HU-14.1.md).
 
 ## Ejemplos (PowerShell)
 ```powershell

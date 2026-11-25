@@ -13,6 +13,7 @@ Java 21 · Spring Boot 4.1 · Spring Data MongoDB (`taxonomia_db`) · Spring AMQ
 ## Modelo
 - **Catálogo de atributos** (colección `atributos`): `AtributoTaxonomico` con nombre único, `tipoDato` (`TEXTO`, `NUMERICO`, `LISTA`), unidad, opciones (solo `LISTA`) y si es obligatorio.
 - **Fichas** (colección `fichas`): `FichaTaxonomica` de una especie con su versión, si está activa y su lista de atributos, cada uno con su valor (`ValorAtributo`: copia del atributo del catálogo + valor, que puede quedar vacío).
+- El catálogo y las fichas empiezan vacíos: MongoDB no tiene datos iniciales.
 - La especie vive en `servicio-registro`; la ficha guarda solo su `especieId` (los mismos UUID de `GET /especies` de registro). Una especie tiene como máximo una ficha activa.
 
 ## Patrones (dónde está cada uno)
@@ -38,13 +39,14 @@ Agregar un tipo de dato nuevo = una constante en `TipoDato` con su regla (y su c
 | POST | `/fichas/{id}/atributos` | Incorpora un atributo del catálogo a una ficha existente, con o sin valor (HU-21.2) |
 | POST | `/fichas/{id}/desactivacion` | Desactiva la ficha sin borrarla (HU-02.3) |
 
+Las lecturas son abiertas. Las escrituras exigen un token (`Authorization: Bearer`), que se verifica con la clave pública de autorización, y el permiso `ficha:editar`; la desactivación pide `ficha:desactivar`. El autor que se guarda es la cuenta del token: si el cuerpo trae `autor`, se ignora.
+
 Swagger: http://localhost:8084/swagger-ui/index.html
 
 Ejemplo para crear una ficha:
 ```json
 {
   "especieId": "33333333-3333-3333-3333-333333333333",
-  "autor": "inv-1",
   "atributos": [
     { "nombre": "temperatura del agua", "valor": "18.5" },
     { "nombre": "habitat" }
@@ -66,4 +68,4 @@ Cuerpo JSON (`EventoDominio`, igual que en registro): `idEvento`, `tipo`, `versi
 
 **Docker:** desde `infra/`, `docker compose up -d --build servicio-taxonomia`.
 
-Variables de entorno (por defecto apuntan a `localhost`): `PUERTO_SERVIDOR`, `MONGO_HOST`, `MONGO_PUERTO`, `MONGO_BD`, `RABBIT_HOST`, `RABBIT_PUERTO`, `RABBIT_USUARIO`, `RABBIT_CLAVE`.
+Variables de entorno (por defecto apuntan a `localhost`): `PUERTO_SERVIDOR`, `MONGO_HOST`, `MONGO_PUERTO`, `MONGO_BD`, `RABBIT_HOST`, `RABBIT_PUERTO`, `RABBIT_USUARIO`, `RABBIT_CLAVE`, `AUTORIZACION_URL` (`http://localhost:8082`).
