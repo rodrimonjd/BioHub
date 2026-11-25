@@ -1,10 +1,11 @@
 # servicio-autorizacion
 
-Roles y permisos centralizados; decide si se muestran coordenadas exactas o solo región/departamento.
+Cuentas, inicio de sesión, roles y permisos centralizados; decide si se muestran coordenadas exactas o solo región o departamento, y quién ve la ubicación exacta de cada especie.
 
 **ASR:** ASR-04, ASR-05
-**Eventos que publica:** `rol.creado`, `rol.permisos_actualizados`, `usuario.rol_asignado`, `usuario.rol_revocado` (mediante la tabla `evento_outbox`)
-**Eventos que consume:** ninguno por ahora
+**Historias:** HU-08.1 (asignar roles), HU-08.2 (validar permisos), HU-08.3 (registrar cambios en los permisos), HU-07 (acceso a coordenadas exactas)
+**Eventos:** guarda `rol.creado`, `rol.permisos_actualizados`, `usuario.rol_asignado`, `usuario.rol_revocado` y `usuario.creado` en la tabla `evento_outbox`; todavía nadie los publica en RabbitMQ
+**Eventos que consume:** ninguno
 
 ## Tecnología
 Java 17 · Spring Boot 4.1 · Spring Data JPA · MySQL 8 · Flyway
@@ -14,14 +15,15 @@ Java 17 · Spring Boot 4.1 · Spring Data JPA · MySQL 8 · Flyway
 src/main/java/co/edu/unbosque/biohub/autorizacion/
 ├── AutorizacionServiceApplication.java
 ├── autorizacion/   ServicioAutorizacion, AutorizacionControlador (consultas)
-├── rol/            Rol, RolRepositorio, RolServicio, RolControlador (administración)
+├── rol/            Rol, RolServicio, RolControlador (administración), CambioRol (historial de roles)
 ├── permiso/        Permiso, PermisoRepositorio
-├── usuario/        UsuarioRol, UsuarioRolRepositorio
+├── usuario/        Usuario, ServicioUsuarios, UsuarioControlador (cuentas y sesiones), UsuarioRol
+├── ubicacion/      AccesoUbicacion, ServicioAccesoUbicacion, AccesoUbicacionControlador (acceso por especie y su historial)
 ├── evento/         EventoOutbox, EventoOutboxRepositorio (patrón Outbox)
 ├── identidad/      ServicioTokens, ClaveFirma, FiltroIdentidad, ClavesControlador (sesiones firmadas)
 ├── visibilidad/    PoliticaVisibilidadUbicacion (patrón Strategy), NivelVisibilidad
 └── compartido/     Dtos, excepciones y ManejadorExcepciones
-src/main/resources/db/migration/   V1 (esquema), V2 (datos iniciales)
+src/main/resources/db/migration/   V1 (esquema) a V11 (historial de roles)
 ```
 
 ## Ejecutar
@@ -33,7 +35,16 @@ mvn test
 Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE` (`auth_db`), `BD_USUARIO` (`auth_user`), `BD_CLAVE` (`auth_pass`), `PUERTO_SERVIDOR`, `IDENTIDAD_CLAVE_ARCHIVO` (`claves/firma.json`), `IDENTIDAD_DURACION_SESION` (`8h`), `SECRETO_SERVICIOS` (vacío: no entrega tokens de consumidores).
 La base `auth_db` y el usuario `auth_user` los crea `infra/mysql/init.sql` al iniciar el contenedor de MySQL.
 
-Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL, INVESTIGADOR, CIUDADANO; usuario `admin` con rol ADMIN).
+Flyway crea el esquema y los datos iniciales: los roles con sus permisos, las tres cuentas de desarrollo y los dos consumidores externos.
+
+### Roles iniciales
+| Rol | Permisos |
+|---|---|
+| `ADMIN` | Todos, incluidos `roles:administrar` y `api_externa:configurar`, menos `api_externa:consultar` (es solo de los consumidores externos) |
+| `AUTORIDAD_AMBIENTAL` | `hallazgo:ver`, `hallazgo:validar`, `ubicacion:ver_exacta`, `ubicacion:administrar`, `historial:ver`, `reporte:ver`, `reporte:generar`, `ficha:editar`, `ficha:desactivar`, `api_externa:monitorear` |
+| `INVESTIGADOR` | `hallazgo:ver`, `hallazgo:crear`, `hallazgo:editar`, `evidencia:subir`, `equipo:gestionar`, `historial:ver`, `reporte:ver`, `reporte:generar`, `ficha:editar`, `ficha:desactivar`, `api_externa:monitorear` |
+| `CIUDADANO` | `hallazgo:ver` (también es el del invitado y el de quien no tiene rol) |
+| `CONSUMIDOR_EXTERNO` | `hallazgo:ver`, `api_externa:consultar` |
 
 ## API (`/api/v1/autorizacion`)
 | Método | Ruta | Descripción |
@@ -42,8 +53,14 @@ Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL,
 | GET | `/claves` | Clave pública (JWKS) con la que los demás servicios verifican los tokens |
 | GET | `/usuarios/{usuarioId}/permisos` | Roles y permisos efectivos: solo los propios, los del invitado o cualquiera si es admin |
 | POST | `/consumidores/validar` | `{consumidorId}` → `{valido, token}`. Lo usa el API Gateway (el token solo se entrega con la cabecera `X-Secreto-Servicio` correcta): es válido si el consumidor tiene el permiso `api_externa:consultar` (rol `CONSUMIDOR_EXTERNO`, migración V3) |
-| POST | `/visibilidad-ubicacion` | `{usuarioId?, categoriaConservacion}` → `EXACTA` / `REGION` / `DEPARTAMENTO` |
+| POST | `/visibilidad-ubicacion` | `{usuarioId?, categoriaConservacion?, especieId?}` → `EXACTA` / `REGION` / `DEPARTAMENTO` |
+| GET | `/usuarios/{usuarioId}/ubicacion` | `{todas, especies}`: de qué especies ve la ubicación exacta |
+| GET | `/ubicacion/usuarios` | Cuentas a las que se les puede dar acceso (`ubicacion:administrar`) |
+| GET/POST | `/ubicacion/accesos` | Listar / dar acceso `{usuarioId, especieId}` (`ubicacion:administrar`) |
+| DELETE | `/ubicacion/accesos/{usuarioId}/{especieId}` | Quitar el acceso (`ubicacion:administrar`) |
+| GET | `/ubicacion/historial` | Accesos dados y quitados, de solo inserción (`ubicacion:administrar`) |
 | GET/POST | `/roles` | Listar / crear roles (admin) |
+| GET | `/roles/historial` | Cambios de roles y permisos, de solo inserción (admin) |
 | PUT | `/roles/{nombre}/permisos` | Reemplazar los permisos de un rol (admin) |
 | POST/DELETE | `/usuarios/{usuarioId}/roles/{nombreRol}` | Asignar / revocar rol (admin) |
 | POST | `/sesiones` | Inicio de sesión: `{usuario (id o correo), clave}` → `{usuarioId, nombre, correo, roles, permisos, token, venceEn}`. 401 con un mensaje genérico si no coinciden |
@@ -51,7 +68,13 @@ Flyway crea el esquema y los datos iniciales (roles: ADMIN, AUTORIDAD_AMBIENTAL,
 | GET/POST | `/usuarios` | Listar / crear cuentas `{id, nombre, correo, clave, rol?}` (admin) |
 | GET | `/usuarios/con-permiso/{permiso}` | Cuentas activas con un permiso (solo id y nombre), p. ej. `hallazgo:validar` para elegir quién autoriza una reclasificación. Exige la sesión de una cuenta activa |
 
-Los endpoints de administración exigen un token (`Authorization: Bearer`) de una cuenta con el permiso `roles:administrar`.
+Los endpoints marcados (admin) exigen un token (`Authorization: Bearer`) de una cuenta con el permiso `roles:administrar`; los demás, el permiso que se indica.
+
+`evidencia:subir` existe, pero ningún servicio lo exige: agregar evidencias pide `hallazgo:editar`.
+
+### Visibilidad de la ubicación
+- Con `ubicacion:ver_exacta`, o con acceso a esa especie: `EXACTA`.
+- Sin ninguno de los dos, nunca hay coordenadas: `DEPARTAMENTO` para CR y EN, `REGION` para las demás categorías.
 
 ## Identidad verificable (HU-8.2, ASR-05)
 La identidad no se puede inventar: sale de un token firmado por este servicio.

@@ -30,15 +30,26 @@ Consumidor ── GET /api/v1/inventario + X-API-Key ──► ApiGateway
 | `ConsumidorExterno` | `autenticar(apiKey)` compara el SHA-256 de la key; `registrarSolicitud()` cuenta las solicitudes del minuto |
 | `GatewayProperties` | Configuración única (Singleton): límite por minuto, rutas y consumidores |
 | `ClienteAutorizacion` | Llama a `POST /api/v1/autorizacion/consumidores/validar` |
-| `GatewayController` | Recibe `GET /api/v1/**` y se lo pasa a `ApiGateway` |
+| `GatewayController` | Recibe `GET /api/v1/**` y se lo pasa a `ApiGateway`; atiende `/gateway/consumo` y `/gateway/limite` |
+| `FiltroIdentidad` | Verifica el token de la cuenta; solo se aplica en `/gateway` |
 
 ## API pública
 | Método | Ruta | Servicio interno |
 |---|---|---|
-| GET | `/api/v1/inventario` | `GET /api/v1/consulta/hallazgos` (filtros: `especieId`, `departamento`, `especie`, `pagina`, `tamano`) |
+| GET | `/api/v1/inventario` | `GET /api/v1/consulta/hallazgos` (filtros: `especieId`, `departamento`, `especie`, `texto`, `fechaDesde`, `fechaHasta`, `pagina`, `tamano`) |
 | GET | `/api/v1/inventario/{id}` | `GET /api/v1/consulta/hallazgos/{id}` |
 
 Errores en JSON: `{"estado": 429, "error": "Too Many Requests", "mensaje": "..."}`.
+
+## Administración
+Exigen el token (`Authorization: Bearer`) de una cuenta con el permiso. Los usa el panel "Plataforma abierta" de la web.
+
+| Método | Ruta | Qué hace | Permiso |
+|---|---|---|---|
+| GET | `/gateway/consumo` | Solicitudes del minuto y límite de cada consumidor | `api_externa:monitorear` |
+| PUT | `/gateway/limite` | `{limitePorMinuto}`, de 1 a 60, para todos los consumidores | `api_externa:configurar` |
+
+El límite y los contadores están en memoria: al reiniciar vuelven a 60 y a 0.
 
 ## Consumidores de demostración
 Se configuran en `application.yml` (`biohub.gateway.consumidores`) con el SHA-256 de su key; los permisos viven en `servicio-autorizacion` (migración `V3__consumidores_externos.sql`, rol `CONSUMIDOR_EXTERNO`).
@@ -59,4 +70,4 @@ Para agregar un consumidor: calcular el SHA-256 de su key, agregarlo en `applica
 ## Cómo ejecutarlo
 **Docker:** desde `infra/`, `docker compose up -d --build api-gateway` (necesita autorización y consulta pública).
 
-**Local:** `.\mvnw.cmd spring-boot:run` en esta carpeta. Variables: `PUERTO_SERVIDOR`, `URL_PUBLICA`, `AUTORIZACION_URL` (por defecto `http://localhost:8082`), `CONSULTA_URL` (por defecto `http://localhost:8083`).
+**Local:** `.\mvnw.cmd spring-boot:run` en esta carpeta. Variables: `PUERTO_SERVIDOR`, `URL_PUBLICA`, `AUTORIZACION_URL` (por defecto `http://localhost:8082`), `CONSULTA_URL` (por defecto `http://localhost:8083`), `SECRETO_SERVICIOS` (vacío: las consultas se reenvían como anónimas).
