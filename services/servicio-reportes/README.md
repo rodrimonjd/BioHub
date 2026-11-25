@@ -33,12 +33,14 @@ POST /reportes ──► Reporte EN_COLA ──► GeneradorReportes (cada 3 s, 
 Cada reporte calcula **todos** los índices para cada ecosistema y marca los que superan su umbral. Agregar un índice nuevo = una constante en `TipoIndice` con su cálculo; aparece solo en el JSON y en el PDF.
 
 ## API (`/reportes`)
-| Método | Ruta | Qué hace |
-|---|---|---|
-| POST | `/reportes` | Solicita un reporte; responde **202** con el reporte `EN_COLA` |
-| GET | `/reportes?solicitadoPor=` | Lista reportes (más recientes primero) |
-| GET | `/reportes/{id}` | Estado del reporte, sus índices y el resumen por especie |
-| GET | `/reportes/{id}/exportar?formato=pdf\|json` | Informe en PDF (por defecto) o JSON. Solo si está `LISTO`; si no, 409 |
+| Método | Ruta | Qué hace | Permiso |
+|---|---|---|---|
+| POST | `/reportes` | Solicita un reporte; responde **202** con el reporte `EN_COLA` | `reporte:generar` |
+| GET | `/reportes?solicitadoPor=` | Lista reportes (más recientes primero) | `reporte:ver` |
+| GET | `/reportes/{id}` | Estado del reporte, sus índices y el resumen por especie | `reporte:ver` |
+| GET | `/reportes/{id}/exportar?formato=pdf\|json` | Informe en PDF (por defecto) o JSON. Solo si está `LISTO`; si no, 409. La web ofrece solo PDF | `reporte:ver` |
+
+Todas exigen un token (`Authorization: Bearer`), que se verifica con la clave pública de autorización. Sin token o sin permiso responde 403; con un token falso o vencido, 401.
 
 Estados: `EN_COLA` → `GENERANDO` → `LISTO`, o `SIN_DATOS` si no hay avistamientos para los parámetros, o `ERROR`.
 
@@ -48,11 +50,10 @@ Ejemplo de solicitud:
   "fechaInicio": "2026-11-01",
   "fechaFin": "2026-11-30",
   "departamento": "Meta",
-  "especieId": null,
-  "solicitadoPor": "director-1"
+  "especieId": null
 }
 ```
-`departamento` y `especieId` son opcionales. Las fechas se interpretan en hora de Colombia.
+`departamento` y `especieId` son opcionales. El solicitante es la cuenta del token; si el cuerpo trae `solicitadoPor`, se ignora. Las fechas se interpretan en hora de Colombia.
 
 ## Informe PDF (`DocumentoPdfReporte`)
 Encabezado institucional, datos de identificación (código, solicitante, fechas, periodo, filtros) y secciones:
@@ -63,6 +64,6 @@ Swagger: http://localhost:8085/swagger-ui/index.html
 ## Cómo ejecutarlo
 **Docker:** desde `infra/`, `docker compose up -d --build servicio-reportes`.
 
-**Local:** con MySQL y RabbitMQ arriba, `.\mvnw.cmd spring-boot:run` en esta carpeta. Variables: `PUERTO_SERVIDOR`, `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE`, `BD_USUARIO`, `BD_CLAVE`, `RABBIT_HOST`, `RABBIT_PUERTO`, `RABBIT_USUARIO`, `RABBIT_CLAVE`.
+**Local:** con MySQL y RabbitMQ arriba, `.\mvnw.cmd spring-boot:run` en esta carpeta. Variables: `PUERTO_SERVIDOR`, `BD_HOST`, `BD_PUERTO`, `BD_NOMBRE`, `BD_USUARIO`, `BD_CLAVE`, `RABBIT_HOST`, `RABBIT_PUERTO`, `RABBIT_USUARIO`, `RABBIT_CLAVE`, `AUTORIZACION_URL` (`http://localhost:8082`).
 
 > Los avistamientos registrados antes de que exista la cola de reportes no llegan a este servicio (RabbitMQ solo entrega los eventos nuevos).

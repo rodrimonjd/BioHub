@@ -46,6 +46,8 @@ src/main/java/co/edu/unbosque/biohub/historial/
 ├── evento/      ConfiguracionBroker, ConsumidorEventos (Observer), TraductorEventos (Adapter), EventoEntrante
 ├── historial/   ServicioRegistroHistorial (guardar), ServicioConsultaHistorial (consultar), HistorialControlador, Vistas
 ├── permiso/     VerificadorPermisos, ClienteAutorizacion (Adapter) + ClienteAutorizacionHttp
+├── identidad/   FiltroIdentidad (verifica el token), ConfiguracionIdentidad
+├── configuracion/ PropiedadesHistorial
 └── compartido/  ManejadorExcepciones, RespuestaError y excepciones
 src/main/resources/db/migration/   V1 (tablas de solo inserción + triggers)
 ```
@@ -70,7 +72,7 @@ Variables de entorno (con valores por defecto): `BD_HOST`, `BD_PUERTO`, `BD_NOMB
 | GET | `/{tipo}/{id}/versiones/{n}` | Estado completo del registro en la versión `n` ("qué se sabía en esa fecha") | HU-20.1 |
 | GET | `/{tipo}/{id}/integridad` | Recalcula la cadena de hashes: detecta cambios alterados, borrados o faltantes | HU-19.3 |
 
-No existen `POST`, `PUT` ni `DELETE`: el historial solo se alimenta de eventos.
+No existen `POST`, `PUT` ni `DELETE`: el historial solo se alimenta de eventos. La web usa la primera ruta; las de versiones e integridad solo están en la API.
 
 ## Ejemplos (PowerShell)
 ```powershell
